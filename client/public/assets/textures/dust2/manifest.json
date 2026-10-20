@@ -1,0 +1,800 @@
+[
+  {
+    "key": "desertSkyTex|1024|6060",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 303,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-0.webp",
+    "fileLow": "recipe-0-low.webp"
+  },
+  {
+    "key": "woodDoorTex|null|512|3311",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-1.webp",
+    "fileLow": "recipe-1-low.webp"
+  },
+  {
+    "key": "woodDoorTex|A|512|3311",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-2.webp",
+    "fileLow": "recipe-2-low.webp"
+  },
+  {
+    "key": "woodDoorTex|B|512|3311",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-3.webp",
+    "fileLow": "recipe-3-low.webp"
+  },
+  {
+    "key": "woodDoorTex|EXIT|512|3311",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-4.webp",
+    "fileLow": "recipe-4-low.webp"
+  },
+  {
+    "key": "cnvsCreditPlateTex|512|5511",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-5.webp",
+    "fileLow": "recipe-5-low.webp"
+  },
+  {
+    "key": "wayfindPanelTex|A|512|5566|4.452",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-6.webp",
+    "fileLow": "recipe-6-low.webp"
+  },
+  {
+    "key": "wayfindPanelTex|TAG|512|5566|6.296",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-7.webp",
+    "fileLow": "recipe-7-low.webp"
+  },
+  {
+    "key": "cnvsBillboardTex|0|1024|256|5544",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-8.webp",
+    "fileLow": "recipe-8-low.webp"
+  },
+  {
+    "key": "cnvsBillboardTex|1|1024|256|5544",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-9.webp",
+    "fileLow": "recipe-9-low.webp"
+  },
+  {
+    "key": "wayfindPanelTex|B|512|5566|4.452",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-10.webp",
+    "fileLow": "recipe-10-low.webp"
+  },
+  {
+    "key": "cnvsNeutralPlateTex|512|256|5522",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-11.webp",
+    "fileLow": "recipe-11-low.webp"
+  },
+  {
+    "key": "plateTex|dark|128|5533",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-12.webp"
+  },
+  {
+    "key": "plateTex|bone|128|5533",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-13.webp"
+  },
+  {
+    "key": "bombXTex|A|512|9001",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-14.webp"
+  },
+  {
+    "key": "bombXTex|B|512|9001",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-15.webp"
+  },
+  {
+    "key": "crateStencilTex|0|7|256|4711",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-16.webp"
+  },
+  {
+    "key": "sandstoneWallTex|4.452|512|7001",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-17.webp"
+  },
+  {
+    "key": "archBrickTex|4.452|512|7102",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-18.webp"
+  },
+  {
+    "key": "copingTrimTex|1.408|256|128|7203",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-19.webp"
+  },
+  {
+    "key": "adobePlasterTex|5.631|512|7304",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-20.webp"
+  },
+  {
+    "key": "cobbleFloorTex|6.502|512|7405",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-21.webp"
+  },
+  {
+    "key": "sandFloorTex|3.251|512|4111|false",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-22.webp"
+  },
+  {
+    "key": "plankWoodTex|1.626|512|5150",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-23.webp",
+    "fileLow": "recipe-23-low.webp"
+  },
+  {
+    "key": "crateWoodTex|2.438|512|2210",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-24.webp",
+    "fileLow": "recipe-24-low.webp"
+  },
+  {
+    "key": "rockCliffTex|7.075|512|8811",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-25.webp"
+  },
+  {
+    "key": "metalPanelTex|1.626|256|6120|false",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-26.webp"
+  },
+  {
+    "key": "metalPanelTex|1.626|256|6121|true",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-27.webp"
+  },
+  {
+    "key": "rustSteelTex|1.626|128|6231",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-28.webp"
+  },
+  {
+    "key": "tubeTex|64|6332",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-29.webp"
+  },
+  {
+    "key": "archWindowTex|512|3411",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-30.webp"
+  },
+  {
+    "key": "sandFloorTex|6.5|512|4111|false",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1000,
+    "wrapT": 1000,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-31.webp"
+  },
+  {
+    "key": "duneCardTex|0|dune|256|300",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-32.webp"
+  },
+  {
+    "key": "duneCardTex|1|dune|256|300",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-33.webp"
+  },
+  {
+    "key": "duneCardTex|2|dune|256|300",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-34.webp"
+  },
+  {
+    "key": "duneCardTex|3|dune|256|300",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-35.webp"
+  },
+  {
+    "key": "duneCardTex|4|mesa|256|300",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-36.webp"
+  },
+  {
+    "key": "duneCardTex|5|mesa|256|300",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-37.webp"
+  },
+  {
+    "key": "duneCardTex|6|mesa|256|300",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-38.webp"
+  },
+  {
+    "key": "containerSideTex|#a04434|4402|0.18|512|256",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-39.webp"
+  },
+  {
+    "key": "containerEndTex|#a04434|5501|12|Y|256",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-40.webp"
+  },
+  {
+    "key": "containerSideTex|#3a7a80|4402|0.18|512|256",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-41.webp"
+  },
+  {
+    "key": "containerEndTex|#3a7a80|5501|19|Y|256",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-42.webp"
+  },
+  {
+    "key": "containerSideTex|#c8a030|4402|0.18|512|256",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-43.webp"
+  },
+  {
+    "key": "containerEndTex|#c8a030|5501|26|Y|256",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-44.webp"
+  },
+  {
+    "key": "containerSideTex|#4a7040|4402|0.18|512|256",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-45.webp"
+  },
+  {
+    "key": "containerEndTex|#4a7040|5501|33|Y|256",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-46.webp"
+  },
+  {
+    "key": "dustMoteTex|64",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-47.webp"
+  },
+  {
+    "key": "godRayTex|128|256",
+    "repeat": [
+      1,
+      1
+    ],
+    "wrapS": 1001,
+    "wrapT": 1001,
+    "colorSpace": "srgb",
+    "mapping": 300,
+    "flipY": true,
+    "anisotropy": 16,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "file": "recipe-48.webp"
+  }
+]

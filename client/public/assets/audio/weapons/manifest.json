@@ -1,0 +1,2532 @@
+{
+ "version": 1,
+ "sr": 48000,
+ "generated": "2026-10-19T04:01:04.096Z",
+ "note": "Built by scripts/encode-weapon-audio.mjs. g = level correction dB (KR normDb), p = 100 ms transient loudness after g (KR P). Opus/Ogg primary, AAC/M4A for browsers without Opus; p1 shots are FLAC everywhere.",
+ "bytes": {
+  "ogg": 1116999,
+  "m4a": 1500780,
+  "flac": 589854,
+  "total": 3207633,
+  "perClientOpus": 1706853,
+  "perClientAac": 2090634
+ },
+ "groups": {
+  "ar/p1": {
+   "desc": "YOUR shot, first person: stereo, crack + presence, lossless",
+   "src": "kr:w/ar/p1",
+   "files": [
+    "ar/p1-01",
+    "ar/p1-02",
+    "ar/p1-03",
+    "ar/p1-04",
+    "ar/p1-05"
+   ]
+  },
+  "ar/body": {
+   "desc": "someone else's shot up close (mono 3P body, spatialised)",
+   "src": "kr:w/ar/body",
+   "files": [
+    "ar/body-01",
+    "ar/body-02",
+    "ar/body-03",
+    "ar/body-04"
+   ]
+  },
+  "ar/mech": {
+   "desc": "the action cycling under your shot (bolt carrier / slide)",
+   "src": "kr:w/ar/mech",
+   "files": [
+    "ar/mech-01",
+    "ar/mech-02",
+    "ar/mech-03"
+   ]
+  },
+  "ar/tail": {
+   "desc": "the near-field ring-out of the shot (stereo)",
+   "src": "kr:w/ar/tail",
+   "files": [
+    "ar/tail-01",
+    "ar/tail-02"
+   ]
+  },
+  "ar/far": {
+   "desc": "the shot's report at mid range (its own distant spectrum)",
+   "src": "kr:w/ar/far",
+   "files": [
+    "ar/far-01",
+    "ar/far-02"
+   ]
+  },
+  "ar/dist": {
+   "desc": "the report from across the map (dark, thumping)",
+   "src": "kr:w/ar/dist",
+   "files": [
+    "ar/dist-01"
+   ]
+  },
+  "ar/far-tail": {
+   "desc": "the rolling outdoor tail of a distant shot",
+   "src": "kr:w/ar/far-tail",
+   "files": [
+    "ar/far-tail-01"
+   ]
+  },
+  "ar/rl-out": {
+   "desc": "reload: magazine released / pulled",
+   "src": "kr:w/ar/rl-out",
+   "files": [
+    "ar/rl-out-01",
+    "ar/rl-out-02"
+   ]
+  },
+  "ar/rl-in": {
+   "desc": "reload: magazine seated",
+   "src": "kr:w/ar/rl-in",
+   "files": [
+    "ar/rl-in-01",
+    "ar/rl-in-02"
+   ]
+  },
+  "ar/rl-rack": {
+   "desc": "reload: charging handle / slide release / bolt (empty reload)",
+   "src": "kr:w/ar/rl-rack",
+   "files": [
+    "ar/rl-rack-01",
+    "ar/rl-rack-02"
+   ]
+  },
+  "ar/rl-pouch": {
+   "desc": "reload: fresh magazine out of the pouch",
+   "src": "kr:w/ar/rl-pouch",
+   "files": [
+    "ar/rl-pouch-01"
+   ]
+  },
+  "ar/rl-drop": {
+   "desc": "reload: the empty magazine hitting the floor",
+   "src": "kr:w/ar/rl-drop",
+   "files": [
+    "ar/rl-drop-01"
+   ]
+  },
+  "smg/p1": {
+   "desc": "YOUR shot, first person: stereo, crack + presence, lossless",
+   "src": "kr:w/smg/p1",
+   "files": [
+    "smg/p1-01",
+    "smg/p1-02",
+    "smg/p1-03",
+    "smg/p1-04",
+    "smg/p1-05"
+   ]
+  },
+  "smg/body": {
+   "desc": "someone else's shot up close (mono 3P body, spatialised)",
+   "src": "kr:w/smg/body",
+   "files": [
+    "smg/body-01",
+    "smg/body-02",
+    "smg/body-03",
+    "smg/body-04"
+   ]
+  },
+  "smg/mech": {
+   "desc": "the action cycling under your shot (bolt carrier / slide)",
+   "src": "kr:w/smg/mech",
+   "files": [
+    "smg/mech-01",
+    "smg/mech-02",
+    "smg/mech-03"
+   ]
+  },
+  "smg/tail": {
+   "desc": "the near-field ring-out of the shot (stereo)",
+   "src": "kr:w/smg/tail",
+   "files": [
+    "smg/tail-01",
+    "smg/tail-02"
+   ]
+  },
+  "smg/far": {
+   "desc": "the shot's report at mid range (its own distant spectrum)",
+   "src": "kr:w/smg/far",
+   "files": [
+    "smg/far-01",
+    "smg/far-02"
+   ]
+  },
+  "smg/dist": {
+   "desc": "the report from across the map (dark, thumping)",
+   "src": "kr:w/smg/dist",
+   "files": [
+    "smg/dist-01"
+   ]
+  },
+  "smg/far-tail": {
+   "desc": "the rolling outdoor tail of a distant shot",
+   "src": "kr:w/smg/far-tail",
+   "files": [
+    "smg/far-tail-01"
+   ]
+  },
+  "smg/rl-out": {
+   "desc": "reload: magazine released / pulled",
+   "src": "kr:w/smg/rl-out",
+   "files": [
+    "smg/rl-out-01",
+    "smg/rl-out-02"
+   ]
+  },
+  "smg/rl-in": {
+   "desc": "reload: magazine seated",
+   "src": "kr:w/smg/rl-in",
+   "files": [
+    "smg/rl-in-01",
+    "smg/rl-in-02"
+   ]
+  },
+  "smg/rl-rack": {
+   "desc": "reload: charging handle / slide release / bolt (empty reload)",
+   "src": "kr:w/smg/rl-rack",
+   "files": [
+    "smg/rl-rack-01",
+    "smg/rl-rack-02"
+   ]
+  },
+  "smg/rl-pouch": {
+   "desc": "reload: fresh magazine out of the pouch",
+   "src": "kr:w/smg/rl-pouch",
+   "files": [
+    "smg/rl-pouch-01"
+   ]
+  },
+  "smg/rl-drop": {
+   "desc": "reload: the empty magazine hitting the floor",
+   "src": "kr:w/smg/rl-drop",
+   "files": [
+    "smg/rl-drop-01"
+   ]
+  },
+  "sniper/p1": {
+   "desc": "YOUR shot, first person: stereo, crack + presence, lossless",
+   "src": "kr:w/sniper/p1",
+   "files": [
+    "sniper/p1-01",
+    "sniper/p1-02",
+    "sniper/p1-03",
+    "sniper/p1-04"
+   ]
+  },
+  "sniper/body": {
+   "desc": "someone else's shot up close (mono 3P body, spatialised)",
+   "src": "kr:w/sniper/body",
+   "files": [
+    "sniper/body-01",
+    "sniper/body-02",
+    "sniper/body-03",
+    "sniper/body-04"
+   ]
+  },
+  "sniper/mech": {
+   "desc": "the action cycling under your shot (bolt carrier / slide)",
+   "src": "kr:w/sniper/mech",
+   "files": [
+    "sniper/mech-01",
+    "sniper/mech-02",
+    "sniper/mech-03"
+   ]
+  },
+  "sniper/tail": {
+   "desc": "the near-field ring-out of the shot (stereo)",
+   "src": "kr:w/sniper/tail",
+   "files": [
+    "sniper/tail-01",
+    "sniper/tail-02"
+   ]
+  },
+  "sniper/far": {
+   "desc": "the shot's report at mid range (its own distant spectrum)",
+   "src": "kr:w/sniper/far",
+   "files": [
+    "sniper/far-01",
+    "sniper/far-02"
+   ]
+  },
+  "sniper/dist": {
+   "desc": "the report from across the map (dark, thumping)",
+   "src": "kr:w/sniper/dist",
+   "files": [
+    "sniper/dist-01"
+   ]
+  },
+  "sniper/far-tail": {
+   "desc": "the rolling outdoor tail of a distant shot",
+   "src": "kr:w/sniper/far-tail",
+   "files": [
+    "sniper/far-tail-01"
+   ]
+  },
+  "sniper/rl-out": {
+   "desc": "reload: magazine released / pulled",
+   "src": "kr:w/sniper/rl-out",
+   "files": [
+    "sniper/rl-out-01",
+    "sniper/rl-out-02"
+   ]
+  },
+  "sniper/rl-in": {
+   "desc": "reload: magazine seated",
+   "src": "kr:w/sniper/rl-in",
+   "files": [
+    "sniper/rl-in-01",
+    "sniper/rl-in-02"
+   ]
+  },
+  "sniper/rl-rack": {
+   "desc": "reload: charging handle / slide release / bolt (empty reload)",
+   "src": "kr:w/sniper/rl-rack",
+   "files": [
+    "sniper/rl-rack-01",
+    "sniper/rl-rack-02"
+   ]
+  },
+  "sniper/rl-pouch": {
+   "desc": "reload: fresh magazine out of the pouch",
+   "src": "kr:w/sniper/rl-pouch",
+   "files": [
+    "sniper/rl-pouch-01"
+   ]
+  },
+  "pistol/p1": {
+   "desc": "YOUR shot, first person: stereo, crack + presence, lossless",
+   "src": "kr:w/pistol/p1",
+   "files": [
+    "pistol/p1-01",
+    "pistol/p1-02",
+    "pistol/p1-03",
+    "pistol/p1-04"
+   ]
+  },
+  "pistol/body": {
+   "desc": "someone else's shot up close (mono 3P body, spatialised)",
+   "src": "kr:w/pistol/body",
+   "files": [
+    "pistol/body-01",
+    "pistol/body-02",
+    "pistol/body-03",
+    "pistol/body-04"
+   ]
+  },
+  "pistol/mech": {
+   "desc": "the action cycling under your shot (bolt carrier / slide)",
+   "src": "kr:w/pistol/mech",
+   "files": [
+    "pistol/mech-01",
+    "pistol/mech-02",
+    "pistol/mech-03"
+   ]
+  },
+  "pistol/tail": {
+   "desc": "the near-field ring-out of the shot (stereo)",
+   "src": "kr:w/pistol/tail",
+   "files": [
+    "pistol/tail-01",
+    "pistol/tail-02"
+   ]
+  },
+  "pistol/far": {
+   "desc": "the shot's report at mid range (its own distant spectrum)",
+   "src": "kr:w/pistol/far",
+   "files": [
+    "pistol/far-01",
+    "pistol/far-02"
+   ]
+  },
+  "pistol/dist": {
+   "desc": "the report from across the map (dark, thumping)",
+   "src": "kr:w/pistol/dist",
+   "files": [
+    "pistol/dist-01"
+   ]
+  },
+  "pistol/far-tail": {
+   "desc": "the rolling outdoor tail of a distant shot",
+   "src": "kr:w/pistol/far-tail",
+   "files": [
+    "pistol/far-tail-01"
+   ]
+  },
+  "pistol/rl-out": {
+   "desc": "reload: magazine released / pulled",
+   "src": "kr:w/pistol/rl-out",
+   "files": [
+    "pistol/rl-out-01",
+    "pistol/rl-out-02"
+   ]
+  },
+  "pistol/rl-in": {
+   "desc": "reload: magazine seated",
+   "src": "kr:w/pistol/rl-in",
+   "files": [
+    "pistol/rl-in-01",
+    "pistol/rl-in-02"
+   ]
+  },
+  "pistol/rl-rack": {
+   "desc": "reload: charging handle / slide release / bolt (empty reload)",
+   "src": "kr:w/pistol/rl-rack",
+   "files": [
+    "pistol/rl-rack-01",
+    "pistol/rl-rack-02"
+   ]
+  },
+  "pistol/rl-pouch": {
+   "desc": "reload: fresh magazine out of the pouch",
+   "src": "kr:w/pistol/rl-pouch",
+   "files": [
+    "pistol/rl-pouch-01"
+   ]
+  },
+  "pistol/rl-drop": {
+   "desc": "reload: the empty magazine hitting the floor",
+   "src": "kr:w/pistol/rl-drop",
+   "files": [
+    "pistol/rl-drop-01"
+   ]
+  },
+  "sniper/bolt-up": {
+   "desc": "sniper bolt cycle: handle up",
+   "src": "kr:w/sniper/bolt-up",
+   "files": [
+    "sniper/bolt-up-01",
+    "sniper/bolt-up-02",
+    "sniper/bolt-up-03"
+   ]
+  },
+  "sniper/bolt-back": {
+   "desc": "sniper bolt cycle: handle back",
+   "src": "kr:w/sniper/bolt-back",
+   "files": [
+    "sniper/bolt-back-01",
+    "sniper/bolt-back-02",
+    "sniper/bolt-back-03"
+   ]
+  },
+  "sniper/bolt-fwd": {
+   "desc": "sniper bolt cycle: handle fwd",
+   "src": "kr:w/sniper/bolt-fwd",
+   "files": [
+    "sniper/bolt-fwd-01",
+    "sniper/bolt-fwd-02",
+    "sniper/bolt-fwd-03"
+   ]
+  },
+  "sniper/bolt-down": {
+   "desc": "sniper bolt cycle: handle down",
+   "src": "kr:w/sniper/bolt-down",
+   "files": [
+    "sniper/bolt-down-01",
+    "sniper/bolt-down-02",
+    "sniper/bolt-down-03"
+   ]
+  },
+  "sniper/rl-round": {
+   "desc": "sniper reload: a round pressed into the open action",
+   "src": "kr:w/sniper/rl-round",
+   "files": [
+    "sniper/rl-round-01",
+    "sniper/rl-round-02"
+   ]
+  },
+  "casing": {
+   "desc": "a spent case hitting the ground",
+   "src": "kr:w/casing",
+   "files": [
+    "casing-01",
+    "casing-02",
+    "casing-03",
+    "casing-04"
+   ]
+  },
+  "dry": {
+   "desc": "dry fire: the trigger on an empty chamber",
+   "src": "kr:w/dry",
+   "files": [
+    "dry-01",
+    "dry-02",
+    "dry-03"
+   ]
+  },
+  "equip": {
+   "desc": "weapon raised (swap)",
+   "src": "kr:w/equip",
+   "files": [
+    "equip-01",
+    "equip-02",
+    "equip-03"
+   ]
+  },
+  "exp/near": {
+   "desc": "frag detonation up close: crack, sub thump, debris (stereo)",
+   "src": "kr:exp/near",
+   "files": [
+    "exp/near-01",
+    "exp/near-02",
+    "exp/near-03"
+   ]
+  },
+  "exp/far": {
+   "desc": "frag detonation across the map: the low rolling boom (stereo)",
+   "src": "kr:exp/far",
+   "files": [
+    "exp/far-01",
+    "exp/far-02"
+   ]
+  },
+  "hit/tick": {
+   "desc": "YOUR hit confirm: the crisp 'tk'",
+   "src": "kr:hit/tick",
+   "files": [
+    "hit/tick-01",
+    "hit/tick-02",
+    "hit/tick-03"
+   ]
+  },
+  "hit/head": {
+   "desc": "YOUR headshot confirm: the sharper, heavier 'dink'",
+   "src": "kr:hit/head",
+   "files": [
+    "hit/head-01",
+    "hit/head-02",
+    "hit/head-03"
+   ]
+  },
+  "hit/kill": {
+   "desc": "YOUR kill confirm: the dry heavy thwack",
+   "src": "kr:hit/kill",
+   "files": [
+    "hit/kill-01",
+    "hit/kill-02",
+    "hit/kill-03"
+   ]
+  },
+  "hit/body": {
+   "desc": "a bullet into a body (flesh slap)",
+   "src": "kr:hit/body",
+   "files": [
+    "hit/body-01",
+    "hit/body-02",
+    "hit/body-03"
+   ]
+  },
+  "hit/hurt": {
+   "desc": "YOU took damage: a body blow from the inside",
+   "src": "kr:hit/hurt",
+   "files": [
+    "hit/hurt-01",
+    "hit/hurt-02",
+    "hit/hurt-03"
+   ]
+  },
+  "imp/concrete": {
+   "desc": "bullet impact: concrete / stone",
+   "src": "kr:imp/concrete",
+   "files": [
+    "imp/concrete-01",
+    "imp/concrete-02",
+    "imp/concrete-03"
+   ]
+  },
+  "imp/metal": {
+   "desc": "bullet impact: metal (containers, cars)",
+   "src": "kr:imp/metal",
+   "files": [
+    "imp/metal-01",
+    "imp/metal-02",
+    "imp/metal-03"
+   ]
+  },
+  "imp/wood": {
+   "desc": "bullet impact: wood",
+   "src": "kr:imp/wood",
+   "files": [
+    "imp/wood-01",
+    "imp/wood-02",
+    "imp/wood-03"
+   ]
+  },
+  "imp/sand": {
+   "desc": "bullet impact: dirt / sand / grass",
+   "src": "kr:imp/sand",
+   "files": [
+    "imp/sand-01",
+    "imp/sand-02"
+   ]
+  },
+  "imp/glass": {
+   "desc": "bullet impact: glass",
+   "src": "kr:imp/glass",
+   "files": [
+    "imp/glass-01",
+    "imp/glass-02"
+   ]
+  },
+  "fx/whizz": {
+   "desc": "a bullet passing close to your head",
+   "src": "kr:fx/whizz",
+   "files": [
+    "fx/whizz-01",
+    "fx/whizz-02",
+    "fx/whizz-03"
+   ]
+  },
+  "nade/pin": {
+   "desc": "frag: pin pulled (Kenney RPG metalLatch, CC0)",
+   "src": "cc0:audio-sources",
+   "files": [
+    "nade/pin-01",
+    "nade/pin-02"
+   ]
+  },
+  "nade/tick": {
+   "desc": "frag: the cook tick in your hand (Kenney Interface tick, CC0)",
+   "src": "cc0:audio-sources",
+   "files": [
+    "nade/tick-01"
+   ]
+  },
+  "nade/throw": {
+   "desc": "frag: the arm whipping it out (artisticdude swishes pitched down, CC0)",
+   "src": "cc0:audio-sources",
+   "files": [
+    "nade/throw-01",
+    "nade/throw-02"
+   ]
+  },
+  "nade/bounce-hard": {
+   "desc": "frag: steel body clinking off concrete / metal (Kenney impactMetal_light, CC0)",
+   "src": "cc0:audio-sources",
+   "files": [
+    "nade/bounce-hard-01",
+    "nade/bounce-hard-02",
+    "nade/bounce-hard-03"
+   ]
+  },
+  "nade/bounce-soft": {
+   "desc": "frag: thud on dirt / grass with a little tin (Kenney impactSoft + impactTin, CC0)",
+   "src": "cc0:audio-sources",
+   "files": [
+    "nade/bounce-soft-01",
+    "nade/bounce-soft-02"
+   ]
+  },
+  "knife/swing": {
+   "desc": "knife: the blade cutting air (artisticdude swishes, CC0)",
+   "src": "cc0:audio-sources",
+   "files": [
+    "knife/swing-01",
+    "knife/swing-02",
+    "knife/swing-03"
+   ]
+  }
+ },
+ "files": {
+  "ar/p1-01": {
+   "dur": 0.4284,
+   "ch": 2,
+   "g": 2.91,
+   "p": -17.02,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/ar/p1-01"
+  },
+  "ar/p1-02": {
+   "dur": 0.4463,
+   "ch": 2,
+   "g": 3.02,
+   "p": -17.06,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/ar/p1-03"
+  },
+  "ar/p1-03": {
+   "dur": 0.4296,
+   "ch": 2,
+   "g": 2.62,
+   "p": -17.02,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/ar/p1-04"
+  },
+  "ar/p1-04": {
+   "dur": 0.4288,
+   "ch": 2,
+   "g": 3.28,
+   "p": -17.04,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/ar/p1-07"
+  },
+  "ar/p1-05": {
+   "dur": 0.4341,
+   "ch": 2,
+   "g": 3.13,
+   "p": -17.03,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/ar/p1-09"
+  },
+  "ar/body-01": {
+   "dur": 0.3731,
+   "ch": 1,
+   "g": 0,
+   "p": -17.04,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/body-01"
+  },
+  "ar/body-02": {
+   "dur": 0.3797,
+   "ch": 1,
+   "g": 0,
+   "p": -17.05,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/body-03"
+  },
+  "ar/body-03": {
+   "dur": 0.3796,
+   "ch": 1,
+   "g": 0,
+   "p": -17.05,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/body-06"
+  },
+  "ar/body-04": {
+   "dur": 0.3826,
+   "ch": 1,
+   "g": 0,
+   "p": -17.04,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/body-09"
+  },
+  "ar/mech-01": {
+   "dur": 0.071,
+   "ch": 1,
+   "g": 0.32,
+   "p": -14.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/mech-02"
+  },
+  "ar/mech-02": {
+   "dur": 0.071,
+   "ch": 1,
+   "g": 0,
+   "p": -14.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/mech-03"
+  },
+  "ar/mech-03": {
+   "dur": 0.071,
+   "ch": 1,
+   "g": 0,
+   "p": -14.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/mech-05"
+  },
+  "ar/tail-01": {
+   "dur": 1.8173,
+   "ch": 2,
+   "g": 0,
+   "p": -12.81,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/tail-02"
+  },
+  "ar/tail-02": {
+   "dur": 1.8045,
+   "ch": 2,
+   "g": 0,
+   "p": -12.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/tail-03"
+  },
+  "ar/far-01": {
+   "dur": 1.1475,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/far-01"
+  },
+  "ar/far-02": {
+   "dur": 1.161,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/far-05"
+  },
+  "ar/dist-01": {
+   "dur": 1.5141,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/dist-02"
+  },
+  "ar/far-tail-01": {
+   "dur": 2.6339,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/far-tail-01"
+  },
+  "ar/rl-out-01": {
+   "dur": 0.4265,
+   "ch": 1,
+   "g": 4.43,
+   "p": -12.2,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/rl-out-01"
+  },
+  "ar/rl-out-02": {
+   "dur": 0.4529,
+   "ch": 1,
+   "g": 4.33,
+   "p": -12.21,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/rl-out-02"
+  },
+  "ar/rl-in-01": {
+   "dur": 0.4104,
+   "ch": 1,
+   "g": 0,
+   "p": -14.31,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/rl-in-01"
+  },
+  "ar/rl-in-02": {
+   "dur": 0.4052,
+   "ch": 1,
+   "g": 2.25,
+   "p": -14.2,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/rl-in-02"
+  },
+  "ar/rl-rack-01": {
+   "dur": 0.207,
+   "ch": 1,
+   "g": 0,
+   "p": -14.45,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/rl-rack-01"
+  },
+  "ar/rl-rack-02": {
+   "dur": 0.2285,
+   "ch": 1,
+   "g": 8.88,
+   "p": -12.05,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/rl-rack-02"
+  },
+  "ar/rl-pouch-01": {
+   "dur": 0.3286,
+   "ch": 1,
+   "g": 0,
+   "p": -14.63,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/rl-pouch-01"
+  },
+  "ar/rl-drop-01": {
+   "dur": 0.2584,
+   "ch": 1,
+   "g": 4.29,
+   "p": -12.3,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/ar/rl-drop-01"
+  },
+  "smg/p1-01": {
+   "dur": 0.4305,
+   "ch": 2,
+   "g": 3.71,
+   "p": -17.06,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/smg/p1-01"
+  },
+  "smg/p1-02": {
+   "dur": 0.4189,
+   "ch": 2,
+   "g": 4.54,
+   "p": -17.05,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/smg/p1-03"
+  },
+  "smg/p1-03": {
+   "dur": 0.443,
+   "ch": 2,
+   "g": 3.22,
+   "p": -17.06,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/smg/p1-04"
+  },
+  "smg/p1-04": {
+   "dur": 0.4521,
+   "ch": 2,
+   "g": 3.03,
+   "p": -17.06,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/smg/p1-07"
+  },
+  "smg/p1-05": {
+   "dur": 0.4341,
+   "ch": 2,
+   "g": 3.34,
+   "p": -17.06,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/smg/p1-10"
+  },
+  "smg/body-01": {
+   "dur": 0.3814,
+   "ch": 1,
+   "g": 0,
+   "p": -17.1,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/body-01"
+  },
+  "smg/body-02": {
+   "dur": 0.3815,
+   "ch": 1,
+   "g": 0,
+   "p": -17.07,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/body-04"
+  },
+  "smg/body-03": {
+   "dur": 0.3815,
+   "ch": 1,
+   "g": 0,
+   "p": -17.07,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/body-07"
+  },
+  "smg/body-04": {
+   "dur": 0.3778,
+   "ch": 1,
+   "g": 0,
+   "p": -17.08,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/body-10"
+  },
+  "smg/mech-01": {
+   "dur": 0.071,
+   "ch": 1,
+   "g": 2.68,
+   "p": -14.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/mech-01"
+  },
+  "smg/mech-02": {
+   "dur": 0.071,
+   "ch": 1,
+   "g": 0.13,
+   "p": -14.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/mech-03"
+  },
+  "smg/mech-03": {
+   "dur": 0.071,
+   "ch": 1,
+   "g": 0,
+   "p": -14.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/mech-05"
+  },
+  "smg/tail-01": {
+   "dur": 1.4363,
+   "ch": 2,
+   "g": 0,
+   "p": -13.05,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/tail-01"
+  },
+  "smg/tail-02": {
+   "dur": 1.436,
+   "ch": 2,
+   "g": 0,
+   "p": -13,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/tail-04"
+  },
+  "smg/far-01": {
+   "dur": 1.1173,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/far-01"
+  },
+  "smg/far-02": {
+   "dur": 1.1098,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/far-05"
+  },
+  "smg/dist-01": {
+   "dur": 1.5078,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/dist-02"
+  },
+  "smg/far-tail-01": {
+   "dur": 2.5756,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/far-tail-02"
+  },
+  "smg/rl-out-01": {
+   "dur": 0.2606,
+   "ch": 1,
+   "g": 5.56,
+   "p": -12.29,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/rl-out-01"
+  },
+  "smg/rl-out-02": {
+   "dur": 0.3217,
+   "ch": 1,
+   "g": 3.9,
+   "p": -14.37,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/rl-out-02"
+  },
+  "smg/rl-in-01": {
+   "dur": 0.31,
+   "ch": 1,
+   "g": 3.79,
+   "p": -15.69,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/rl-in-01"
+  },
+  "smg/rl-in-02": {
+   "dur": 0.2062,
+   "ch": 1,
+   "g": 3.24,
+   "p": -11.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/rl-in-02"
+  },
+  "smg/rl-rack-01": {
+   "dur": 0.1974,
+   "ch": 1,
+   "g": 0.07,
+   "p": -12.06,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/rl-rack-01"
+  },
+  "smg/rl-rack-02": {
+   "dur": 0.1767,
+   "ch": 1,
+   "g": 9.32,
+   "p": -12.05,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/rl-rack-02"
+  },
+  "smg/rl-pouch-01": {
+   "dur": 0.272,
+   "ch": 1,
+   "g": 0,
+   "p": -13.88,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/rl-pouch-01"
+  },
+  "smg/rl-drop-01": {
+   "dur": 0.2874,
+   "ch": 1,
+   "g": 4.13,
+   "p": -12.27,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/smg/rl-drop-01"
+  },
+  "sniper/p1-01": {
+   "dur": 0.3782,
+   "ch": 2,
+   "g": 5.51,
+   "p": -16.99,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/sniper/p1-01"
+  },
+  "sniper/p1-02": {
+   "dur": 0.3768,
+   "ch": 2,
+   "g": 5.97,
+   "p": -16.98,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/sniper/p1-02"
+  },
+  "sniper/p1-03": {
+   "dur": 0.4177,
+   "ch": 2,
+   "g": 6.02,
+   "p": -17.02,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/sniper/p1-03"
+  },
+  "sniper/p1-04": {
+   "dur": 0.3795,
+   "ch": 2,
+   "g": 6.93,
+   "p": -16.98,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/sniper/p1-04"
+  },
+  "sniper/body-01": {
+   "dur": 0.381,
+   "ch": 1,
+   "g": 0,
+   "p": -17.14,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/body-01"
+  },
+  "sniper/body-02": {
+   "dur": 0.381,
+   "ch": 1,
+   "g": 0,
+   "p": -17.13,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/body-03"
+  },
+  "sniper/body-03": {
+   "dur": 0.3776,
+   "ch": 1,
+   "g": 0,
+   "p": -17.03,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/body-05"
+  },
+  "sniper/body-04": {
+   "dur": 0.3818,
+   "ch": 1,
+   "g": 0,
+   "p": -17.16,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/body-07"
+  },
+  "sniper/mech-01": {
+   "dur": 0.071,
+   "ch": 1,
+   "g": 7.93,
+   "p": -14.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/mech-01"
+  },
+  "sniper/mech-02": {
+   "dur": 0.071,
+   "ch": 1,
+   "g": 9.33,
+   "p": -14.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/mech-03"
+  },
+  "sniper/mech-03": {
+   "dur": 0.071,
+   "ch": 1,
+   "g": 8.07,
+   "p": -14.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/mech-05"
+  },
+  "sniper/tail-01": {
+   "dur": 2.4599,
+   "ch": 2,
+   "g": 0,
+   "p": -13.13,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/tail-01"
+  },
+  "sniper/tail-02": {
+   "dur": 2.4879,
+   "ch": 2,
+   "g": 0,
+   "p": -13.07,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/tail-02"
+  },
+  "sniper/far-01": {
+   "dur": 1.1621,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/far-02"
+  },
+  "sniper/far-02": {
+   "dur": 1.1196,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/far-05"
+  },
+  "sniper/dist-01": {
+   "dur": 1.4883,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/dist-02"
+  },
+  "sniper/far-tail-01": {
+   "dur": 2.4238,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/far-tail-02"
+  },
+  "sniper/rl-out-01": {
+   "dur": 0.2233,
+   "ch": 1,
+   "g": 0.85,
+   "p": -12.63,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/rl-out-01"
+  },
+  "sniper/rl-out-02": {
+   "dur": 0.5049,
+   "ch": 1,
+   "g": 8.18,
+   "p": -13.24,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/rl-out-02"
+  },
+  "sniper/rl-in-01": {
+   "dur": 0.5115,
+   "ch": 1,
+   "g": 0,
+   "p": -15.94,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/rl-in-01"
+  },
+  "sniper/rl-in-02": {
+   "dur": 0.5499,
+   "ch": 1,
+   "g": 5.42,
+   "p": -14.96,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/rl-in-02"
+  },
+  "sniper/rl-rack-01": {
+   "dur": 0.3414,
+   "ch": 1,
+   "g": 0,
+   "p": -13.71,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/rl-rack-01"
+  },
+  "sniper/rl-rack-02": {
+   "dur": 0.3471,
+   "ch": 1,
+   "g": 1.98,
+   "p": -12.95,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/rl-rack-02"
+  },
+  "sniper/rl-pouch-01": {
+   "dur": 0.3898,
+   "ch": 1,
+   "g": 0,
+   "p": -15.5,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/rl-pouch-01"
+  },
+  "pistol/p1-01": {
+   "dur": 0.4449,
+   "ch": 2,
+   "g": 6.05,
+   "p": -17.12,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/pistol/p1-02"
+  },
+  "pistol/p1-02": {
+   "dur": 0.4152,
+   "ch": 2,
+   "g": 5.85,
+   "p": -16.99,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/pistol/p1-03"
+  },
+  "pistol/p1-03": {
+   "dur": 0.4232,
+   "ch": 2,
+   "g": 5.85,
+   "p": -17.03,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/pistol/p1-04"
+  },
+  "pistol/p1-04": {
+   "dur": 0.445,
+   "ch": 2,
+   "g": 5.15,
+   "p": -17.1,
+   "fmt": [
+    "flac"
+   ],
+   "src": "kr:w/pistol/p1-05"
+  },
+  "pistol/body-01": {
+   "dur": 0.3785,
+   "ch": 1,
+   "g": 0,
+   "p": -17.02,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/body-01"
+  },
+  "pistol/body-02": {
+   "dur": 0.3793,
+   "ch": 1,
+   "g": 0,
+   "p": -17.01,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/body-04"
+  },
+  "pistol/body-03": {
+   "dur": 0.3803,
+   "ch": 1,
+   "g": 0,
+   "p": -17.03,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/body-05"
+  },
+  "pistol/body-04": {
+   "dur": 0.3794,
+   "ch": 1,
+   "g": 0,
+   "p": -17.01,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/body-08"
+  },
+  "pistol/mech-01": {
+   "dur": 0.0665,
+   "ch": 1,
+   "g": 9.57,
+   "p": -14.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/mech-01"
+  },
+  "pistol/mech-02": {
+   "dur": 0.0706,
+   "ch": 1,
+   "g": 6.52,
+   "p": -14.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/mech-03"
+  },
+  "pistol/mech-03": {
+   "dur": 0.071,
+   "ch": 1,
+   "g": 6.7,
+   "p": -14.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/mech-05"
+  },
+  "pistol/tail-01": {
+   "dur": 1.27,
+   "ch": 2,
+   "g": 0,
+   "p": -13.72,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/tail-02"
+  },
+  "pistol/tail-02": {
+   "dur": 1.2835,
+   "ch": 2,
+   "g": 0,
+   "p": -13.26,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/tail-03"
+  },
+  "pistol/far-01": {
+   "dur": 1.1475,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/far-01"
+  },
+  "pistol/far-02": {
+   "dur": 1.1029,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/far-04"
+  },
+  "pistol/dist-01": {
+   "dur": 1.4986,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/dist-01"
+  },
+  "pistol/far-tail-01": {
+   "dur": 0.6209,
+   "ch": 1,
+   "g": 0,
+   "p": -19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/far-tail-02"
+  },
+  "pistol/rl-out-01": {
+   "dur": 0.2573,
+   "ch": 1,
+   "g": 5.86,
+   "p": -11.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/rl-out-01"
+  },
+  "pistol/rl-out-02": {
+   "dur": 0.1606,
+   "ch": 1,
+   "g": 12,
+   "p": -14.17,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/rl-out-02"
+  },
+  "pistol/rl-in-01": {
+   "dur": 0.2197,
+   "ch": 1,
+   "g": 0,
+   "p": -13.11,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/rl-in-01"
+  },
+  "pistol/rl-in-02": {
+   "dur": 0.2371,
+   "ch": 1,
+   "g": 7.37,
+   "p": -13.08,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/rl-in-02"
+  },
+  "pistol/rl-rack-01": {
+   "dur": 0.1306,
+   "ch": 1,
+   "g": 0.2,
+   "p": -11.99,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/rl-rack-01"
+  },
+  "pistol/rl-rack-02": {
+   "dur": 0.1314,
+   "ch": 1,
+   "g": 8.92,
+   "p": -11.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/rl-rack-02"
+  },
+  "pistol/rl-pouch-01": {
+   "dur": 0.1993,
+   "ch": 1,
+   "g": 0,
+   "p": -12.48,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/rl-pouch-01"
+  },
+  "pistol/rl-drop-01": {
+   "dur": 0.2671,
+   "ch": 1,
+   "g": 4.27,
+   "p": -12.34,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/pistol/rl-drop-01"
+  },
+  "sniper/bolt-up-01": {
+   "dur": 0.0829,
+   "ch": 1,
+   "g": 9.96,
+   "p": -11.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/bolt-up-01"
+  },
+  "sniper/bolt-up-02": {
+   "dur": 0.0827,
+   "ch": 1,
+   "g": 12,
+   "p": -12.95,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/bolt-up-02"
+  },
+  "sniper/bolt-up-03": {
+   "dur": 0.0819,
+   "ch": 1,
+   "g": 9.59,
+   "p": -11.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/bolt-up-03"
+  },
+  "sniper/bolt-back-01": {
+   "dur": 0.2957,
+   "ch": 1,
+   "g": 6.3,
+   "p": -12.08,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/bolt-back-01"
+  },
+  "sniper/bolt-back-02": {
+   "dur": 0.2949,
+   "ch": 1,
+   "g": 8.17,
+   "p": -11.99,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/bolt-back-02"
+  },
+  "sniper/bolt-back-03": {
+   "dur": 0.296,
+   "ch": 1,
+   "g": 4.27,
+   "p": -12.02,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/bolt-back-03"
+  },
+  "sniper/bolt-fwd-01": {
+   "dur": 0.197,
+   "ch": 1,
+   "g": 5.09,
+   "p": -11.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/bolt-fwd-01"
+  },
+  "sniper/bolt-fwd-02": {
+   "dur": 0.2007,
+   "ch": 1,
+   "g": 8.41,
+   "p": -12.14,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/bolt-fwd-02"
+  },
+  "sniper/bolt-fwd-03": {
+   "dur": 0.2109,
+   "ch": 1,
+   "g": 4.13,
+   "p": -12.01,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/bolt-fwd-03"
+  },
+  "sniper/bolt-down-01": {
+   "dur": 0.1576,
+   "ch": 1,
+   "g": 7.5,
+   "p": -11.99,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/bolt-down-01"
+  },
+  "sniper/bolt-down-02": {
+   "dur": 0.1527,
+   "ch": 1,
+   "g": 6.34,
+   "p": -11.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/bolt-down-02"
+  },
+  "sniper/bolt-down-03": {
+   "dur": 0.1663,
+   "ch": 1,
+   "g": 6.3,
+   "p": -12.05,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/bolt-down-03"
+  },
+  "sniper/rl-round-01": {
+   "dur": 0.1352,
+   "ch": 1,
+   "g": 5.68,
+   "p": -11.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/rl-round-01"
+  },
+  "sniper/rl-round-02": {
+   "dur": 0.122,
+   "ch": 1,
+   "g": 4.69,
+   "p": -11.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/sniper/rl-round-02"
+  },
+  "casing-01": {
+   "dur": 0.6048,
+   "ch": 1,
+   "g": 7.73,
+   "p": -13.71,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/casing-01"
+  },
+  "casing-02": {
+   "dur": 0.6991,
+   "ch": 1,
+   "g": 8.06,
+   "p": -13.1,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/casing-04"
+  },
+  "casing-03": {
+   "dur": 0.6259,
+   "ch": 1,
+   "g": 7.9,
+   "p": -13.16,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/casing-06"
+  },
+  "casing-04": {
+   "dur": 0.6967,
+   "ch": 1,
+   "g": 6.59,
+   "p": -14.13,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/casing-07"
+  },
+  "dry-01": {
+   "dur": 0.1005,
+   "ch": 1,
+   "g": 5.96,
+   "p": -12.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/dry-01"
+  },
+  "dry-02": {
+   "dur": 0.1018,
+   "ch": 1,
+   "g": 4.63,
+   "p": -12.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/dry-03"
+  },
+  "dry-03": {
+   "dur": 0.1009,
+   "ch": 1,
+   "g": 5.86,
+   "p": -12.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/dry-04"
+  },
+  "equip-01": {
+   "dur": 0.36,
+   "ch": 1,
+   "g": 1.34,
+   "p": -14.3,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/equip-01"
+  },
+  "equip-02": {
+   "dur": 0.3598,
+   "ch": 1,
+   "g": 1.58,
+   "p": -14.44,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/equip-02"
+  },
+  "equip-03": {
+   "dur": 0.36,
+   "ch": 1,
+   "g": 1.03,
+   "p": -14.97,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:w/equip-03"
+  },
+  "exp/near-01": {
+   "dur": 2.2686,
+   "ch": 2,
+   "g": 0.18,
+   "p": -7.14,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:exp/near-01"
+  },
+  "exp/near-02": {
+   "dur": 2.2227,
+   "ch": 2,
+   "g": 0,
+   "p": -7.15,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:exp/near-02"
+  },
+  "exp/near-03": {
+   "dur": 2.2391,
+   "ch": 2,
+   "g": 0,
+   "p": -7.15,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:exp/near-03"
+  },
+  "exp/far-01": {
+   "dur": 2.7596,
+   "ch": 2,
+   "g": 0.06,
+   "p": -9.58,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:exp/far-01"
+  },
+  "exp/far-02": {
+   "dur": 2.7868,
+   "ch": 2,
+   "g": 1.5,
+   "p": -9.22,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:exp/far-02"
+  },
+  "hit/tick-01": {
+   "dur": 0.055,
+   "ch": 1,
+   "g": 8.47,
+   "p": -8.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:hit/tick-01"
+  },
+  "hit/tick-02": {
+   "dur": 0.0551,
+   "ch": 1,
+   "g": 9.37,
+   "p": -8.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:hit/tick-02"
+  },
+  "hit/tick-03": {
+   "dur": 0.0548,
+   "ch": 1,
+   "g": 9.33,
+   "p": -8.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:hit/tick-03"
+  },
+  "hit/head-01": {
+   "dur": 0.0701,
+   "ch": 1,
+   "g": 7.33,
+   "p": -8.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:hit/head-01"
+  },
+  "hit/head-02": {
+   "dur": 0.0715,
+   "ch": 1,
+   "g": 7.17,
+   "p": -8.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:hit/head-02"
+  },
+  "hit/head-03": {
+   "dur": 0.0703,
+   "ch": 1,
+   "g": 7.4,
+   "p": -8.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:hit/head-04"
+  },
+  "hit/kill-01": {
+   "dur": 0.2391,
+   "ch": 2,
+   "g": 0,
+   "p": -8.99,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:hit/kill-01"
+  },
+  "hit/kill-02": {
+   "dur": 0.232,
+   "ch": 2,
+   "g": 0,
+   "p": -8.99,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:hit/kill-02"
+  },
+  "hit/kill-03": {
+   "dur": 0.235,
+   "ch": 2,
+   "g": 0,
+   "p": -8.98,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:hit/kill-03"
+  },
+  "hit/body-01": {
+   "dur": 0.3175,
+   "ch": 1,
+   "g": 5.45,
+   "p": -9.16,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:hit/body-01"
+  },
+  "hit/body-02": {
+   "dur": 0.3073,
+   "ch": 1,
+   "g": 6.53,
+   "p": -8.91,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:hit/body-03"
+  },
+  "hit/body-03": {
+   "dur": 0.314,
+   "ch": 1,
+   "g": 5.99,
+   "p": -9.23,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:hit/body-06"
+  },
+  "hit/hurt-01": {
+   "dur": 0.351,
+   "ch": 1,
+   "g": 6.21,
+   "p": -9.26,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:hit/hurt-01"
+  },
+  "hit/hurt-02": {
+   "dur": 0.3065,
+   "ch": 1,
+   "g": 7.95,
+   "p": -9.09,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:hit/hurt-03"
+  },
+  "hit/hurt-03": {
+   "dur": 0.3505,
+   "ch": 1,
+   "g": 5.55,
+   "p": -9.24,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:hit/hurt-06"
+  },
+  "imp/concrete-01": {
+   "dur": 0.3367,
+   "ch": 2,
+   "g": 3.62,
+   "p": -14.33,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:imp/concrete-01"
+  },
+  "imp/concrete-02": {
+   "dur": 0.3988,
+   "ch": 2,
+   "g": 2.76,
+   "p": -13.87,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:imp/concrete-03"
+  },
+  "imp/concrete-03": {
+   "dur": 0.4314,
+   "ch": 2,
+   "g": 0,
+   "p": -15.48,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:imp/concrete-04"
+  },
+  "imp/metal-01": {
+   "dur": 0.3895,
+   "ch": 2,
+   "g": 0.64,
+   "p": -13.68,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:imp/metal-02"
+  },
+  "imp/metal-02": {
+   "dur": 0.5523,
+   "ch": 2,
+   "g": 0,
+   "p": -14.29,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:imp/metal-04"
+  },
+  "imp/metal-03": {
+   "dur": 0.4702,
+   "ch": 2,
+   "g": 2.97,
+   "p": -13.19,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:imp/metal-06"
+  },
+  "imp/wood-01": {
+   "dur": 0.1769,
+   "ch": 2,
+   "g": 3.02,
+   "p": -13.14,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:imp/wood-02"
+  },
+  "imp/wood-02": {
+   "dur": 0.2215,
+   "ch": 2,
+   "g": 3.27,
+   "p": -13.01,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:imp/wood-04"
+  },
+  "imp/wood-03": {
+   "dur": 0.2105,
+   "ch": 2,
+   "g": 2.25,
+   "p": -13.03,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:imp/wood-06"
+  },
+  "imp/sand-01": {
+   "dur": 0.3967,
+   "ch": 2,
+   "g": 1.36,
+   "p": -13.3,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:imp/sand-02"
+  },
+  "imp/sand-02": {
+   "dur": 0.3435,
+   "ch": 2,
+   "g": 0.39,
+   "p": -13.72,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:imp/sand-03"
+  },
+  "imp/glass-01": {
+   "dur": 0.2546,
+   "ch": 2,
+   "g": 0.02,
+   "p": -15.18,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:imp/glass-02"
+  },
+  "imp/glass-02": {
+   "dur": 0.1735,
+   "ch": 2,
+   "g": 0,
+   "p": -13.12,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:imp/glass-03"
+  },
+  "fx/whizz-01": {
+   "dur": 0.3186,
+   "ch": 2,
+   "g": 0,
+   "p": -13.01,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:fx/whizz-01"
+  },
+  "fx/whizz-02": {
+   "dur": 0.4201,
+   "ch": 2,
+   "g": 0.35,
+   "p": -13.05,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:fx/whizz-03"
+  },
+  "fx/whizz-03": {
+   "dur": 0.4188,
+   "ch": 2,
+   "g": 0,
+   "p": -13.26,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "kr:fx/whizz-04"
+  },
+  "nade/pin-01": {
+   "dur": 0.2519,
+   "ch": 1,
+   "g": 0,
+   "p": -18.88,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "cc0:kenney-rpg-audio/Audio/metalLatch.ogg@1"
+  },
+  "nade/pin-02": {
+   "dur": 0.2259,
+   "ch": 1,
+   "g": 0,
+   "p": -19.25,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "cc0:kenney-rpg-audio/Audio/metalLatch.ogg@1.12"
+  },
+  "nade/tick-01": {
+   "dur": 0.0552,
+   "ch": 1,
+   "g": 0,
+   "p": -19.1,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "cc0:kenney-interface-sounds/Audio/tick_004.ogg@1"
+  },
+  "nade/throw-01": {
+   "dur": 0.2118,
+   "ch": 1,
+   "g": 0,
+   "p": -10.25,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "cc0:oga-swishes-artisticdude/swishes/swish-7.wav@0.72"
+  },
+  "nade/throw-02": {
+   "dur": 0.2019,
+   "ch": 1,
+   "g": 0,
+   "p": -12.56,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "cc0:oga-swishes-artisticdude/swishes/swish-9.wav@0.82"
+  },
+  "nade/bounce-hard-01": {
+   "dur": 0.2489,
+   "ch": 1,
+   "g": 0,
+   "p": -16.05,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "cc0:kenney-impact-sounds/Audio/impactMetal_light_001.ogg@1"
+  },
+  "nade/bounce-hard-02": {
+   "dur": 0.2057,
+   "ch": 1,
+   "g": 0,
+   "p": -17.38,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "cc0:kenney-impact-sounds/Audio/impactMetal_light_004.ogg@0.94"
+  },
+  "nade/bounce-hard-03": {
+   "dur": 0.3151,
+   "ch": 1,
+   "g": 0,
+   "p": -16.02,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "cc0:kenney-impact-sounds/Audio/impactMetal_light_000.ogg@1.06"
+  },
+  "nade/bounce-soft-01": {
+   "dur": 0.2147,
+   "ch": 1,
+   "g": 0,
+   "p": -13.49,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "cc0:kenney-impact-sounds/Audio/impactSoft_medium_001.ogg@1"
+  },
+  "nade/bounce-soft-02": {
+   "dur": 0.1588,
+   "ch": 1,
+   "g": 0,
+   "p": -14.15,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "cc0:kenney-impact-sounds/Audio/impactSoft_medium_003.ogg@1"
+  },
+  "knife/swing-01": {
+   "dur": 0.1459,
+   "ch": 1,
+   "g": 0,
+   "p": -10.14,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "cc0:oga-swishes-artisticdude/swishes/swish-3.wav@1"
+  },
+  "knife/swing-02": {
+   "dur": 0.1271,
+   "ch": 1,
+   "g": 0,
+   "p": -13.73,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "cc0:oga-swishes-artisticdude/swishes/swish-5.wav@1"
+  },
+  "knife/swing-03": {
+   "dur": 0.1345,
+   "ch": 1,
+   "g": 0,
+   "p": -13.46,
+   "fmt": [
+    "ogg",
+    "m4a"
+   ],
+   "src": "cc0:oga-swishes-artisticdude/swishes/swish-8.wav@1.05"
+  }
+ }
+}

@@ -1,0 +1,2 @@
+import{ax as o,bd as s,g as t,x as d,$ as i,aW as l}from"./asset-base-CBk30c0P.js";function m(a){if(!(a.background instanceof o))return;const r=a.background.clone();r.mapping=s;const e=new t(new d(200,24,12),new i({map:r,side:l,fog:!1,depthWrite:!1,depthTest:!1}));e.name="software-sky",e.frustumCulled=!1,e.renderOrder=-1e3,e.onBeforeRender=(f,p,n)=>{e.matrixWorld.copyPosition(n.matrixWorld)},a.background=null,a.environment=null,a.add(e)}export{m as s};
+//# sourceMappingURL=software-sky-BxvhM3wW.js.map

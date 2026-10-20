@@ -1,0 +1,358 @@
+{
+  "pack": "toon-punch",
+  "title": "TOON PUNCH",
+  "codec": "opus/ogg",
+  "sourceFormat": {
+    "sampleRate": 44100,
+    "bitDepth": 16,
+    "container": "wav"
+  },
+  "encodedAt": "2026-08-16",
+  "bitrate": {
+    "mono": "88k",
+    "stereo": "112k"
+  },
+  "bytes": 1048296,
+  "masterBytes": 12009974,
+  "fileCount": 56,
+  "sizes": {
+    "gun_ar_near_1.ogg": 3131,
+    "gun_ar_near_2.ogg": 2708,
+    "gun_ar_near_3.ogg": 2815,
+    "gun_ar_near_4.ogg": 2503,
+    "gun_ak_near_1.ogg": 3275,
+    "gun_ak_near_2.ogg": 3432,
+    "gun_ak_near_3.ogg": 3758,
+    "gun_ak_near_4.ogg": 3138,
+    "gun_smg_near_1.ogg": 2644,
+    "gun_smg_near_2.ogg": 2466,
+    "gun_smg_near_3.ogg": 2885,
+    "gun_smg_near_4.ogg": 2578,
+    "gun_sniper_near_1.ogg": 5029,
+    "gun_sniper_near_2.ogg": 5299,
+    "gun_sniper_near_3.ogg": 5031,
+    "gun_sniper_near_4.ogg": 4698,
+    "gun_ar_far_1.ogg": 8992,
+    "gun_ak_far_1.ogg": 8324,
+    "gun_smg_far_1.ogg": 8253,
+    "gun_sniper_far_1.ogg": 9423,
+    "reload_out.ogg": 3784,
+    "reload_in.ogg": 4606,
+    "reload_rack.ogg": 5128,
+    "reload_rack_sniper.ogg": 6791,
+    "step_dirt_1.ogg": 2559,
+    "step_dirt_2.ogg": 2361,
+    "step_dirt_3.ogg": 2486,
+    "step_dirt_4.ogg": 2692,
+    "step_metal_1.ogg": 2286,
+    "step_metal_2.ogg": 1975,
+    "step_metal_3.ogg": 2121,
+    "step_metal_4.ogg": 2459,
+    "hitmarker.ogg": 1920,
+    "kill_confirm.ogg": 9585,
+    "headshot_confirm.ogg": 12037,
+    "damage_taken.ogg": 3610,
+    "nade_pin.ogg": 2915,
+    "nade_throw.ogg": 3718,
+    "nade_bounce_1.ogg": 2717,
+    "nade_bounce_2.ogg": 2736,
+    "nade_explode_near.ogg": 14262,
+    "nade_explode_far.ogg": 21062,
+    "medal_streak_1.ogg": 18170,
+    "medal_streak_2.ogg": 16331,
+    "medal_streak_3.ogg": 17409,
+    "medal_streak_4.ogg": 13830,
+    "medal_banner.ogg": 28569,
+    "ui_click.ogg": 2027,
+    "ui_deploy.ogg": 9376,
+    "ui_match_start.ogg": 27265,
+    "ui_match_end_mashed.ogg": 38452,
+    "amb_jungle_loop.ogg": 594496,
+    "amb_bird_piha.ogg": 21472,
+    "amb_bird_chirp.ogg": 18086,
+    "amb_insect_tick.ogg": 22472,
+    "amb_monkey_hoot.ogg": 16149
+  },
+  "events": {
+    "gun.ar.near": {
+      "files": [
+        "gun_ar_near_1.ogg",
+        "gun_ar_near_2.ogg",
+        "gun_ar_near_3.ogg",
+        "gun_ar_near_4.ogg"
+      ],
+      "gain": 0.9,
+      "pitchVarPct": 3,
+      "notes": "m4a1-class. Firework crack + soft-clipped 200 Hz thump + 620 Hz cartoon thock. Round-robin at random; ±3% rate on top of the baked variation."
+    },
+    "gun.ak.near": {
+      "files": [
+        "gun_ak_near_1.ogg",
+        "gun_ak_near_2.ogg",
+        "gun_ak_near_3.ogg",
+        "gun_ak_near_4.ogg"
+      ],
+      "gain": 0.95,
+      "pitchVarPct": 3,
+      "notes": "ak47-class. Same recipe pitched down ~10%, longer body and tail — reads heavier and slower than the AR."
+    },
+    "gun.smg.near": {
+      "files": [
+        "gun_smg_near_1.ogg",
+        "gun_smg_near_2.ogg",
+        "gun_smg_near_3.ogg",
+        "gun_smg_near_4.ogg"
+      ],
+      "gain": 0.8,
+      "pitchVarPct": 3,
+      "notes": "SMG. Cracks pitched up ~45%, short thump; built to stack at 900 RPM without smearing."
+    },
+    "gun.sniper.near": {
+      "files": [
+        "gun_sniper_near_1.ogg",
+        "gun_sniper_near_2.ogg",
+        "gun_sniper_near_3.ogg",
+        "gun_sniper_near_4.ogg"
+      ],
+      "gain": 1,
+      "pitchVarPct": 2,
+      "notes": "m40a3-class. Big bang core + cannon body at 0.72x + a 1.4 s muffled tail. Loudest asset in the pack."
+    },
+    "gun.ar.far": {
+      "files": [
+        "gun_ar_far_1.ogg"
+      ],
+      "gain": 0.55,
+      "pitchVarPct": 4,
+      "notes": "Other players' AR: -7.5 dB vs near, 11 kHz lowpass, 2-5 kHz pulled 9 dB, soft transient and a 1.1 s reverb tail. Designed to be pleasant when 20 of these overlap."
+    },
+    "gun.ak.far": {
+      "files": [
+        "gun_ak_far_1.ogg"
+      ],
+      "gain": 0.55,
+      "pitchVarPct": 4,
+      "notes": "Distant AK — same treatment, deeper."
+    },
+    "gun.smg.far": {
+      "files": [
+        "gun_smg_far_1.ogg"
+      ],
+      "gain": 0.5,
+      "pitchVarPct": 4,
+      "notes": "Distant SMG — light, quick, mostly tail."
+    },
+    "gun.sniper.far": {
+      "files": [
+        "gun_sniper_far_1.ogg"
+      ],
+      "gain": 0.65,
+      "pitchVarPct": 3,
+      "notes": "Distant sniper — the crack-then-roll silhouette that carries across the map."
+    },
+    "reload.out": {
+      "files": [
+        "reload_out.ogg"
+      ],
+      "gain": 0.8,
+      "pitchVarPct": 2,
+      "notes": "Stage 1/3: latch pop + plastic banana-mag shuffle + soft drop thump. Shared by all classes; pitch by class (sniper 0.9x, smg 1.1x)."
+    },
+    "reload.in": {
+      "files": [
+        "reload_in.ogg"
+      ],
+      "gain": 0.85,
+      "pitchVarPct": 2,
+      "notes": "Stage 2/3: mag seats — plastic shuffle into a metal clack with a wood-thunk body."
+    },
+    "reload.rack": {
+      "files": [
+        "reload_rack.ogg",
+        "reload_rack_sniper.ogg"
+      ],
+      "gain": 0.85,
+      "pitchVarPct": 2,
+      "notes": "Stage 3/3: charging handle. File 1 = ar/ak/smg, file 2 = sniper bolt (0.82x rack, heavier)."
+    },
+    "footstep.dirt": {
+      "files": [
+        "step_dirt_1.ogg",
+        "step_dirt_2.ogg",
+        "step_dirt_3.ogg",
+        "step_dirt_4.ogg"
+      ],
+      "gain": 0.55,
+      "pitchVarPct": 6,
+      "notes": "Walk takes; run = same files at 1.15-1.25x rate and +2 dB. Gravel/mud/leaf/grass blends, each with a 260 Hz soft body."
+    },
+    "footstep.metal": {
+      "files": [
+        "step_metal_1.ogg",
+        "step_metal_2.ogg",
+        "step_metal_3.ogg",
+        "step_metal_4.ogg"
+      ],
+      "gain": 0.5,
+      "pitchVarPct": 6,
+      "notes": "Thimras metal takes 01/07/13/20 + tin sweetener + low thud; 3.3 kHz notched so a sprint on deck plate never rings."
+    },
+    "hit.marker": {
+      "files": [
+        "hitmarker.ogg"
+      ],
+      "gain": 0.7,
+      "pitchVarPct": 4,
+      "notes": "90 ms tick+thock+pluck. Quiet by design (-7 dBFS) — it fires many times per second."
+    },
+    "hit.kill": {
+      "files": [
+        "kill_confirm.ogg"
+      ],
+      "gain": 1,
+      "pitchVarPct": 0,
+      "notes": "The dopamine hit: marimba-ish major arpeggio (root/3rd/5th) over a low punch, 0.6 s reverb. Distinct from hitmarker in length, pitch content and stereo width."
+    },
+    "hit.headshot": {
+      "files": [
+        "headshot_confirm.ogg"
+      ],
+      "gain": 1,
+      "pitchVarPct": 0,
+      "notes": "Kill confirm + octave top note + a filtered bell ding — same family, obviously 'better'."
+    },
+    "hit.damage_taken": {
+      "files": [
+        "damage_taken.ogg"
+      ],
+      "gain": 0.9,
+      "pitchVarPct": 5,
+      "notes": "Dull body thud: soft impact lowpassed at 1.5 kHz over a 150 Hz cannon sub. No high content, so taking fire never stings."
+    },
+    "grenade.pin": {
+      "files": [
+        "nade_pin.ogg"
+      ],
+      "gain": 0.8,
+      "pitchVarPct": 3,
+      "notes": "Metal click + latch + a tiny spring twang for the toon read."
+    },
+    "grenade.throw": {
+      "files": [
+        "nade_throw.ogg"
+      ],
+      "gain": 0.8,
+      "pitchVarPct": 4,
+      "notes": "Heavy swish at 0.8x plus a rubbery boing tail."
+    },
+    "grenade.bounce": {
+      "files": [
+        "nade_bounce_1.ogg",
+        "nade_bounce_2.ogg"
+      ],
+      "gain": 0.75,
+      "pitchVarPct": 8,
+      "notes": "Casino dice/chip clatter + spring + soft low hop. Alternate the two and let pitch vary widely — it is the most repeated grenade sound."
+    },
+    "grenade.explode.near": {
+      "files": [
+        "nade_explode_near.ogg"
+      ],
+      "gain": 1,
+      "pitchVarPct": 2,
+      "notes": "Cannon body at 0.74x, sub layer, crunch debris and a 1.6 s muffled roll. The pack's loudest, fattest asset."
+    },
+    "grenade.explode.far": {
+      "files": [
+        "nade_explode_far.ogg"
+      ],
+      "gain": 0.7,
+      "pitchVarPct": 3,
+      "notes": "Off-screen version: 2.6 kHz lowpass, 1.8 s reverb, -8 dBFS."
+    },
+    "medal.streak": {
+      "files": [
+        "medal_streak_1.ogg",
+        "medal_streak_2.ogg",
+        "medal_streak_3.ogg",
+        "medal_streak_4.ogg"
+      ],
+      "gain": 0.85,
+      "pitchVarPct": 0,
+      "notes": "Escalating steel-drum family: same jingle at 1.0 / 1.122 / 1.26 / 1.498x (unison, +2, +4, +7 semitones) so consecutive medals are consonant with each other. Index by streak count."
+    },
+    "medal.banner": {
+      "files": [
+        "medal_banner.ogg"
+      ],
+      "gain": 0.9,
+      "pitchVarPct": 0,
+      "notes": "Big banner moment: steel jingle + a fifth-up answer + coin shimmer over a soft boom."
+    },
+    "ui.click": {
+      "files": [
+        "ui_click.ogg"
+      ],
+      "gain": 0.6,
+      "pitchVarPct": 3,
+      "notes": "Menu tick — 60 ms, -9 dBFS, no energy above 12 kHz."
+    },
+    "ui.deploy": {
+      "files": [
+        "ui_deploy.ogg"
+      ],
+      "gain": 0.9,
+      "pitchVarPct": 0,
+      "notes": "Confirm blip + rising fifth + low whump. Same harmonic world as the medals."
+    },
+    "ui.match_start": {
+      "files": [
+        "ui_match_start.ogg"
+      ],
+      "gain": 0.95,
+      "pitchVarPct": 0,
+      "notes": "Riser into steel-drum fanfare with a monkey hoot answering — the game's signature."
+    },
+    "ui.match_end": {
+      "files": [
+        "ui_match_end_mashed.ogg"
+      ],
+      "gain": 0.95,
+      "pitchVarPct": 0,
+      "notes": "MASHED! — squishy banana splat over a boom, then the long steel jingle."
+    },
+    "ambience.jungle_loop": {
+      "files": [
+        "amb_jungle_loop.ogg"
+      ],
+      "gain": 0.35,
+      "pitchVarPct": 0,
+      "notes": "46 s seamless stereo bed: forest birds + cicadas + a panned single cicada, crossfade-wrapped (4 s / 2 s / 4 s). Loop it raw — do NOT fade the ends."
+    },
+    "ambience.accent.bird": {
+      "files": [
+        "amb_bird_piha.ogg",
+        "amb_bird_chirp.ogg"
+      ],
+      "gain": 0.5,
+      "pitchVarPct": 6,
+      "notes": "Sparse one-shots; fire every 8-25 s at random 3D positions."
+    },
+    "ambience.accent.insect": {
+      "files": [
+        "amb_insect_tick.ogg"
+      ],
+      "gain": 0.45,
+      "pitchVarPct": 5,
+      "notes": "Single-cicada swell, very quiet (-16 dBFS)."
+    },
+    "ambience.accent.monkey": {
+      "files": [
+        "amb_monkey_hoot.ogg"
+      ],
+      "gain": 0.5,
+      "pitchVarPct": 8,
+      "notes": "Bonus jungle character one-shot."
+    }
+  }
+}

@@ -1,0 +1,9 @@
+/*
+ * Style placeholders (re-implemented).
+ *
+ * The original per-module stylesheets (feel.css, matchfeel.css, roundstrip.css,
+ * spectate.css, weapons-hud.css) ship only merged+minified inside the built
+ * stylesheet `assets/game-*.css`, which `index.html` links directly. No
+ * sourcemap contains the split sources, so these stubs keep the module graph
+ * intact while the union of all rules is served by the built stylesheet.
+ */

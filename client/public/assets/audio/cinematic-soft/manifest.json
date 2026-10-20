@@ -1,0 +1,381 @@
+{
+  "pack": "cinematic-soft",
+  "title": "PACK D — \"Cinematic Soft\"",
+  "codec": "opus/ogg",
+  "sourceFormat": {
+    "sampleRate": 44100,
+    "bitDepth": 16,
+    "container": "wav",
+    "channels": 2
+  },
+  "encodedAt": "2026-08-16",
+  "bitrate": {
+    "mono": "88k",
+    "stereo": "112k"
+  },
+  "bytes": 2030337,
+  "masterBytes": 27102688,
+  "fileCount": 63,
+  "sizes": {
+    "gun-ar-01.ogg": 21187,
+    "gun-ar-02.ogg": 22213,
+    "gun-ar-03.ogg": 18617,
+    "gun-ar-04.ogg": 17732,
+    "gun-ak-01.ogg": 25737,
+    "gun-ak-02.ogg": 26202,
+    "gun-ak-03.ogg": 23698,
+    "gun-ak-04.ogg": 24939,
+    "gun-smg-01.ogg": 15015,
+    "gun-smg-02.ogg": 15597,
+    "gun-smg-03.ogg": 16388,
+    "gun-smg-04.ogg": 15301,
+    "gun-sniper-01.ogg": 31295,
+    "gun-sniper-02.ogg": 31411,
+    "gun-sniper-03.ogg": 27888,
+    "gun-sniper-04.ogg": 30954,
+    "gun-ar-distant-01.ogg": 34887,
+    "gun-ar-distant-02.ogg": 32909,
+    "gun-ak-distant-01.ogg": 38463,
+    "gun-ak-distant-02.ogg": 38872,
+    "gun-smg-distant-01.ogg": 27499,
+    "gun-smg-distant-02.ogg": 27329,
+    "gun-sniper-distant-01.ogg": 43001,
+    "gun-sniper-distant-02.ogg": 43376,
+    "reload-magout-01.ogg": 7377,
+    "reload-magout-02.ogg": 6698,
+    "reload-magin-01.ogg": 8004,
+    "reload-magin-02.ogg": 5927,
+    "reload-rack-01.ogg": 6659,
+    "reload-rack-02.ogg": 7356,
+    "step-dirt-01.ogg": 15291,
+    "step-dirt-02.ogg": 8352,
+    "step-dirt-03.ogg": 8957,
+    "step-dirt-04.ogg": 9246,
+    "step-metal-01.ogg": 6891,
+    "step-metal-02.ogg": 6862,
+    "step-metal-03.ogg": 7986,
+    "step-metal-04.ogg": 7663,
+    "hitmarker-01.ogg": 4786,
+    "hitmarker-02.ogg": 5457,
+    "headshot-01.ogg": 15686,
+    "kill-confirm-01.ogg": 22982,
+    "damage-thud-01.ogg": 11792,
+    "damage-thud-02.ogg": 9554,
+    "nade-pin-01.ogg": 9470,
+    "nade-throw-01.ogg": 7106,
+    "nade-bounce-01.ogg": 8769,
+    "nade-bounce-02.ogg": 7042,
+    "explosion-near-01.ogg": 84336,
+    "explosion-distant-01.ogg": 58697,
+    "medal-1-kill.ogg": 27252,
+    "medal-2-double.ogg": 29678,
+    "medal-3-triple.ogg": 35750,
+    "medal-4-fury.ogg": 41521,
+    "medal-5-streak.ogg": 43726,
+    "ui-click-01.ogg": 3973,
+    "ui-deploy-01.ogg": 36041,
+    "ui-match-start-01.ogg": 32747,
+    "ui-match-end-mashed-01.ogg": 50374,
+    "amb-jungle-loop.ogg": 586472,
+    "amb-accent-bird-01.ogg": 35985,
+    "amb-accent-bird-02.ogg": 45937,
+    "amb-accent-insect-01.ogg": 51425
+  },
+  "events": {
+    "gunshot.ar.near": {
+      "files": [
+        "gun-ar-01.ogg",
+        "gun-ar-02.ogg",
+        "gun-ar-03.ogg",
+        "gun-ar-04.ogg"
+      ],
+      "gain": 0.72,
+      "pitchVarPct": 3,
+      "notes": "AR-15 96 kHz near takes (-03/-04 are pitched-up AK/Marlin singles, the AR disc holds only two clean shots); 5-8 ms raised-cosine soft attack, +4.5-6.5 dB @255-275 Hz body, -9 dB @2.6 kHz, cascaded 5.8 kHz lowpass, parallel >7 kHz air send at 0.023-0.036, 1.5 s dark plate at 22-30% wet. Round-robin 4, level trimmed 0/-0.9/-0.4/-1.3 dB."
+    },
+    "gunshot.ak.near": {
+      "files": [
+        "gun-ak-01.ogg",
+        "gun-ak-02.ogg",
+        "gun-ak-03.ogg",
+        "gun-ak-04.ogg"
+      ],
+      "gain": 0.74,
+      "pitchVarPct": 3,
+      "notes": "Four isolated AK-47 near singles pitched 0.90-0.965; lowest body centre (200-235 Hz), 5.2 kHz main lowpass and the longest near tail of the rifles (1.8 s plate, 28-36% wet)."
+    },
+    "gunshot.smg.near": {
+      "files": [
+        "gun-smg-01.ogg",
+        "gun-smg-02.ogg",
+        "gun-smg-03.ogg",
+        "gun-smg-04.ogg"
+      ],
+      "gain": 0.66,
+      "pitchVarPct": 4,
+      "notes": "Carl Gustav M45 + PPSh pitched up 1.06-1.15, shortest slice (1.1 s), 6.2 kHz lowpass and the driest tail (20-25% wet) — fast and small, still soft-attacked at 4-6 ms."
+    },
+    "gunshot.sniper.near": {
+      "files": [
+        "gun-sniper-01.ogg",
+        "gun-sniper-02.ogg",
+        "gun-sniper-03.ogg",
+        "gun-sniper-04.ogg"
+      ],
+      "gain": 0.8,
+      "pitchVarPct": 2,
+      "notes": "Mosin Nagant + Marlin 336 pitched down to 0.85-0.905, 4.8 kHz lowpass and the heaviest air send (0.041-0.045); 2.4 s plate at 40-48% wet gives the cinematic bloom without any crack."
+    },
+    "gunshot.ar.distant": {
+      "files": [
+        "gun-ar-distant-01.ogg",
+        "gun-ar-distant-02.ogg"
+      ],
+      "gain": 0.5,
+      "pitchVarPct": 5,
+      "notes": "Other-player / across-map AR. 24 ms attack swell, -15 dB @2.7 kHz, main band lowpassed to 3.4 kHz with a separate >7.2 kHz air send at 0.027 — distance loses the crack but keeps a sheen of air; 62% wet on a 2.8 s tail."
+    },
+    "gunshot.ak.distant": {
+      "files": [
+        "gun-ak-distant-01.ogg",
+        "gun-ak-distant-02.ogg"
+      ],
+      "gain": 0.5,
+      "pitchVarPct": 5,
+      "notes": "As above, main band at 3.0 kHz / 66% wet on a 3.1 s tail — the softest thump of the four; this is what a firefight of twenty AKs sounds like."
+    },
+    "gunshot.smg.distant": {
+      "files": [
+        "gun-smg-distant-01.ogg",
+        "gun-smg-distant-02.ogg"
+      ],
+      "gain": 0.46,
+      "pitchVarPct": 6,
+      "notes": "Main band at 3.6 kHz / 58% wet; the brightest of the distants so full-auto chatter still reads at range."
+    },
+    "gunshot.sniper.distant": {
+      "files": [
+        "gun-sniper-distant-01.ogg",
+        "gun-sniper-distant-02.ogg"
+      ],
+      "gain": 0.58,
+      "pitchVarPct": 3,
+      "notes": "32 ms swell, main band at 2.6 kHz, 70% wet, 3.6 s tail — a rolling boom across the valley."
+    },
+    "reload.magout": {
+      "files": [
+        "reload-magout-01.ogg",
+        "reload-magout-02.ogg"
+      ],
+      "gain": 0.55,
+      "pitchVarPct": 4,
+      "notes": "Stage 1/3. Onset-sliced from assaultriflereload1 / handgun-reload-zer0sol, close-mic'd: 12% wet only, -10 dB @2.9 kHz and -10 dB @5.2 kHz de-clack into a cascaded 5.4 kHz lowpass, +3 dB shelf @10 kHz for finger detail."
+    },
+    "reload.magin": {
+      "files": [
+        "reload-magin-01.ogg",
+        "reload-magin-02.ogg"
+      ],
+      "gain": 0.55,
+      "pitchVarPct": 4,
+      "notes": "Stage 2/3, same voicing, seated-mag thunk."
+    },
+    "reload.rack": {
+      "files": [
+        "reload-rack-01.ogg",
+        "reload-rack-02.ogg"
+      ],
+      "gain": 0.58,
+      "pitchVarPct": 4,
+      "notes": "Stage 3/3. Both racks come from the pump-action take: rack-01 at 1.18x reads as a rifle charging handle (ar/ak/smg), rack-02 at 0.9x is the heavy bolt for the sniper class."
+    },
+    "footstep.dirt": {
+      "files": [
+        "step-dirt-01.ogg",
+        "step-dirt-02.ogg",
+        "step-dirt-03.ogg",
+        "step-dirt-04.ogg"
+      ],
+      "gain": 0.34,
+      "pitchVarPct": 8,
+      "notes": "gravel / mud / leaves x2. Walk assets — drive run by playback rate 1.15-1.25 and gain +2 dB. -6 dB @2.3 kHz, -15 dB @3.2 kHz and a cascaded 5 kHz lowpass keep the crunch off the ears."
+    },
+    "footstep.metal": {
+      "files": [
+        "step-metal-01.ogg",
+        "step-metal-02.ogg",
+        "step-metal-03.ogg",
+        "step-metal-04.ogg"
+      ],
+      "gain": 0.34,
+      "pitchVarPct": 8,
+      "notes": "Thimras metal_steps 01/07/14/21. -13 dB @2.5 kHz and -9 dB @4.6 kHz take the ring out of the deck plate; 18% wet."
+    },
+    "feedback.hitmarker": {
+      "files": [
+        "hitmarker-01.ogg",
+        "hitmarker-02.ogg"
+      ],
+      "gain": 0.5,
+      "pitchVarPct": 5,
+      "notes": "A 160 ms felt-mallet C6/A5 carrying the cue, with a softened impactPunch at 0.32 underneath for weight. Barely-there but unmistakable; alternate the two so sustained fire doesn't machine-gun one sample."
+    },
+    "feedback.headshot": {
+      "files": [
+        "headshot-01.ogg"
+      ],
+      "gain": 0.62,
+      "pitchVarPct": 2,
+      "notes": "Hitmarker tock + felt-mallet G6/G5 octave — the 'ding' without any metal. 26% wet bloom marks it as special."
+    },
+    "feedback.kill": {
+      "files": [
+        "kill-confirm-01.ogg"
+      ],
+      "gain": 0.7,
+      "pitchVarPct": 0,
+      "notes": "Two-note rising fifth C5->G5 on the felt mallet over a C4 root, 30% wet. Deliberately the only rising-interval sound in the pack: dopamine, no brightness spike."
+    },
+    "feedback.damage": {
+      "files": [
+        "damage-thud-01.ogg",
+        "damage-thud-02.ogg"
+      ],
+      "gain": 0.6,
+      "pitchVarPct": 6,
+      "notes": "impactSoft_heavy at 0.82-0.93x, LP 2.2-2.4 kHz + a 58/66 Hz sine body. You feel it in the chest, it never stings."
+    },
+    "grenade.pin": {
+      "files": [
+        "nade-pin-01.ogg"
+      ],
+      "gain": 0.4,
+      "pitchVarPct": 4,
+      "notes": "metalLatch + metalClick 90 ms apart, HP 200 Hz, -11 dB @3.4 kHz, -10 dB @6 kHz into a cascaded 5 kHz lowpass."
+    },
+    "grenade.throw": {
+      "files": [
+        "nade-throw-01.ogg"
+      ],
+      "gain": 0.42,
+      "pitchVarPct": 6,
+      "notes": "swish-8 @0.72x + swish-1 @0.6x, LP 4.2 kHz, 30 ms attack swell — air, not hiss."
+    },
+    "grenade.bounce": {
+      "files": [
+        "nade-bounce-01.ogg",
+        "nade-bounce-02.ogg"
+      ],
+      "gain": 0.42,
+      "pitchVarPct": 10,
+      "notes": "01 = dirt (impactSoft + gravel dust), 02 = metal/crate (impactTin + wood). Pitch-vary hard, they repeat fast."
+    },
+    "grenade.explosion.near": {
+      "files": [
+        "explosion-near-01.ogg"
+      ],
+      "gain": 0.9,
+      "pitchVarPct": 3,
+      "notes": "cannon_01 @0.8x + lowFrequency_explosion @0.68x + explosion1 @0.75x + a 42 Hz sine whump. +8 dB shelf @72 Hz, -17 dB @2.6 kHz, LP 5.2 kHz kills every crackle; a 0.11 air send adds debris dust above 6.5 kHz; 3 s / 50% wet cinematic tail."
+    },
+    "grenade.explosion.distant": {
+      "files": [
+        "explosion-distant-01.ogg"
+      ],
+      "gain": 0.55,
+      "pitchVarPct": 4,
+      "notes": "muffled-distant + cannon_03 @0.7x, LP 1.5 kHz, 68% wet, 3.6 s. Off-screen ordnance you hear in your ribs, not your ears."
+    },
+    "medal.kill": {
+      "files": [
+        "medal-1-kill.ogg"
+      ],
+      "gain": 0.6,
+      "pitchVarPct": 0,
+      "notes": "Escalating consonant family, all C major: single C5 mallet."
+    },
+    "medal.double": {
+      "files": [
+        "medal-2-double.ogg"
+      ],
+      "gain": 0.62,
+      "pitchVarPct": 0,
+      "notes": "C5-E5 + C4 root."
+    },
+    "medal.triple": {
+      "files": [
+        "medal-3-triple.ogg"
+      ],
+      "gain": 0.64,
+      "pitchVarPct": 0,
+      "notes": "C5-E5-G5 triad arpeggio, a whisper of steel drum enters."
+    },
+    "medal.fury": {
+      "files": [
+        "medal-4-fury.ogg"
+      ],
+      "gain": 0.66,
+      "pitchVarPct": 0,
+      "notes": "C5-E5-G5-C6, longer tail."
+    },
+    "medal.streak": {
+      "files": [
+        "medal-5-streak.ogg"
+      ],
+      "gain": 0.7,
+      "pitchVarPct": 0,
+      "notes": "C5-E5-G5-C6-E6 — the top of the ladder. Same chord as every other medal, so stacking them never clashes."
+    },
+    "ui.click": {
+      "files": [
+        "ui-click-01.ogg"
+      ],
+      "gain": 0.35,
+      "pitchVarPct": 4,
+      "notes": "click_003 HP'd to 260 Hz under a 130 ms felt G5. Rendered at -20 dBFS: present, never intrusive."
+    },
+    "ui.deploy": {
+      "files": [
+        "ui-deploy-01.ogg"
+      ],
+      "gain": 0.6,
+      "pitchVarPct": 0,
+      "notes": "C5-E5-G5 rising felt arpeggio over a C3 root — the 'you are in' cue."
+    },
+    "ui.matchStart": {
+      "files": [
+        "ui-match-start-01.ogg"
+      ],
+      "gain": 0.75,
+      "pitchVarPct": 0,
+      "notes": "Kenney steel-drum jingle softened (-11 dB @3 kHz, LP 11 kHz) over a C3 root: jungle, but at 3 a.m. volume."
+    },
+    "ui.matchEnd": {
+      "files": [
+        "ui-match-end-mashed-01.ogg"
+      ],
+      "gain": 0.8,
+      "pitchVarPct": 0,
+      "notes": "MASHED! sting — steel drum + C3/G3 curtain swell + C5-G5-C6 mallet rise, 2.6 s / 38% wet."
+    },
+    "ambience.jungle": {
+      "files": [
+        "amb-jungle-loop.ogg"
+      ],
+      "gain": 0.5,
+      "pitchVarPct": 0,
+      "loop": true,
+      "notes": "45.000 s seamless stereo bed: BigSoundBank forest-ambience-0100 (85%, cascaded 6.4 kHz lowpass) + cicadas-3002 (22%, cascaded 5.2 kHz lowpass). Built by equal-power tail-into-head crossfade, then rendered twice and the SECOND period kept so every filter is warmed and the period is exactly periodic."
+    },
+    "ambience.accent": {
+      "files": [
+        "amb-accent-bird-01.ogg",
+        "amb-accent-bird-02.ogg",
+        "amb-accent-insect-01.ogg"
+      ],
+      "gain": 0.4,
+      "pitchVarPct": 8,
+      "notes": "Sparse one-shots to sprinkle over the bed every 8-25 s: screaming piha, chirp cluster, single cicada. All 22-34% wet and rendered at -18/-18/-20 dBFS so they sit well behind the bed; birds are inherently narrow-band around 2.5-3.5 kHz, which is why they are levelled rather than EQ'd down."
+    }
+  }
+}

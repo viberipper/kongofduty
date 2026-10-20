@@ -1,0 +1,5358 @@
+{
+  "asphalt_street": {
+    "category": "ground",
+    "size": 2048,
+    "tile_m": 4,
+    "macro_tile_m": 28,
+    "macro_strength": 0.16,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "asphalt_street_c.webp",
+      "n": "asphalt_street_n.webp",
+      "orm": "asphalt_street_orm.webp",
+      "c-low": "asphalt_street_c-low.webp",
+      "n-low": "asphalt_street_n-low.webp",
+      "orm-low": "asphalt_street_orm-low.webp",
+      "macro": "asphalt_street_macro.webp"
+    },
+    "bytes": 2440772,
+    "bytes_low": 67564,
+    "source": "https://polyhaven.com/a/asphalt_04",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "asphalt_04",
+        "url": "https://polyhaven.com/a/asphalt_04",
+        "license": "CC0",
+        "authors": [
+          "Jenelle van Heerden",
+          "Sergej Majboroda"
+        ]
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Worn street asphalt (real 4 m scan scale), strictly neutral warm grey (OKLab a ~0, b slightly +; r1 CUL06/WD15 measured a teal cast in capture, which is lighting, not this map). Tar seals / patches / oil / manhole are the decal_tar, decal_patch, decal_oil_tile, manhole_iron sets.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          98,
+          97,
+          89
+        ],
+        "hex": "#626159",
+        "p01": 62,
+        "p50": 95,
+        "p99": 152
+      },
+      "seam": {
+        "c": {
+          "u": 1,
+          "v": 1.08
+        },
+        "n": {
+          "u": 1.24,
+          "v": 1.09
+        },
+        "orm_g": {
+          "u": 2.03,
+          "v": 1.84
+        }
+      }
+    }
+  },
+  "bark": {
+    "category": "foliage",
+    "size": 1024,
+    "tile_m": 1,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "bark_c.webp",
+      "n": "bark_n.webp",
+      "orm": "bark_orm.webp",
+      "c-low": "bark_c-low.webp",
+      "n-low": "bark_n-low.webp",
+      "orm-low": "bark_orm-low.webp"
+    },
+    "bytes": 668260,
+    "bytes_low": 210256,
+    "source": "https://polyhaven.com/a/bark_brown_02",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "bark_brown_02",
+        "url": "https://polyhaven.com/a/bark_brown_02",
+        "license": "CC0",
+        "authors": [
+          "Rob Tuytel"
+        ]
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Generic deciduous tree bark (backyard trees, dead desert trees).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          96,
+          86,
+          76
+        ],
+        "hex": "#60564c",
+        "p01": 35,
+        "p50": 88,
+        "p99": 148
+      },
+      "seam": {
+        "c": {
+          "u": 1.07,
+          "v": 1.14
+        },
+        "n": {
+          "u": 1.17,
+          "v": 1.17
+        },
+        "orm_g": {
+          "u": 1.44,
+          "v": 1.5
+        }
+      }
+    }
+  },
+  "brass": {
+    "category": "metal",
+    "size": 1024,
+    "tile_m": 0.5,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "brass_c.webp",
+      "n": "brass_n.webp",
+      "orm": "brass_orm.webp",
+      "c-low": "brass_c-low.webp",
+      "n-low": "brass_n-low.webp",
+      "orm-low": "brass_orm-low.webp"
+    },
+    "bytes": 35594,
+    "bytes_low": 8572,
+    "source": "https://ambientcg.com/a/Metal003",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Metal003",
+        "url": "https://ambientcg.com/a/Metal003",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Aged brass (fixtures, door hardware, stair rods, chandelier): fine scratches and smudges from a CC0 metal scan, satin.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          201,
+          165,
+          94
+        ],
+        "hex": "#c9a55e",
+        "p01": 155,
+        "p50": 168,
+        "p99": 176
+      },
+      "seam": {
+        "c": {
+          "u": 1.39,
+          "v": 1.36
+        },
+        "n": {
+          "u": 3.03,
+          "v": 1.96
+        },
+        "orm_g": {
+          "u": 1.31,
+          "v": 1.27
+        }
+      }
+    }
+  },
+  "brick_dark": {
+    "category": "exterior",
+    "size": 1024,
+    "tile_m": 3,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "brick_dark_c.webp",
+      "n": "brick_dark_n.webp",
+      "orm": "brick_dark_orm.webp",
+      "c-low": "brick_dark_c-low.webp",
+      "n-low": "brick_dark_n-low.webp",
+      "orm-low": "brick_dark_orm-low.webp"
+    },
+    "bytes": 324896,
+    "bytes_low": 106496,
+    "source": "https://polyhaven.com/a/brick_wall_001",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "brick_wall_001",
+        "url": "https://polyhaven.com/a/brick_wall_001",
+        "license": "CC0",
+        "authors": [
+          "Rob Tuytel",
+          "Dimitrios Savva"
+        ]
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Dark clinker brick for the yellow-backyard BBQ/planter and the welcome-sign base.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          86,
+          71,
+          63
+        ],
+        "hex": "#56473f",
+        "p01": 45,
+        "p50": 72,
+        "p99": 120
+      },
+      "seam": {
+        "c": {
+          "u": 1.08,
+          "v": 1.53
+        },
+        "n": {
+          "u": 1.5,
+          "v": 1.93
+        },
+        "orm_g": {
+          "u": 1.76,
+          "v": 2.23
+        }
+      }
+    }
+  },
+  "brick_red": {
+    "category": "exterior",
+    "size": 2048,
+    "tile_m": 1.4,
+    "macro_tile_m": 8,
+    "macro_strength": 0.1,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "brick_red_c.webp",
+      "n": "brick_red_n.webp",
+      "orm": "brick_red_orm.webp",
+      "c-low": "brick_red_c-low.webp",
+      "n-low": "brick_red_n-low.webp",
+      "orm-low": "brick_red_orm-low.webp",
+      "macro": "brick_red_macro.webp"
+    },
+    "bytes": 1527346,
+    "bytes_low": 102562,
+    "source": "https://polyhaven.com/a/red_brick",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "red_brick",
+        "url": "https://polyhaven.com/a/red_brick",
+        "license": "CC0",
+        "authors": [
+          "Rob Tuytel"
+        ]
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Chimney / column common brick, running bond (~65 mm courses). Green-house chimney, deck column.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          124,
+          79,
+          64
+        ],
+        "hex": "#7c4f40",
+        "p01": 67,
+        "p50": 85,
+        "p99": 125
+      },
+      "seam": {
+        "c": {
+          "u": 1.34,
+          "v": 3.04
+        },
+        "n": {
+          "u": 1.29,
+          "v": 1.26
+        },
+        "orm_g": {
+          "u": 1.82,
+          "v": 1.62
+        }
+      }
+    }
+  },
+  "car_paint": {
+    "category": "vehicle",
+    "size": 1024,
+    "tile_m": 1,
+    "decal": false,
+    "alpha": "tintmask",
+    "tintable": true,
+    "tints": {
+      "sedan_pale_green": "#a9c7a6",
+      "bus_yellow": "#e2b33a",
+      "truck_red": "#a8322c",
+      "army_olive": "#5f6343",
+      "police_black": "#3a3a3c",
+      "cream": "#efe6cf"
+    },
+    "material": {
+      "clearcoat": 1,
+      "clearcoatRoughness": 0.08
+    },
+    "files": {
+      "c": "car_paint_c.webp",
+      "n": "car_paint_n.webp",
+      "orm": "car_paint_orm.webp",
+      "c-low": "car_paint_c-low.webp",
+      "n-low": "car_paint_n-low.webp",
+      "orm-low": "car_paint_orm-low.webp"
+    },
+    "bytes": 282820,
+    "bytes_low": 83936,
+    "source": "https://ambientcg.com/a/SurfaceImperfections003",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "SurfaceImperfections003",
+        "url": "https://ambientcg.com/a/SurfaceImperfections003",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Clean 1950s enamel: orange-peel normal, light dust (A=0 in dust so the tint stays on paint). Use with clearcoat.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          232,
+          232,
+          227
+        ],
+        "hex": "#e8e8e3",
+        "p01": 215,
+        "p50": 233,
+        "p99": 233
+      },
+      "seam": {
+        "c": {
+          "u": 1.9,
+          "v": 0.78
+        },
+        "n": {
+          "u": 1,
+          "v": 0.97
+        },
+        "orm_g": {
+          "u": 1.88,
+          "v": 0.78
+        }
+      }
+    }
+  },
+  "car_paint_worn": {
+    "category": "vehicle",
+    "size": 1024,
+    "tile_m": 1,
+    "decal": false,
+    "alpha": "tintmask",
+    "tintable": true,
+    "tints": {
+      "bus_yellow": "#e2b33a",
+      "truck_red": "#a8322c",
+      "sedan_pale_green": "#a9c7a6",
+      "army_olive": "#5f6343"
+    },
+    "files": {
+      "c": "car_paint_worn_c.webp",
+      "n": "car_paint_worn_n.webp",
+      "orm": "car_paint_worn_orm.webp",
+      "c-low": "car_paint_worn_c-low.webp",
+      "n-low": "car_paint_worn_n-low.webp",
+      "orm-low": "car_paint_worn_orm-low.webp"
+    },
+    "bytes": 227444,
+    "bytes_low": 66256,
+    "source": "https://ambientcg.com/a/PaintedMetal010",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "PaintedMetal010",
+        "url": "https://ambientcg.com/a/PaintedMetal010",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Weathered body paint with rust spots (A = paint mask). Wrecks, truck cab, trailer skirts.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          227,
+          226,
+          221
+        ],
+        "hex": "#e3e2dd",
+        "p01": 163,
+        "p50": 230,
+        "p99": 234
+      },
+      "seam": {
+        "c": {
+          "u": 0.93,
+          "v": 1.18
+        },
+        "n": {
+          "u": 1.32,
+          "v": 1.19
+        },
+        "orm_g": {
+          "u": 1.08,
+          "v": 1.15
+        }
+      }
+    }
+  },
+  "carpet": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 0.5,
+    "macro_tile_m": 6,
+    "macro_strength": 0.09,
+    "decal": false,
+    "alpha": null,
+    "tintable": true,
+    "tints": {
+      "greige": "#a7a08a",
+      "blue_grey": "#7c8496",
+      "ochre": "#ffcb5e",
+      "plum": "#7a3a48"
+    },
+    "files": {
+      "c": "carpet_c.webp",
+      "n": "carpet_n.webp",
+      "orm": "carpet_orm.webp",
+      "c-low": "carpet_c-low.webp",
+      "n-low": "carpet_n-low.webp",
+      "orm-low": "carpet_orm-low.webp",
+      "macro": "carpet_macro.webp"
+    },
+    "bytes": 608094,
+    "bytes_low": 197622,
+    "source": "https://ambientcg.com/a/Carpet011",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Carpet011",
+        "url": "https://ambientcg.com/a/Carpet011",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Cut-and-loop pile wall-to-wall carpet (GI06): CC0 tuft scan for the fine pile, a procedural 8.5 mm tufted-row weave, heather flecks and pile clumps that read at 2-4 m, row normal (0.5 m tile). Traffic wear is the _macro (kind carpet: soft matted trails and patches at 6 m). Neutral light base, fully tintable.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          212,
+          209,
+          200
+        ],
+        "hex": "#d4d1c8",
+        "p01": 162,
+        "p50": 210,
+        "p99": 235
+      },
+      "seam": {
+        "c": {
+          "u": 1.2,
+          "v": 1.12
+        },
+        "n": {
+          "u": 0.67,
+          "v": 0.96
+        },
+        "orm_g": {
+          "u": 5.86,
+          "v": 2.47
+        }
+      }
+    }
+  },
+  "carpet_lowpile": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 0.5,
+    "macro_tile_m": 6,
+    "macro_strength": 0.07,
+    "decal": false,
+    "alpha": null,
+    "tintable": true,
+    "files": {
+      "c": "carpet_lowpile_c.webp",
+      "n": "carpet_lowpile_n.webp",
+      "orm": "carpet_lowpile_orm.webp",
+      "c-low": "carpet_lowpile_c-low.webp",
+      "n-low": "carpet_lowpile_n-low.webp",
+      "orm-low": "carpet_lowpile_orm-low.webp",
+      "macro": "carpet_lowpile_macro.webp"
+    },
+    "bytes": 401668,
+    "bytes_low": 148478,
+    "source": "https://ambientcg.com/a/Carpet016",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Carpet016",
+        "url": "https://ambientcg.com/a/Carpet016",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Low-pile (commercial loop) carpet for the back rooms (grey-green, YI14 / GI04): finer 5.5 mm rows, tighter heather, flatter pile. Neutral light base, fully tintable.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          212,
+          212,
+          204
+        ],
+        "hex": "#d4d4cc",
+        "p01": 188,
+        "p50": 212,
+        "p99": 231
+      },
+      "seam": {
+        "c": {
+          "u": 1.08,
+          "v": 1.04
+        },
+        "n": {
+          "u": 1.81,
+          "v": 0.61
+        },
+        "orm_g": {
+          "u": 0.63,
+          "v": 0.64
+        }
+      }
+    }
+  },
+  "ceiling_plaster": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 2,
+    "decal": false,
+    "alpha": null,
+    "tintable": true,
+    "files": {
+      "c": "ceiling_plaster_c.webp",
+      "n": "ceiling_plaster_n.webp",
+      "orm": "ceiling_plaster_orm.webp",
+      "c-low": "ceiling_plaster_c-low.webp",
+      "n-low": "ceiling_plaster_n-low.webp",
+      "orm-low": "ceiling_plaster_orm-low.webp"
+    },
+    "bytes": 401946,
+    "bytes_low": 78896,
+    "source": "https://ambientcg.com/a/Plaster004",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Plaster004",
+        "url": "https://ambientcg.com/a/Plaster004",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Swirl-textured ceiling plaster.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          228,
+          226,
+          219
+        ],
+        "hex": "#e4e2db",
+        "p01": 212,
+        "p50": 227,
+        "p99": 233
+      },
+      "seam": {
+        "c": {
+          "u": 1.49,
+          "v": 1.4
+        },
+        "n": {
+          "u": 1.22,
+          "v": 1.13
+        },
+        "orm_g": {
+          "u": 1.5,
+          "v": 1.5
+        }
+      }
+    }
+  },
+  "chain": {
+    "category": "metal",
+    "size": 1024,
+    "tile_m": 0.14,
+    "decal": false,
+    "alpha": "cutout",
+    "tintable": false,
+    "material": {
+      "alphaTest": 0.5,
+      "side": "double"
+    },
+    "files": {
+      "c": "chain_c.webp",
+      "n": "chain_n.webp",
+      "orm": "chain_orm.webp",
+      "c-low": "chain_c-low.webp",
+      "n-low": "chain_n-low.webp",
+      "orm-low": "chain_orm-low.webp"
+    },
+    "bytes": 36050,
+    "bytes_low": 14400,
+    "source": "https://ambientcg.com/a/Metal039",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Metal039",
+        "url": "https://ambientcg.com/a/Metal039",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Swing-set chain card: 4 welded links (35 mm) per tile vertically, chain centred in U (card ~0.04 m wide => use U 0.375..0.625).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          171,
+          175,
+          177
+        ],
+        "hex": "#abafb1",
+        "p01": 157,
+        "p50": 174,
+        "p99": 201
+      },
+      "seam": {
+        "c": {
+          "u": 1.23,
+          "v": 1.18
+        },
+        "n": {
+          "u": 0,
+          "v": 3.31
+        },
+        "orm_g": {
+          "u": 1.21,
+          "v": 1.23
+        }
+      }
+    }
+  },
+  "chainlink": {
+    "category": "fence",
+    "size": 1024,
+    "tile_m": 0.45,
+    "decal": false,
+    "alpha": "cutout",
+    "tintable": false,
+    "material": {
+      "alphaTest": 0.4,
+      "alphaToCoverage": true,
+      "side": "double"
+    },
+    "files": {
+      "c": "chainlink_c.webp",
+      "n": "chainlink_n.webp",
+      "orm": "chainlink_orm.webp",
+      "c-low": "chainlink_c-low.webp",
+      "n-low": "chainlink_n-low.webp",
+      "orm-low": "chainlink_orm-low.webp"
+    },
+    "bytes": 610282,
+    "bytes_low": 310274,
+    "source": "https://ambientcg.com/a/Fence002",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Fence002",
+        "url": "https://ambientcg.com/a/Fence002",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Galvanized chain-link mesh (~50 mm diamonds), alpha-tested. Wires pre-thickened (~3 mm) so mip coverage survives; use alphaToCoverage with MSAA. Perimeter / tower fence.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          164,
+          168,
+          169
+        ],
+        "hex": "#a4a8a9",
+        "p01": 130,
+        "p50": 164,
+        "p99": 222
+      },
+      "seam": {
+        "c": {
+          "u": 1.53,
+          "v": 0.96
+        },
+        "n": {
+          "u": 1.57,
+          "v": 1.03
+        },
+        "orm_g": {
+          "u": 1.49,
+          "v": 0.97
+        }
+      }
+    }
+  },
+  "chrome": {
+    "category": "vehicle",
+    "size": 1024,
+    "tile_m": 0.5,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "chrome_c.webp",
+      "n": "chrome_n.webp",
+      "orm": "chrome_orm.webp",
+      "c-low": "chrome_c-low.webp",
+      "n-low": "chrome_n-low.webp",
+      "orm-low": "chrome_orm-low.webp"
+    },
+    "bytes": 59360,
+    "bytes_low": 14018,
+    "source": "https://ambientcg.com/a/Metal003",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Metal003",
+        "url": "https://ambientcg.com/a/Metal003",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Bumpers, grilles, hubcaps, trim: chrome with fine scratches and smudges (F0 ~0.55).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          198,
+          200,
+          202
+        ],
+        "hex": "#c6c8ca",
+        "p01": 180,
+        "p50": 200,
+        "p99": 215
+      },
+      "seam": {
+        "c": {
+          "u": 1.45,
+          "v": 1.45
+        },
+        "n": {
+          "u": 3.27,
+          "v": 2.13
+        },
+        "orm_g": {
+          "u": 1.31,
+          "v": 1.27
+        }
+      }
+    }
+  },
+  "cmu_white": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 0.8128,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "cmu_white_c.webp",
+      "n": "cmu_white_n.webp",
+      "orm": "cmu_white_orm.webp",
+      "c-low": "cmu_white_c-low.webp",
+      "n-low": "cmu_white_n-low.webp",
+      "orm-low": "cmu_white_orm-low.webp"
+    },
+    "bytes": 91672,
+    "bytes_low": 17010,
+    "source": "https://polyhaven.com/a/concrete_wall_008",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "concrete_wall_008",
+        "url": "https://polyhaven.com/a/concrete_wall_008",
+        "license": "CC0",
+        "authors": [
+          "Dario Barresi",
+          "Charlotte Baglioni"
+        ]
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Whitewashed concrete block, 8x16 in (203 x 406 mm) running bond, tooled 9.5 mm joints in the normal + AO; pores from a CC0 concrete scan. Yellow garage walls (YI12).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          222,
+          218,
+          207
+        ],
+        "hex": "#dedacf",
+        "p01": 186,
+        "p50": 220,
+        "p99": 233
+      },
+      "seam": {
+        "c": {
+          "u": 1.11,
+          "v": 1.31
+        },
+        "n": {
+          "u": 1.36,
+          "v": 1.12
+        },
+        "orm_g": {
+          "u": 1189.11,
+          "v": 0.84
+        }
+      }
+    }
+  },
+  "concrete_cast": {
+    "category": "exterior",
+    "size": 1024,
+    "tile_m": 2.71,
+    "macro_tile_m": 10,
+    "macro_strength": 0.1,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "concrete_cast_c.webp",
+      "n": "concrete_cast_n.webp",
+      "orm": "concrete_cast_orm.webp",
+      "c-low": "concrete_cast_c-low.webp",
+      "n-low": "concrete_cast_n-low.webp",
+      "orm-low": "concrete_cast_orm-low.webp",
+      "macro": "concrete_cast_macro.webp"
+    },
+    "bytes": 111310,
+    "bytes_low": 18830,
+    "source": "https://polyhaven.com/a/concrete_wall_008",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "concrete_wall_008",
+        "url": "https://polyhaven.com/a/concrete_wall_008",
+        "license": "CC0",
+        "authors": [
+          "Dario Barresi",
+          "Charlotte Baglioni"
+        ]
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Cast concrete: foundations, fallout-shelter walls, steps, sign footings.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          157,
+          154,
+          145
+        ],
+        "hex": "#9d9a91",
+        "p01": 135,
+        "p50": 155,
+        "p99": 164
+      },
+      "seam": {
+        "c": {
+          "u": 1.58,
+          "v": 1.54
+        },
+        "n": {
+          "u": 3.42,
+          "v": 1.92
+        },
+        "orm_g": {
+          "u": 1.54,
+          "v": 1.78
+        }
+      }
+    }
+  },
+  "counter_laminate": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 0.6,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "counter_laminate_c.webp",
+      "n": "counter_laminate_n.webp",
+      "orm": "counter_laminate_orm.webp",
+      "c-low": "counter_laminate_c-low.webp",
+      "n-low": "counter_laminate_n-low.webp",
+      "orm-low": "counter_laminate_orm-low.webp"
+    },
+    "bytes": 34308,
+    "bytes_low": 15642,
+    "source": "https://ambientcg.com/a/Plastic010",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Plastic010",
+        "url": "https://ambientcg.com/a/Plastic010",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "1950s boomerang laminate countertop / dinette table top — original pattern (this repo, CC0) on a CC0 plastic scan. Semi-gloss.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          220,
+          217,
+          207
+        ],
+        "hex": "#dcd9cf",
+        "p01": 139,
+        "p50": 224,
+        "p99": 224
+      },
+      "seam": {
+        "c": {
+          "u": 0.83,
+          "v": 1.53
+        },
+        "n": {
+          "u": 4.79,
+          "v": 1.8
+        },
+        "orm_g": {
+          "u": 1.54,
+          "v": 1.42
+        }
+      }
+    }
+  },
+  "curb_concrete": {
+    "category": "ground",
+    "size": 1024,
+    "tile_m": 1.4,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "curb_concrete_c.webp",
+      "n": "curb_concrete_n.webp",
+      "orm": "curb_concrete_orm.webp",
+      "c-low": "curb_concrete_c-low.webp",
+      "n-low": "curb_concrete_n-low.webp",
+      "orm-low": "curb_concrete_orm-low.webp"
+    },
+    "bytes": 314660,
+    "bytes_low": 44846,
+    "source": "https://ambientcg.com/a/Concrete040",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Concrete040",
+        "url": "https://ambientcg.com/a/Concrete040",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Cast curb concrete (CUL04): light grey #979581-in-capture fine aggregate, low contrast (no sandy speckle, no debris blotches). The dark sidewalk joint and the gutter flow line are GROUND's geometry.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          166,
+          164,
+          145
+        ],
+        "hex": "#a6a491",
+        "p01": 129,
+        "p50": 164,
+        "p99": 180
+      },
+      "seam": {
+        "c": {
+          "u": 1.04,
+          "v": 1.2
+        },
+        "n": {
+          "u": 1.35,
+          "v": 1.16
+        },
+        "orm_g": {
+          "u": 1.12,
+          "v": 1.37
+        }
+      }
+    }
+  },
+  "dash_plastic": {
+    "category": "vehicle",
+    "size": 1024,
+    "tile_m": 0.5,
+    "decal": false,
+    "alpha": null,
+    "tintable": true,
+    "files": {
+      "c": "dash_plastic_c.webp",
+      "n": "dash_plastic_n.webp",
+      "orm": "dash_plastic_orm.webp",
+      "c-low": "dash_plastic_c-low.webp",
+      "n-low": "dash_plastic_n-low.webp",
+      "orm-low": "dash_plastic_orm-low.webp"
+    },
+    "bytes": 477612,
+    "bytes_low": 89048,
+    "source": "https://ambientcg.com/a/Plastic004",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Plastic004",
+        "url": "https://ambientcg.com/a/Plastic004",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Textured dashboard / bakelite trim plastic, tintable (body colour or ivory).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          205,
+          200,
+          190
+        ],
+        "hex": "#cdc8be",
+        "p01": 197,
+        "p50": 201,
+        "p99": 205
+      },
+      "seam": {
+        "c": {
+          "u": 4.18,
+          "v": 7.66
+        },
+        "n": {
+          "u": 1.06,
+          "v": 0.96
+        },
+        "orm_g": {
+          "u": 1.27,
+          "v": 1.41
+        }
+      }
+    }
+  },
+  "decal_asphalt_cracks": {
+    "category": "decal",
+    "size": 1024,
+    "tile_m": 2,
+    "decal": true,
+    "alpha": "blend",
+    "tintable": false,
+    "files": {
+      "c": "decal_asphalt_cracks_c.webp",
+      "n": "decal_asphalt_cracks_n.webp",
+      "orm": "decal_asphalt_cracks_orm.webp",
+      "c-low": "decal_asphalt_cracks_c-low.webp",
+      "n-low": "decal_asphalt_cracks_n-low.webp",
+      "orm-low": "decal_asphalt_cracks_orm-low.webp"
+    },
+    "bytes": 285934,
+    "bytes_low": 97452,
+    "source": "https://ambientcg.com/a/AsphaltDamageSet001",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "AsphaltDamageSet001",
+        "url": "https://ambientcg.com/a/AsphaltDamageSet001",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Atlas of asphalt cracks / spalls / tar-patch pieces (~2 m across the atlas). Place over asphalt_street.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          90,
+          90,
+          86
+        ],
+        "hex": "#5a5a56",
+        "p01": 49,
+        "p50": 89,
+        "p99": 136
+      }
+    }
+  },
+  "decal_grime_base": {
+    "category": "decal",
+    "size": [
+      1024,
+      256
+    ],
+    "tile_m": 2,
+    "tile_m_v": 0.5,
+    "decal": true,
+    "alpha": "blend",
+    "tintable": false,
+    "files": {
+      "c": "decal_grime_base_c.webp",
+      "n": "decal_grime_base_n.webp",
+      "orm": "decal_grime_base_orm.webp",
+      "c-low": "decal_grime_base_c-low.webp",
+      "n-low": "decal_grime_base_n-low.webp",
+      "orm-low": "decal_grime_base_orm-low.webp"
+    },
+    "bytes": 42560,
+    "bytes_low": 16446,
+    "source": "https://ambientcg.com/a/Leaking007",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Leaking007",
+        "url": "https://ambientcg.com/a/Leaking007",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Splash-back grime rising from the ground: bottoms of siding, fences, sheds, curbs.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          92,
+          83,
+          69
+        ],
+        "hex": "#5c5345",
+        "p01": 70,
+        "p50": 84,
+        "p99": 97
+      }
+    }
+  },
+  "decal_leak_streaks": {
+    "category": "decal",
+    "size": [
+      1024,
+      512
+    ],
+    "tile_m": 2,
+    "tile_m_v": 1,
+    "decal": true,
+    "alpha": "blend",
+    "tintable": false,
+    "files": {
+      "c": "decal_leak_streaks_c.webp",
+      "n": "decal_leak_streaks_n.webp",
+      "orm": "decal_leak_streaks_orm.webp",
+      "c-low": "decal_leak_streaks_c-low.webp",
+      "n-low": "decal_leak_streaks_n-low.webp",
+      "orm-low": "decal_leak_streaks_orm-low.webp"
+    },
+    "bytes": 242410,
+    "bytes_low": 62912,
+    "source": "https://ambientcg.com/a/Leaking003",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Leaking003",
+        "url": "https://ambientcg.com/a/Leaking003",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Dirt run-off streaks hanging from a top edge: under windowsills, eaves, AC units, gutters.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          90,
+          82,
+          71
+        ],
+        "hex": "#5a5247",
+        "p01": 57,
+        "p50": 83,
+        "p99": 103
+      }
+    }
+  },
+  "decal_manhole": {
+    "category": "decal",
+    "size": 1024,
+    "tile_m": 0.8,
+    "unit": true,
+    "decal": true,
+    "alpha": "cutout",
+    "tintable": false,
+    "files": {
+      "c": "decal_manhole_c.webp",
+      "n": "decal_manhole_n.webp",
+      "orm": "decal_manhole_orm.webp",
+      "c-low": "decal_manhole_c-low.webp",
+      "n-low": "decal_manhole_n-low.webp",
+      "orm-low": "decal_manhole_orm-low.webp"
+    },
+    "bytes": 265360,
+    "bytes_low": 103302,
+    "source": "https://ambientcg.com/a/ManholeCover003",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "ManholeCover003",
+        "url": "https://ambientcg.com/a/ManholeCover003",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Round cast-iron manhole cover (0.8 m) in the street (BO1 cul-de-sac).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          86,
+          84,
+          81
+        ],
+        "hex": "#565451",
+        "p01": 36,
+        "p50": 78,
+        "p99": 143
+      }
+    }
+  },
+  "decal_oil": {
+    "category": "decal",
+    "size": 1024,
+    "tile_m": 2.4,
+    "unit": true,
+    "decal": true,
+    "alpha": "blend",
+    "tintable": false,
+    "files": {
+      "c": "decal_oil_c.webp",
+      "n": "decal_oil_n.webp",
+      "orm": "decal_oil_orm.webp",
+      "c-low": "decal_oil_c-low.webp",
+      "n-low": "decal_oil_n-low.webp",
+      "orm-low": "decal_oil_orm-low.webp"
+    },
+    "bytes": 46392,
+    "bytes_low": 21574,
+    "source": "procedural (this repo)",
+    "sources": [],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "2x2 atlas of oil / drip stains (~1.2 m each, original procedural). Driveways, under vehicles, garage floors. ORM.G lowers roughness (glossy oil).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          47,
+          44,
+          41
+        ],
+        "hex": "#2f2c29",
+        "p01": 37,
+        "p50": 44,
+        "p99": 54
+      }
+    }
+  },
+  "decal_oil_tile": {
+    "category": "decal",
+    "size": 1024,
+    "tile_m": 2.4,
+    "decal": true,
+    "alpha": "blend",
+    "tintable": false,
+    "files": {
+      "c": "decal_oil_tile_c.webp",
+      "n": "decal_oil_tile_n.webp",
+      "orm": "decal_oil_tile_orm.webp",
+      "c-low": "decal_oil_tile_c-low.webp",
+      "n-low": "decal_oil_tile_n-low.webp",
+      "orm-low": "decal_oil_tile_orm-low.webp"
+    },
+    "bytes": 24988,
+    "bytes_low": 11452,
+    "source": "procedural (this repo)",
+    "sources": [],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "WORLD-TILING oil blots: one irregular drip stain + satellites per 2.4 m tile, alpha 0 within 10% of every tile border, glossy. A quad snapped to the 2.4 m world grid (x0, z0 multiples of 2.4) shows whole stains; any quad shows only soft-edged stain parts, never a cut straight edge where alpha > 0 (keep quads ≥ 2.4 m or grid-aligned).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          45,
+          42,
+          39
+        ],
+        "hex": "#2d2a27",
+        "p01": 39,
+        "p50": 43,
+        "p99": 48
+      }
+    }
+  },
+  "decal_patch": {
+    "category": "decal",
+    "size": 2048,
+    "tile_m": 4,
+    "decal": true,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "decal_patch_c.webp",
+      "n": "decal_patch_n.webp",
+      "orm": "decal_patch_orm.webp",
+      "c-low": "decal_patch_c-low.webp",
+      "n-low": "decal_patch_n-low.webp",
+      "orm-low": "decal_patch_orm-low.webp"
+    },
+    "bytes": 1713634,
+    "bytes_low": 33206,
+    "source": "https://polyhaven.com/a/asphalt_04",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "asphalt_04",
+        "url": "https://polyhaven.com/a/asphalt_04",
+        "license": "CC0",
+        "authors": [
+          "Jenelle van Heerden",
+          "Sergej Majboroda"
+        ]
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Patched asphalt (CUL10): a second CC0 asphalt scan at the base asphalt's 4 m aggregate scale, darker and smoother. Irregular feathered edge + tar-seam outline come from COLOR_0 coverage (Spec.dfade / under: nt_asphalt).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          85,
+          85,
+          79
+        ],
+        "hex": "#55554f",
+        "p01": 61,
+        "p50": 83,
+        "p99": 122
+      }
+    }
+  },
+  "decal_roadline": {
+    "category": "decal",
+    "size": [
+      256,
+      1024
+    ],
+    "tile_m": 0.12,
+    "tile_m_v": 0.48,
+    "decal": true,
+    "alpha": "blend",
+    "tintable": false,
+    "files": {
+      "c": "decal_roadline_c.webp",
+      "n": "decal_roadline_n.webp",
+      "orm": "decal_roadline_orm.webp",
+      "c-low": "decal_roadline_c-low.webp",
+      "n-low": "decal_roadline_n-low.webp",
+      "orm-low": "decal_roadline_orm-low.webp"
+    },
+    "bytes": 54030,
+    "bytes_low": 18882,
+    "source": "https://ambientcg.com/a/RoadLines004",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "RoadLines004",
+        "url": "https://ambientcg.com/a/RoadLines004",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Worn white road-paint stripe (~120 mm wide), tiles along V. Stop bars / edge lines on the cul-de-sac exit.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          225,
+          223,
+          216
+        ],
+        "hex": "#e1dfd8",
+        "p01": 184,
+        "p50": 226,
+        "p99": 234
+      }
+    }
+  },
+  "decal_tar": {
+    "category": "decal",
+    "size": 2048,
+    "tile_m": 4,
+    "decal": true,
+    "alpha": "blend",
+    "tintable": false,
+    "files": {
+      "c": "decal_tar_c.webp",
+      "n": "decal_tar_n.webp",
+      "orm": "decal_tar_orm.webp",
+      "c-low": "decal_tar_c-low.webp",
+      "n-low": "decal_tar_n-low.webp",
+      "orm-low": "decal_tar_orm-low.webp"
+    },
+    "bytes": 112138,
+    "bytes_low": 19664,
+    "source": "procedural (this repo)",
+    "sources": [],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Crack-seal tar, FLAT (CUL02 / SO19): #34342e, normal flat, roughness ~0.5 (satin, no glint), feathered alpha. As a world-tiling 4 m network for rect windows; GROUND's thin polylines take solid coverage from COLOR_0 (Spec.dfade). Original procedural.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          52,
+          52,
+          46
+        ],
+        "hex": "#34342e",
+        "p01": 48,
+        "p50": 52,
+        "p99": 55
+      }
+    }
+  },
+  "deck_boards": {
+    "category": "exterior",
+    "size": 2048,
+    "tile_m": 1.8,
+    "macro_tile_m": 9,
+    "macro_strength": 0.08,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "deck_boards_c.webp",
+      "n": "deck_boards_n.webp",
+      "orm": "deck_boards_orm.webp",
+      "c-low": "deck_boards_c-low.webp",
+      "n-low": "deck_boards_n-low.webp",
+      "orm-low": "deck_boards_orm-low.webp",
+      "macro": "deck_boards_macro.webp"
+    },
+    "bytes": 1051470,
+    "bytes_low": 54030,
+    "source": "https://polyhaven.com/a/wood_floor_deck",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "wood_floor_deck",
+        "url": "https://polyhaven.com/a/wood_floor_deck",
+        "license": "CC0",
+        "authors": [
+          "Dimitrios Savva"
+        ]
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Stained porch / deck decking with gaps (yellow-house deck, stairs, balcony, pergola timbers).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          154,
+          134,
+          114
+        ],
+        "hex": "#9a8672",
+        "p01": 102,
+        "p50": 136,
+        "p99": 178
+      },
+      "seam": {
+        "c": {
+          "u": 1.3,
+          "v": 1.59
+        },
+        "n": {
+          "u": 1.7,
+          "v": 2.57
+        },
+        "orm_g": {
+          "u": 1.83,
+          "v": 1.6
+        }
+      }
+    }
+  },
+  "deck_pine": {
+    "category": "exterior",
+    "size": 2048,
+    "tile_m": 1.68,
+    "macro_tile_m": 7,
+    "macro_strength": 0.07,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "deck_pine_c.webp",
+      "n": "deck_pine_n.webp",
+      "orm": "deck_pine_orm.webp",
+      "c-low": "deck_pine_c-low.webp",
+      "n-low": "deck_pine_n-low.webp",
+      "orm-low": "deck_pine_orm-low.webp",
+      "macro": "deck_pine_macro.webp"
+    },
+    "bytes": 808276,
+    "bytes_low": 57004,
+    "source": "https://ambientcg.com/a/Wood058",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wood058",
+        "url": "https://ambientcg.com/a/Wood058",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Honey pine / cedar deck boards (both rear decks, stairs, ground deck; GE10 / YE09 / YD08): 140 mm boards along U with soft 5 mm gaps, random butt joints, chamfers, per-board tone, light grey traffic wear down the board centres, nail pairs at 0.4 m joists. Sunlit target #d0a874-#d9b07a. Diagonal planks = Spec.rot 45. CC0 grain scan.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          190,
+          149,
+          95
+        ],
+        "hex": "#be955f",
+        "p01": 49,
+        "p50": 155,
+        "p99": 214
+      },
+      "seam": {
+        "c": {
+          "u": 1.01,
+          "v": 1.78
+        },
+        "n": {
+          "u": 0.97,
+          "v": 0.99
+        },
+        "orm_g": {
+          "u": 0.98,
+          "v": 12405.32
+        }
+      }
+    }
+  },
+  "desert_ground": {
+    "category": "ground",
+    "size": 1024,
+    "tile_m": 2.5,
+    "macro_tile_m": 40,
+    "macro_strength": 0.16,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "desert_ground_c.webp",
+      "n": "desert_ground_n.webp",
+      "orm": "desert_ground_orm.webp",
+      "c-low": "desert_ground_c-low.webp",
+      "n-low": "desert_ground_n-low.webp",
+      "orm-low": "desert_ground_orm-low.webp",
+      "macro": "desert_ground_macro.webp"
+    },
+    "bytes": 889330,
+    "bytes_low": 228262,
+    "source": "https://ambientcg.com/a/Ground110",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Ground110",
+        "url": "https://ambientcg.com/a/Ground110",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Nevada desert scrubland floor beyond the fence (pale tan, pebbles). Use macro at 40 m + distance fog; scrub bushes are props.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          170,
+          151,
+          123
+        ],
+        "hex": "#aa977b",
+        "p01": 96,
+        "p50": 151,
+        "p99": 223
+      },
+      "seam": {
+        "c": {
+          "u": 1.06,
+          "v": 1.06
+        },
+        "n": {
+          "u": 1.07,
+          "v": 1.02
+        },
+        "orm_g": {
+          "u": 1.01,
+          "v": 1.1
+        }
+      }
+    }
+  },
+  "dirt_packed": {
+    "category": "ground",
+    "size": 2048,
+    "tile_m": 3,
+    "macro_tile_m": 18,
+    "macro_strength": 0.14,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "dirt_packed_c.webp",
+      "n": "dirt_packed_n.webp",
+      "orm": "dirt_packed_orm.webp",
+      "c-low": "dirt_packed_c-low.webp",
+      "n-low": "dirt_packed_n-low.webp",
+      "orm-low": "dirt_packed_orm-low.webp",
+      "macro": "dirt_packed_macro.webp"
+    },
+    "bytes": 2431298,
+    "bytes_low": 146168,
+    "source": "https://polyhaven.com/a/dry_ground_rocks",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "dry_ground_rocks",
+        "url": "https://polyhaven.com/a/dry_ground_rocks",
+        "license": "CC0",
+        "authors": [
+          "Rob Tuytel"
+        ]
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Packed brown side-yard dirt (CC0 dry-ground scan, cracks and pebbles toned down), faint footprint trails and drag marks pressed into the normal and slightly darker/smoother. Albedo ~#8a7058 reads ~#987d62 lit.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          138,
+          112,
+          88
+        ],
+        "hex": "#8a7058",
+        "p01": 62,
+        "p50": 121,
+        "p99": 148
+      },
+      "seam": {
+        "c": {
+          "u": 1.31,
+          "v": 1.25
+        },
+        "n": {
+          "u": 1.24,
+          "v": 1.17
+        },
+        "orm_g": {
+          "u": 1.87,
+          "v": 2.04
+        }
+      }
+    }
+  },
+  "dirt_yard": {
+    "category": "ground",
+    "size": 1024,
+    "tile_m": 4,
+    "macro_tile_m": 20,
+    "macro_strength": 0.15,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "dirt_yard_c.webp",
+      "n": "dirt_yard_n.webp",
+      "orm": "dirt_yard_orm.webp",
+      "c-low": "dirt_yard_c-low.webp",
+      "n-low": "dirt_yard_n-low.webp",
+      "orm-low": "dirt_yard_orm-low.webp",
+      "macro": "dirt_yard_macro.webp"
+    },
+    "bytes": 844386,
+    "bytes_low": 205634,
+    "source": "https://polyhaven.com/a/dry_ground_rocks",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "dry_ground_rocks",
+        "url": "https://polyhaven.com/a/dry_ground_rocks",
+        "license": "CC0",
+        "authors": [
+          "Rob Tuytel"
+        ]
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Packed reddish-brown dirt with small stones: green-house garage side yard, flower beds, embankments.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          125,
+          107,
+          90
+        ],
+        "hex": "#7d6b5a",
+        "p01": 53,
+        "p50": 112,
+        "p99": 164
+      },
+      "seam": {
+        "c": {
+          "u": 1.16,
+          "v": 1.08
+        },
+        "n": {
+          "u": 1.13,
+          "v": 1.06
+        },
+        "orm_g": {
+          "u": 1.43,
+          "v": 1.42
+        }
+      }
+    }
+  },
+  "door_paint": {
+    "category": "exterior",
+    "size": 1024,
+    "tile_m": 1,
+    "decal": false,
+    "alpha": null,
+    "tintable": true,
+    "tints": {
+      "white": "#ffffff",
+      "cream": "#f2ead6",
+      "garage_red": "#b8423a",
+      "garage_teal": "#4f9e98",
+      "oxblood": "#8a3a34"
+    },
+    "files": {
+      "c": "door_paint_c.webp",
+      "n": "door_paint_n.webp",
+      "orm": "door_paint_orm.webp",
+      "c-low": "door_paint_c-low.webp",
+      "n-low": "door_paint_n-low.webp",
+      "orm-low": "door_paint_orm-low.webp"
+    },
+    "bytes": 94376,
+    "bytes_low": 16570,
+    "source": "https://ambientcg.com/a/PaintedWood007A",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "PaintedWood007A",
+        "url": "https://ambientcg.com/a/PaintedWood007A",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Brushed exterior door paint over wood (front/back doors, shed X-brace doors, shutters). Panels are geometry; this is the surface.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          230,
+          229,
+          225
+        ],
+        "hex": "#e6e5e1",
+        "p01": 219,
+        "p50": 230,
+        "p99": 234
+      },
+      "seam": {
+        "c": {
+          "u": 1.74,
+          "v": 1.7
+        },
+        "n": {
+          "u": 2.3,
+          "v": 0.91
+        },
+        "orm_g": {
+          "u": 2.12,
+          "v": 1.27
+        }
+      }
+    }
+  },
+  "driveway_concrete": {
+    "category": "ground",
+    "size": 2048,
+    "tile_m": 3,
+    "macro_tile_m": 14,
+    "macro_strength": 0.06,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "driveway_concrete_c.webp",
+      "n": "driveway_concrete_n.webp",
+      "orm": "driveway_concrete_orm.webp",
+      "c-low": "driveway_concrete_c-low.webp",
+      "n-low": "driveway_concrete_n-low.webp",
+      "orm-low": "driveway_concrete_orm-low.webp",
+      "macro": "driveway_concrete_macro.webp"
+    },
+    "bytes": 1710712,
+    "bytes_low": 88906,
+    "source": "https://ambientcg.com/a/Concrete047A",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Concrete047A",
+        "url": "https://ambientcg.com/a/Concrete047A",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Broom-finished concrete (patio, driveways, aprons; GE12): fine-aggregate CC0 scan, broom striations along U, a tooled joint on the 3 m tile edges; no trowel swirl, no stains. Bible slabs ~#ada993.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          168,
+          164,
+          143
+        ],
+        "hex": "#a8a48f",
+        "p01": 131,
+        "p50": 164,
+        "p99": 194
+      },
+      "seam": {
+        "c": {
+          "u": 1.3,
+          "v": 1.15
+        },
+        "n": {
+          "u": 1.23,
+          "v": 1.21
+        },
+        "orm_g": {
+          "u": 1.07,
+          "v": 1.06
+        }
+      }
+    }
+  },
+  "fabric_weave": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 0.25,
+    "decal": false,
+    "alpha": null,
+    "tintable": true,
+    "tints": {
+      "navy": "#283c73",
+      "gold": "#e0b13c"
+    },
+    "files": {
+      "c": "fabric_weave_c.webp",
+      "n": "fabric_weave_n.webp",
+      "orm": "fabric_weave_orm.webp",
+      "c-low": "fabric_weave_c-low.webp",
+      "n-low": "fabric_weave_n-low.webp",
+      "orm-low": "fabric_weave_orm-low.webp"
+    },
+    "bytes": 911834,
+    "bytes_low": 178332,
+    "source": "https://ambientcg.com/a/Fabric031",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Fabric031",
+        "url": "https://ambientcg.com/a/Fabric031",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Woven drapery cloth (CC0 scan), neutral light base, tintable: navy drapes #1f2f5a, gold drapes. Folds are geometry.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          210,
+          208,
+          203
+        ],
+        "hex": "#d2d0cb",
+        "p01": 180,
+        "p50": 208,
+        "p99": 234
+      },
+      "seam": {
+        "c": {
+          "u": 1.02,
+          "v": 0.92
+        },
+        "n": {
+          "u": 0.95,
+          "v": 1.02
+        },
+        "orm_g": {
+          "u": 2.09,
+          "v": 1.46
+        }
+      }
+    }
+  },
+  "fence_board": {
+    "category": "fence",
+    "size": 2048,
+    "tile_m": 1.1,
+    "macro_tile_m": 7,
+    "macro_strength": 0.08,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "fence_board_c.webp",
+      "n": "fence_board_n.webp",
+      "orm": "fence_board_orm.webp",
+      "c-low": "fence_board_c-low.webp",
+      "n-low": "fence_board_n-low.webp",
+      "orm-low": "fence_board_orm-low.webp",
+      "macro": "fence_board_macro.webp"
+    },
+    "bytes": 343612,
+    "bytes_low": 16626,
+    "source": "https://ambientcg.com/a/Wood058",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wood058",
+        "url": "https://ambientcg.com/a/Wood058",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Raw cedar privacy-fence BOARD SURFACE for GROUND's modelled zero-gap boards (YD03): albedo ~#a88560 (sun ~#c09a70, shade ~#5a483c), vertical grain low-passed (no moiré), faint weather streaks, sparse knots with a resin ring, nail heads on the rail line (tile 1.1 m = the 0.35 / 1.45 m rail spacing). Per-board tint (COLOR_0.r), the seam groove (COLOR_0.g) and the grey base weathering / soil splash are the shader's (nuketown-specs). CC0 grain scan.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          168,
+          133,
+          96
+        ],
+        "hex": "#a88560",
+        "p01": 122,
+        "p50": 137,
+        "p99": 158
+      },
+      "seam": {
+        "c": {
+          "u": 0.86,
+          "v": 1.09
+        },
+        "n": {
+          "u": 0.94,
+          "v": 1.07
+        },
+        "orm_g": {
+          "u": 1.06,
+          "v": 1.6
+        }
+      }
+    }
+  },
+  "fence_privacy": {
+    "category": "fence",
+    "size": 2048,
+    "tile_m": 1.12,
+    "macro_tile_m": 8,
+    "macro_strength": 0.1,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "fence_privacy_c.webp",
+      "n": "fence_privacy_n.webp",
+      "orm": "fence_privacy_orm.webp",
+      "c-low": "fence_privacy_c-low.webp",
+      "n-low": "fence_privacy_n-low.webp",
+      "orm-low": "fence_privacy_orm-low.webp",
+      "macro": "fence_privacy_macro.webp"
+    },
+    "bytes": 763612,
+    "bytes_low": 38624,
+    "source": "https://ambientcg.com/a/Wood058",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wood058",
+        "url": "https://ambientcg.com/a/Wood058",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "SketchUp slab fences only: 8 painted boards per 1.12 m tile with 10 mm soft gaps (was 3 mm: the r1 WD11 moiré), wide bevel, low-passed grain normal. Same palette as fence_board (albedo ~#8a7058).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          138,
+          112,
+          89
+        ],
+        "hex": "#8a7059",
+        "p01": 53,
+        "p50": 118,
+        "p99": 150
+      },
+      "seam": {
+        "c": {
+          "u": 1.43,
+          "v": 1.01
+        },
+        "n": {
+          "u": 0.89,
+          "v": 1.13
+        },
+        "orm_g": {
+          "u": 1.59,
+          "v": 1.02
+        }
+      }
+    }
+  },
+  "floor_checker_caramel": {
+    "category": "interior",
+    "size": 2048,
+    "tile_m": 1.2,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "floor_checker_caramel_c.webp",
+      "n": "floor_checker_caramel_n.webp",
+      "orm": "floor_checker_caramel_orm.webp",
+      "c-low": "floor_checker_caramel_c-low.webp",
+      "n-low": "floor_checker_caramel_n-low.webp",
+      "orm-low": "floor_checker_caramel_orm-low.webp"
+    },
+    "bytes": 373044,
+    "bytes_low": 20508,
+    "source": "procedural (this repo)",
+    "sources": [],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Cream / caramel 30 cm vinyl checker (BO1 yellow kitchen, ref bo1-interior-kitchen-01; YI08): class means #e4cd97 / #bc9063, faint jaspé, scuffs, heel marks, seam groove. Fully procedural (this repo, CC0).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          206,
+          173,
+          124
+        ],
+        "hex": "#cead7c",
+        "p01": 73,
+        "p50": 160,
+        "p99": 216
+      },
+      "seam": {
+        "c": {
+          "u": 0.58,
+          "v": 2.24
+        },
+        "n": {
+          "u": 1.07,
+          "v": 1.11
+        },
+        "orm_g": {
+          "u": 0.67,
+          "v": 1.12
+        }
+      }
+    }
+  },
+  "floor_hardwood": {
+    "category": "interior",
+    "size": 2048,
+    "tile_m": 1.8,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "floor_hardwood_c.webp",
+      "n": "floor_hardwood_n.webp",
+      "orm": "floor_hardwood_orm.webp",
+      "c-low": "floor_hardwood_c-low.webp",
+      "n-low": "floor_hardwood_n-low.webp",
+      "orm-low": "floor_hardwood_orm-low.webp"
+    },
+    "bytes": 427498,
+    "bytes_low": 23430,
+    "source": "https://ambientcg.com/a/WoodFloor051",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "WoodFloor051",
+        "url": "https://ambientcg.com/a/WoodFloor051",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Oak strip hardwood floor (living rooms, bedrooms, upstairs).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          141,
+          102,
+          70
+        ],
+        "hex": "#8d6646",
+        "p01": 78,
+        "p50": 108,
+        "p99": 137
+      },
+      "seam": {
+        "c": {
+          "u": 2.53,
+          "v": 1.31
+        },
+        "n": {
+          "u": 5.64,
+          "v": 1.1
+        },
+        "orm_g": {
+          "u": 2.43,
+          "v": 0.08
+        }
+      }
+    }
+  },
+  "floor_oak": {
+    "category": "interior",
+    "size": 2048,
+    "tile_m": 1.6,
+    "macro_tile_m": 7,
+    "macro_strength": 0.06,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "floor_oak_c.webp",
+      "n": "floor_oak_n.webp",
+      "orm": "floor_oak_orm.webp",
+      "c-low": "floor_oak_c-low.webp",
+      "n-low": "floor_oak_n-low.webp",
+      "orm-low": "floor_oak_orm-low.webp",
+      "macro": "floor_oak_macro.webp"
+    },
+    "bytes": 618218,
+    "bytes_low": 50732,
+    "source": "https://ambientcg.com/a/Wood049",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wood049",
+        "url": "https://ambientcg.com/a/Wood049",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Period oak strip floor: 80 mm boards running along U with random-length butt joints, amber varnish (satin), thin dark seams; boards cut from a CC0 oak scan. Not a modern multi-strip laminate.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          147,
+          102,
+          60
+        ],
+        "hex": "#93663c",
+        "p01": 49,
+        "p50": 107,
+        "p99": 150
+      },
+      "seam": {
+        "c": {
+          "u": 1.12,
+          "v": 0.93
+        },
+        "n": {
+          "u": 5.27,
+          "v": 1.08
+        },
+        "orm_g": {
+          "u": 1.1,
+          "v": 0.9
+        }
+      }
+    }
+  },
+  "garage_door": {
+    "category": "exterior",
+    "size": 1024,
+    "tile_m": 2.44,
+    "decal": false,
+    "alpha": null,
+    "tintable": true,
+    "tints": {
+      "white": "#ffffff",
+      "garage_red": "#b4402f",
+      "garage_teal": "#4f9e98"
+    },
+    "files": {
+      "c": "garage_door_c.webp",
+      "n": "garage_door_n.webp",
+      "orm": "garage_door_orm.webp",
+      "c-low": "garage_door_c-low.webp",
+      "n-low": "garage_door_n-low.webp",
+      "orm-low": "garage_door_orm-low.webp"
+    },
+    "bytes": 23082,
+    "bytes_low": 6320,
+    "source": "https://ambientcg.com/a/PaintedWood008A",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "PaintedWood008A",
+        "url": "https://ambientcg.com/a/PaintedWood008A",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "World-tiling sectional steel door: 4 x 610 mm sections per 2.44 m with dark tongue joints and two raised horizontal panels each (no stiles, so it tiles under the world-metre UV0). Clean paint, fully tintable; no rust.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          234,
+          233,
+          230
+        ],
+        "hex": "#eae9e6",
+        "p01": 232,
+        "p50": 233,
+        "p99": 234
+      },
+      "seam": {
+        "c": {
+          "u": 1.61,
+          "v": 1.25
+        },
+        "n": {
+          "u": 2,
+          "v": 1.06
+        },
+        "orm_g": {
+          "u": 1.8,
+          "v": 1.24
+        }
+      }
+    }
+  },
+  "glass_cracks": {
+    "category": "exterior",
+    "size": 1024,
+    "tile_m": 1,
+    "decal": false,
+    "alpha": "blend",
+    "tintable": false,
+    "files": {
+      "c": "glass_cracks_c.webp",
+      "n": "glass_cracks_n.webp",
+      "orm": "glass_cracks_orm.webp",
+      "c-low": "glass_cracks_c-low.webp",
+      "n-low": "glass_cracks_n-low.webp",
+      "orm-low": "glass_cracks_orm-low.webp"
+    },
+    "bytes": 93734,
+    "bytes_low": 71072,
+    "source": "procedural (this repo)",
+    "sources": [],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Fracture overlay for nt_glass_broken: A = crack/crush coverage (3 impact stars per metre tile), RGB = bright fracture edge. Original procedural.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          230,
+          234,
+          232
+        ],
+        "hex": "#e6eae8",
+        "p01": 233,
+        "p50": 233,
+        "p99": 233
+      },
+      "seam": {
+        "c": {
+          "u": 0,
+          "v": 0
+        },
+        "n": {
+          "u": 7.51,
+          "v": 1.52
+        },
+        "orm_g": {
+          "u": 5.59,
+          "v": 1.71
+        }
+      }
+    }
+  },
+  "glass_dust": {
+    "category": "exterior",
+    "size": 512,
+    "tile_m": 1.5,
+    "decal": false,
+    "alpha": "blend",
+    "tintable": false,
+    "files": {
+      "c": "glass_dust_c.webp",
+      "n": "glass_dust_n.webp",
+      "orm": "glass_dust_orm.webp",
+      "c-low": "glass_dust_c-low.webp",
+      "n-low": "glass_dust_n-low.webp",
+      "orm-low": "glass_dust_orm-low.webp"
+    },
+    "bytes": 43796,
+    "bytes_low": 43796,
+    "source": "procedural (this repo)",
+    "sources": [],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Window-glass dust film overlay: near-uniform light dust (a ~0.17 +- 0.07 at metre scale), no smears or streaks (YE10). Original procedural.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          null,
+          null,
+          null
+        ],
+        "hex": "#NaNNaNNaN",
+        "p01": null,
+        "p50": null,
+        "p99": null
+      },
+      "seam": {
+        "c": {
+          "u": 0.97,
+          "v": 1
+        },
+        "n": {
+          "u": 0,
+          "v": 0
+        },
+        "orm_g": {
+          "u": 0.93,
+          "v": 0.98
+        }
+      }
+    }
+  },
+  "glass_grime": {
+    "category": "exterior",
+    "size": 1024,
+    "tile_m": 1.2,
+    "decal": false,
+    "alpha": "blend",
+    "tintable": false,
+    "files": {
+      "c": "glass_grime_c.webp",
+      "n": "glass_grime_n.webp",
+      "orm": "glass_grime_orm.webp",
+      "c-low": "glass_grime_c-low.webp",
+      "n-low": "glass_grime_n-low.webp",
+      "orm-low": "glass_grime_orm-low.webp"
+    },
+    "bytes": 395032,
+    "bytes_low": 196022,
+    "source": "https://ambientcg.com/a/SurfaceImperfections003",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "SurfaceImperfections003",
+        "url": "https://ambientcg.com/a/SurfaceImperfections003",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Window-glass grime overlay: RGB = dust colour, A = grime amount. Shader: glassColor = mix(glassColor, rgb, A*0.8); roughness = mix(0.05, orm.g, A). Map 1 tile per ~1.2 m of glass, offset per window.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          117,
+          106,
+          90
+        ],
+        "hex": "#756a5a",
+        "p01": 104,
+        "p50": 106,
+        "p99": 114
+      },
+      "seam": {
+        "c": {
+          "u": 1.48,
+          "v": 1.31
+        },
+        "n": {
+          "u": 2.16,
+          "v": 1.28
+        },
+        "orm_g": {
+          "u": 1.57,
+          "v": 0.95
+        }
+      }
+    }
+  },
+  "grass_cards": {
+    "category": "foliage",
+    "size": 1024,
+    "tile_m": 0.64,
+    "unit": true,
+    "decal": false,
+    "alpha": "cutout",
+    "tintable": false,
+    "material": {
+      "alphaTest": 0.5,
+      "side": "double"
+    },
+    "files": {
+      "c": "grass_cards_c.webp",
+      "n": "grass_cards_n.webp",
+      "orm": "grass_cards_orm.webp",
+      "c-low": "grass_cards_c-low.webp",
+      "n-low": "grass_cards_n-low.webp",
+      "orm-low": "grass_cards_orm-low.webp"
+    },
+    "bytes": 120686,
+    "bytes_low": 110496,
+    "source": "procedural (this repo)",
+    "sources": [],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "2x2 atlas of grass-blade tufts (one card = 0.32 m square, base on the cell's bottom edge). r2: blade bases start at the LAWN colour (x0.82), not a dark pit, so tufts blend into the turf from above (YD10 / WD11 dark rectangular blotches). Original procedural (this repo, CC0).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          86,
+          103,
+          58
+        ],
+        "hex": "#56673a",
+        "p01": 74,
+        "p50": 95,
+        "p99": 133
+      }
+    }
+  },
+  "grass_dry": {
+    "category": "ground",
+    "size": 1024,
+    "tile_m": 2.6,
+    "macro_tile_m": 22,
+    "macro_strength": 0.18,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "grass_dry_c.webp",
+      "n": "grass_dry_n.webp",
+      "orm": "grass_dry_orm.webp",
+      "c-low": "grass_dry_c-low.webp",
+      "n-low": "grass_dry_n-low.webp",
+      "orm-low": "grass_dry_orm-low.webp",
+      "macro": "grass_dry_macro.webp"
+    },
+    "bytes": 937340,
+    "bytes_low": 198664,
+    "source": "https://ambientcg.com/a/Ground037",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Ground037",
+        "url": "https://ambientcg.com/a/Ground037",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Dry / patchy lawn with dirt showing: lawn edges, side yards, under hedges, the transition to desert.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          110,
+          109,
+          68
+        ],
+        "hex": "#6e6d44",
+        "p01": 49,
+        "p50": 106,
+        "p99": 170
+      },
+      "seam": {
+        "c": {
+          "u": 1.07,
+          "v": 0.95
+        },
+        "n": {
+          "u": 1.08,
+          "v": 0.9
+        },
+        "orm_g": {
+          "u": 1.14,
+          "v": 1.26
+        }
+      }
+    }
+  },
+  "grass_lawn": {
+    "category": "ground",
+    "size": 2048,
+    "tile_m": 1.6,
+    "macro_tile_m": 12,
+    "macro_strength": 0.1,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "grass_lawn_c.webp",
+      "n": "grass_lawn_n.webp",
+      "orm": "grass_lawn_orm.webp",
+      "c-low": "grass_lawn_c-low.webp",
+      "n-low": "grass_lawn_n-low.webp",
+      "orm-low": "grass_lawn_orm-low.webp",
+      "macro": "grass_lawn_macro.webp"
+    },
+    "bytes": 3339072,
+    "bytes_low": 195550,
+    "source": "https://ambientcg.com/a/Grass004",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Grass004",
+        "url": "https://ambientcg.com/a/Grass004",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Irrigated turf (CC0 Grass004) with a high-passed, finer blade normal, lower blade contrast, clover patches (bluer, a few white heads). Low-contrast macro at 12 m (+ Spec macro2 / hue at ~30 m). The r2 'dark blotches' were the near-camera tufts: see grass_cards.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          79,
+          95,
+          53
+        ],
+        "hex": "#4f5f35",
+        "p01": 45,
+        "p50": 91,
+        "p99": 121
+      },
+      "seam": {
+        "c": {
+          "u": 1.09,
+          "v": 1.1
+        },
+        "n": {
+          "u": 1.09,
+          "v": 1.04
+        },
+        "orm_g": {
+          "u": 1.32,
+          "v": 1.35
+        }
+      }
+    }
+  },
+  "gravel": {
+    "category": "ground",
+    "size": 1024,
+    "tile_m": 1.5,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "gravel_c.webp",
+      "n": "gravel_n.webp",
+      "orm": "gravel_orm.webp",
+      "c-low": "gravel_c-low.webp",
+      "n-low": "gravel_n-low.webp",
+      "orm-low": "gravel_orm-low.webp"
+    },
+    "bytes": 990386,
+    "bytes_low": 240138,
+    "source": "https://ambientcg.com/a/Gravel036S",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Gravel036S",
+        "url": "https://ambientcg.com/a/Gravel036S",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Loose gravel: service paths, pole bases, tower footing, sandbox surround.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          143,
+          137,
+          124
+        ],
+        "hex": "#8f897c",
+        "p01": 83,
+        "p50": 133,
+        "p99": 224
+      },
+      "seam": {
+        "c": {
+          "u": 1.01,
+          "v": 1.1
+        },
+        "n": {
+          "u": 1.12,
+          "v": 1.01
+        },
+        "orm_g": {
+          "u": 1.11,
+          "v": 1.05
+        }
+      }
+    }
+  },
+  "gutter_concrete": {
+    "category": "ground",
+    "size": 1024,
+    "tile_m": 3,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "gutter_concrete_c.webp",
+      "n": "gutter_concrete_n.webp",
+      "orm": "gutter_concrete_orm.webp",
+      "c-low": "gutter_concrete_c-low.webp",
+      "n-low": "gutter_concrete_n-low.webp",
+      "orm-low": "gutter_concrete_orm-low.webp"
+    },
+    "bytes": 477572,
+    "bytes_low": 102540,
+    "source": "https://polyhaven.com/a/dirty_concrete",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "dirty_concrete",
+        "url": "https://polyhaven.com/a/dirty_concrete",
+        "license": "CC0",
+        "authors": [
+          "Rob Tuytel"
+        ]
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Dirtier gutter pan / drain apron concrete between asphalt and curb.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          140,
+          137,
+          127
+        ],
+        "hex": "#8c897f",
+        "p01": 91,
+        "p50": 139,
+        "p99": 163
+      },
+      "seam": {
+        "c": {
+          "u": 1.18,
+          "v": 1.2
+        },
+        "n": {
+          "u": 1.4,
+          "v": 1.14
+        },
+        "orm_g": {
+          "u": 2.02,
+          "v": 1.6
+        }
+      }
+    }
+  },
+  "hedge_cards": {
+    "category": "foliage",
+    "size": 1024,
+    "tile_m": 0.5,
+    "unit": true,
+    "decal": false,
+    "alpha": "cutout",
+    "tintable": false,
+    "material": {
+      "alphaTest": 0.45,
+      "side": "double"
+    },
+    "files": {
+      "c": "hedge_cards_c.webp",
+      "n": "hedge_cards_n.webp",
+      "orm": "hedge_cards_orm.webp",
+      "c-low": "hedge_cards_c-low.webp",
+      "n-low": "hedge_cards_n-low.webp",
+      "orm-low": "hedge_cards_orm-low.webp"
+    },
+    "bytes": 289992,
+    "bytes_low": 107104,
+    "source": "https://ambientcg.com/a/LeafSet002",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "LeafSet002",
+        "url": "https://ambientcg.com/a/LeafSet002",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "2x2 atlas of alpha-tested boxwood cluster cards (~0.25 m each). Scatter on hedge/shrub silhouettes, normals bent outward. Same palette as hedge_leaves.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          90,
+          108,
+          60
+        ],
+        "hex": "#5a6c3c",
+        "p01": 52,
+        "p50": 103,
+        "p99": 146
+      }
+    }
+  },
+  "hedge_leaves": {
+    "category": "foliage",
+    "size": 1024,
+    "tile_m": 0.6,
+    "macro_tile_m": 4,
+    "macro_strength": 0.12,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "hedge_leaves_c.webp",
+      "n": "hedge_leaves_n.webp",
+      "orm": "hedge_leaves_orm.webp",
+      "c-low": "hedge_leaves_c-low.webp",
+      "n-low": "hedge_leaves_n-low.webp",
+      "orm-low": "hedge_leaves_orm-low.webp",
+      "macro": "hedge_leaves_macro.webp"
+    },
+    "bytes": 398962,
+    "bytes_low": 147940,
+    "source": "https://ambientcg.com/a/LeafSet002",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "LeafSet002",
+        "url": "https://ambientcg.com/a/LeafSet002",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Seamless boxwood leaf mass (scattered CC0 boxwood sprigs, depth-shaded) for clipped hedge box faces. Use with hedge_cards on the silhouette. Albedo is front-lit; add wrap/translucency in the shader (sheen or thin transmission).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          87,
+          105,
+          58
+        ],
+        "hex": "#57693a",
+        "p01": 45,
+        "p50": 100,
+        "p99": 147
+      },
+      "seam": {
+        "c": {
+          "u": 1.08,
+          "v": 1.07
+        },
+        "n": {
+          "u": 1.51,
+          "v": 0.89
+        },
+        "orm_g": {
+          "u": 0,
+          "v": 0
+        }
+      }
+    }
+  },
+  "joist_pine": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 1.2,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "joist_pine_c.webp",
+      "n": "joist_pine_n.webp",
+      "orm": "joist_pine_orm.webp",
+      "c-low": "joist_pine_c-low.webp",
+      "n-low": "joist_pine_n-low.webp",
+      "orm-low": "joist_pine_orm-low.webp"
+    },
+    "bytes": 133506,
+    "bytes_low": 27094,
+    "source": "https://ambientcg.com/a/Wood058",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wood058",
+        "url": "https://ambientcg.com/a/Wood058",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Raw (unstained) pine: joists, plywood decking, garage framing (YI13 #b89a6a). Grain along U. CC0 straight-grain scan.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          188,
+          158,
+          108
+        ],
+        "hex": "#bc9e6c",
+        "p01": 144,
+        "p50": 159,
+        "p99": 186
+      },
+      "seam": {
+        "c": {
+          "u": 2.13,
+          "v": 0.89
+        },
+        "n": {
+          "u": 1.14,
+          "v": 0.99
+        },
+        "orm_g": {
+          "u": 2.06,
+          "v": 0.87
+        }
+      }
+    }
+  },
+  "lattice_diamond": {
+    "category": "exterior",
+    "size": 1024,
+    "tile_m": 0.498,
+    "decal": false,
+    "alpha": "cutout",
+    "tintable": true,
+    "material": {
+      "alphaTest": 0.5,
+      "side": "double"
+    },
+    "files": {
+      "c": "lattice_diamond_c.webp",
+      "n": "lattice_diamond_n.webp",
+      "orm": "lattice_diamond_orm.webp",
+      "c-low": "lattice_diamond_c-low.webp",
+      "n-low": "lattice_diamond_n-low.webp",
+      "orm-low": "lattice_diamond_orm-low.webp"
+    },
+    "bytes": 56090,
+    "bytes_low": 40522,
+    "source": "https://ambientcg.com/a/PaintedWood008A",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "PaintedWood008A",
+        "url": "https://ambientcg.com/a/PaintedWood008A",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "White diagonal garden lattice, alpha cutout: 38 mm slats at ±45° on an 88 mm pitch, top layer over bottom layer (height + occlusion). Tile = 4 diagonal periods.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          234,
+          233,
+          230
+        ],
+        "hex": "#eae9e6",
+        "p01": 232,
+        "p50": 233,
+        "p99": 234
+      },
+      "seam": {
+        "c": {
+          "u": 2.12,
+          "v": 1.86
+        },
+        "n": {
+          "u": 1.32,
+          "v": 0.51
+        },
+        "orm_g": {
+          "u": 0,
+          "v": 0
+        }
+      }
+    }
+  },
+  "lino_checker": {
+    "category": "interior",
+    "size": 2048,
+    "tile_m": 1.2192,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "lino_checker_c.webp",
+      "n": "lino_checker_n.webp",
+      "orm": "lino_checker_orm.webp",
+      "c-low": "lino_checker_c-low.webp",
+      "n-low": "lino_checker_n-low.webp",
+      "orm-low": "lino_checker_orm-low.webp"
+    },
+    "bytes": 349970,
+    "bytes_low": 21160,
+    "source": "procedural (this repo)",
+    "sources": [],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Blue-grey / grey-cream 12 in vinyl checker (4x4 per tile) per the BO1 kitchen (bo1-materials-kitchen-checkerfloor-crop-01): class means #43508a / #acb9ae (cooled so they read #3e4560 / #a9ad99 under the warm 2700 K interior light), jaspé streaks alternating per tile, scratches (light on the dark tiles), traffic scuffs in roughness, thin dark seams. Fully procedural (this repo, CC0).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          118,
+          131,
+          154
+        ],
+        "hex": "#76839a",
+        "p01": 36,
+        "p50": 91,
+        "p99": 194
+      },
+      "seam": {
+        "c": {
+          "u": 1.27,
+          "v": 1.44
+        },
+        "n": {
+          "u": 0.88,
+          "v": 1.03
+        },
+        "orm_g": {
+          "u": 1.24,
+          "v": 1.4
+        }
+      }
+    }
+  },
+  "manhole_iron": {
+    "category": "metal",
+    "size": 1024,
+    "tile_m": 0.25,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "manhole_iron_c.webp",
+      "n": "manhole_iron_n.webp",
+      "orm": "manhole_iron_orm.webp",
+      "c-low": "manhole_iron_c-low.webp",
+      "n-low": "manhole_iron_n-low.webp",
+      "orm-low": "manhole_iron_orm-low.webp"
+    },
+    "bytes": 73878,
+    "bytes_low": 32168,
+    "source": "procedural (this repo)",
+    "sources": [],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Cast-iron cover surface: raised square bosses with a bead ring (4x4 per 25 cm), worn bright tops, rust-dark grooves, metallic ~0.6. Tiles on any disc: model the cover as a 0.8 m disc + rim ring, this is its face.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          71,
+          66,
+          61
+        ],
+        "hex": "#47423d",
+        "p01": 53,
+        "p50": 68,
+        "p99": 88
+      },
+      "seam": {
+        "c": {
+          "u": 0.52,
+          "v": 0.57
+        },
+        "n": {
+          "u": 0.21,
+          "v": 0.73
+        },
+        "orm_g": {
+          "u": 0.45,
+          "v": 0.35
+        }
+      }
+    }
+  },
+  "metal_galvanized": {
+    "category": "metal",
+    "size": 1024,
+    "tile_m": 1,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "metal_galvanized_c.webp",
+      "n": "metal_galvanized_n.webp",
+      "orm": "metal_galvanized_orm.webp",
+      "c-low": "metal_galvanized_c-low.webp",
+      "n-low": "metal_galvanized_n-low.webp",
+      "orm-low": "metal_galvanized_orm-low.webp"
+    },
+    "bytes": 377514,
+    "bytes_low": 60830,
+    "source": "https://ambientcg.com/a/Metal039",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Metal039",
+        "url": "https://ambientcg.com/a/Metal039",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Spangled hot-dip galvanized steel: test/clock towers, light poles, chain-link posts, swing-set frame (tint), mailbox posts.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          169,
+          173,
+          175
+        ],
+        "hex": "#a9adaf",
+        "p01": 147,
+        "p50": 171,
+        "p99": 211
+      },
+      "seam": {
+        "c": {
+          "u": 1.23,
+          "v": 1.18
+        },
+        "n": {
+          "u": 1.28,
+          "v": 1.11
+        },
+        "orm_g": {
+          "u": 1.21,
+          "v": 1.23
+        }
+      }
+    }
+  },
+  "metal_painted": {
+    "category": "metal",
+    "size": 1024,
+    "tile_m": 1,
+    "decal": false,
+    "alpha": "tintmask",
+    "tintable": true,
+    "tints": {
+      "shelter_yellow": "#e2c45a",
+      "swingset_red": "#b03a30",
+      "white": "#ffffff",
+      "army_olive": "#6b6b48"
+    },
+    "files": {
+      "c": "metal_painted_c.webp",
+      "n": "metal_painted_n.webp",
+      "orm": "metal_painted_orm.webp",
+      "c-low": "metal_painted_c-low.webp",
+      "n-low": "metal_painted_n-low.webp",
+      "orm-low": "metal_painted_orm-low.webp"
+    },
+    "bytes": 265328,
+    "bytes_low": 68590,
+    "source": "https://ambientcg.com/a/PaintedMetal012",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "PaintedMetal012",
+        "url": "https://ambientcg.com/a/PaintedMetal012",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Painted steel with chips and rust (fallout-shelter door, swing set, sign boxes, mailboxes). A = paint mask; rust/primer stays untinted.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          223,
+          222,
+          217
+        ],
+        "hex": "#dfded9",
+        "p01": 162,
+        "p50": 228,
+        "p99": 233
+      },
+      "seam": {
+        "c": {
+          "u": 0.93,
+          "v": 1.2
+        },
+        "n": {
+          "u": 1.13,
+          "v": 1.23
+        },
+        "orm_g": {
+          "u": 1.05,
+          "v": 1.32
+        }
+      }
+    }
+  },
+  "oak_tread": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 1,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "oak_tread_c.webp",
+      "n": "oak_tread_n.webp",
+      "orm": "oak_tread_orm.webp",
+      "c-low": "oak_tread_c-low.webp",
+      "n-low": "oak_tread_n-low.webp",
+      "orm-low": "oak_tread_orm-low.webp"
+    },
+    "bytes": 99716,
+    "bytes_low": 27964,
+    "source": "https://ambientcg.com/a/Wood049",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wood049",
+        "url": "https://ambientcg.com/a/Wood049",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Honey-oak stair treads / stringers (yellow open stair, YI06 / YI07): varnished oak, albedo ~#8a5a30, grain along U. CC0 oak scan.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          138,
+          90,
+          49
+        ],
+        "hex": "#8a5a31",
+        "p01": 78,
+        "p50": 96,
+        "p99": 122
+      },
+      "seam": {
+        "c": {
+          "u": 2.32,
+          "v": 0.93
+        },
+        "n": {
+          "u": 1.06,
+          "v": 1.22
+        },
+        "orm_g": {
+          "u": 1.45,
+          "v": 0.92
+        }
+      }
+    }
+  },
+  "osb": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 1.22,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "osb_c.webp",
+      "n": "osb_n.webp",
+      "orm": "osb_orm.webp",
+      "c-low": "osb_c-low.webp",
+      "n-low": "osb_n-low.webp",
+      "orm-low": "osb_orm-low.webp"
+    },
+    "bytes": 325768,
+    "bytes_low": 63020,
+    "source": "https://ambientcg.com/a/Chipboard004",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Chipboard004",
+        "url": "https://ambientcg.com/a/Chipboard004",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Raw OSB sheathing (green garage walls / ceilings), pale tan-grey (GI04: #8a7a5c, not orange), 4 ft panel seam + nail rows on the tile edges. CC0 strand-board scan.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          143,
+          128,
+          99
+        ],
+        "hex": "#8f8063",
+        "p01": 95,
+        "p50": 129,
+        "p99": 162
+      },
+      "seam": {
+        "c": {
+          "u": 1.49,
+          "v": 1.3
+        },
+        "n": {
+          "u": 1.24,
+          "v": 1.27
+        },
+        "orm_g": {
+          "u": 1.65,
+          "v": 1.37
+        }
+      }
+    }
+  },
+  "paver_concrete": {
+    "category": "ground",
+    "size": 1024,
+    "tile_m": 1.4,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "paver_concrete_c.webp",
+      "n": "paver_concrete_n.webp",
+      "orm": "paver_concrete_orm.webp",
+      "c-low": "paver_concrete_c-low.webp",
+      "n-low": "paver_concrete_n-low.webp",
+      "orm-low": "paver_concrete_orm-low.webp"
+    },
+    "bytes": 385068,
+    "bytes_low": 59782,
+    "source": "https://ambientcg.com/a/Concrete040",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Concrete040",
+        "url": "https://ambientcg.com/a/Concrete040",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Precast concrete paver top, fine exposed aggregate (CC0 Concrete040, real 1.4 m scale), no joints (the 45 cm pavers are modelled). Stepping-stone path, patios.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          167,
+          163,
+          143
+        ],
+        "hex": "#a7a38f",
+        "p01": 120,
+        "p50": 164,
+        "p99": 184
+      },
+      "seam": {
+        "c": {
+          "u": 1.04,
+          "v": 1.2
+        },
+        "n": {
+          "u": 1.35,
+          "v": 1.16
+        },
+        "orm_g": {
+          "u": 1.12,
+          "v": 1.37
+        }
+      }
+    }
+  },
+  "picket_paint": {
+    "category": "fence",
+    "size": 1024,
+    "tile_m": 1.2,
+    "decal": false,
+    "alpha": "tintmask",
+    "tintable": true,
+    "tints": {
+      "white": "#ffffff"
+    },
+    "files": {
+      "c": "picket_paint_c.webp",
+      "n": "picket_paint_n.webp",
+      "orm": "picket_paint_orm.webp",
+      "c-low": "picket_paint_c-low.webp",
+      "n-low": "picket_paint_n-low.webp",
+      "orm-low": "picket_paint_orm-low.webp"
+    },
+    "bytes": 253054,
+    "bytes_low": 113204,
+    "source": "https://ambientcg.com/a/PaintedWood007A",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "PaintedWood007A",
+        "url": "https://ambientcg.com/a/PaintedWood007A",
+        "license": "CC0"
+      },
+      {
+        "provider": "ambientCG",
+        "id": "Wood058",
+        "url": "https://ambientcg.com/a/Wood058",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "White picket paint over pine (SO17): brush film, a faint grain normal through the paint, sparse clustered chips to grey wood (A = 0: the tint skips them). Base grime is the Spec's world-space grime. CC0 scans.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          232,
+          231,
+          228
+        ],
+        "hex": "#e8e7e4",
+        "p01": 224,
+        "p50": 231,
+        "p99": 234
+      },
+      "seam": {
+        "c": {
+          "u": 2.04,
+          "v": 1.31
+        },
+        "n": {
+          "u": 1.63,
+          "v": 0.99
+        },
+        "orm_g": {
+          "u": 1.87,
+          "v": 1.34
+        }
+      }
+    }
+  },
+  "pine_timber": {
+    "category": "exterior",
+    "size": 1024,
+    "tile_m": 1.2,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "pine_timber_c.webp",
+      "n": "pine_timber_n.webp",
+      "orm": "pine_timber_orm.webp",
+      "c-low": "pine_timber_c-low.webp",
+      "n-low": "pine_timber_n-low.webp",
+      "orm-low": "pine_timber_orm-low.webp"
+    },
+    "bytes": 66816,
+    "bytes_low": 14172,
+    "source": "https://ambientcg.com/a/Wood026",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wood026",
+        "url": "https://ambientcg.com/a/Wood026",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Planed honey pine framing (posts, beams, rails, rafters, stringers, balusters, rims) in the deck_pine tone, faint grey weathering, no board gaps; grain along U (posts use Spec.rot). CC0 grain scan.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          196,
+          154,
+          98
+        ],
+        "hex": "#c49a62",
+        "p01": 144,
+        "p50": 159,
+        "p99": 171
+      },
+      "seam": {
+        "c": {
+          "u": 2.28,
+          "v": 0.89
+        },
+        "n": {
+          "u": 0.96,
+          "v": 0.96
+        },
+        "orm_g": {
+          "u": 2.17,
+          "v": 1.29
+        }
+      }
+    }
+  },
+  "plaster_wall": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 2,
+    "decal": false,
+    "alpha": null,
+    "tintable": true,
+    "tints": {
+      "living_yellow": "#e9d58e",
+      "kitchen_teal": "#9cc9bf",
+      "wall_green_beige": "#c9c6a2",
+      "white": "#ffffff"
+    },
+    "files": {
+      "c": "plaster_wall_c.webp",
+      "n": "plaster_wall_n.webp",
+      "orm": "plaster_wall_orm.webp",
+      "c-low": "plaster_wall_c-low.webp",
+      "n-low": "plaster_wall_n-low.webp",
+      "orm-low": "plaster_wall_orm-low.webp"
+    },
+    "bytes": 313274,
+    "bytes_low": 51988,
+    "source": "https://ambientcg.com/a/Plaster002",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Plaster002",
+        "url": "https://ambientcg.com/a/Plaster002",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Painted interior plaster wall, fully tintable (yellow living room, teal/yellow kitchen, green-beige bedroom).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          225,
+          223,
+          214
+        ],
+        "hex": "#e1dfd6",
+        "p01": 207,
+        "p50": 223,
+        "p99": 232
+      },
+      "seam": {
+        "c": {
+          "u": 1.38,
+          "v": 1.32
+        },
+        "n": {
+          "u": 1.26,
+          "v": 1.09
+        },
+        "orm_g": {
+          "u": 1.25,
+          "v": 1.45
+        }
+      }
+    }
+  },
+  "roof_roll": {
+    "category": "exterior",
+    "size": 1024,
+    "tile_m": 1.728,
+    "macro_tile_m": 9,
+    "macro_strength": 0.16,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "roof_roll_c.webp",
+      "n": "roof_roll_n.webp",
+      "orm": "roof_roll_orm.webp",
+      "c-low": "roof_roll_c-low.webp",
+      "n-low": "roof_roll_n-low.webp",
+      "orm-low": "roof_roll_orm-low.webp",
+      "macro": "roof_roll_macro.webp"
+    },
+    "bytes": 164170,
+    "bytes_low": 15890,
+    "source": "https://ambientcg.com/a/Gravel040",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Gravel040",
+        "url": "https://ambientcg.com/a/Gravel040",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Mineral-surfaced roll roofing (green porch roof, GE19): 864 mm exposure courses along U with a lap step and drip shadow, granule surface, streaky weathering; weathered grey ~#788080, no shingle tabs. Procedural (this repo, CC0) on a CC0 granule scan.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          113,
+          121,
+          121
+        ],
+        "hex": "#717979",
+        "p01": 92,
+        "p50": 120,
+        "p99": 138
+      },
+      "seam": {
+        "c": {
+          "u": 1.03,
+          "v": 1.17
+        },
+        "n": {
+          "u": 1.4,
+          "v": 1.35
+        },
+        "orm_g": {
+          "u": 1.01,
+          "v": 1.17
+        }
+      }
+    }
+  },
+  "roof_shingle_green": {
+    "category": "exterior",
+    "size": 2048,
+    "tile_m": 1.8288,
+    "macro_tile_m": 14,
+    "macro_strength": 0.14,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "roof_shingle_green_c.webp",
+      "n": "roof_shingle_green_n.webp",
+      "orm": "roof_shingle_green_orm.webp",
+      "c-low": "roof_shingle_green_c-low.webp",
+      "n-low": "roof_shingle_green_n-low.webp",
+      "orm-low": "roof_shingle_green_orm-low.webp",
+      "macro": "roof_shingle_green_macro.webp"
+    },
+    "bytes": 1300322,
+    "bytes_low": 44206,
+    "source": "https://ambientcg.com/a/Gravel040",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Gravel040",
+        "url": "https://ambientcg.com/a/Gravel040",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Lighter grey-green 3-tab variant for the ranch houses / garages. Same layout as roof_shingle_grey.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          109,
+          116,
+          101
+        ],
+        "hex": "#6d7465",
+        "p01": 69,
+        "p50": 115,
+        "p99": 142
+      },
+      "seam": {
+        "c": {
+          "u": 1.11,
+          "v": 1.17
+        },
+        "n": {
+          "u": 1,
+          "v": 1.12
+        },
+        "orm_g": {
+          "u": 1.1,
+          "v": 1.15
+        }
+      }
+    }
+  },
+  "roof_shingle_grey": {
+    "category": "exterior",
+    "size": 2048,
+    "tile_m": 3.6576,
+    "macro_tile_m": 13,
+    "macro_strength": 0.18,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "roof_shingle_grey_c.webp",
+      "n": "roof_shingle_grey_n.webp",
+      "orm": "roof_shingle_grey_orm.webp",
+      "c-low": "roof_shingle_grey_c-low.webp",
+      "n-low": "roof_shingle_grey_n-low.webp",
+      "orm-low": "roof_shingle_grey_orm-low.webp",
+      "macro": "roof_shingle_grey_macro.webp"
+    },
+    "bytes": 1459406,
+    "bytes_low": 71582,
+    "source": "https://ambientcg.com/a/Gravel040",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Gravel040",
+        "url": "https://ambientcg.com/a/Gravel040",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "3-tab asphalt shingles, weathered grey (bible ~#788080, GE19): a 3.66 m tile (28 courses x 12 tabs: half the r1 repeats at range), per-tab tone, granule scan, algae / soot streaks and wind-scrub blotches; macro staining at 13 m (+ Spec macro2). Procedural layout (this repo, CC0) on a CC0 granule scan.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          109,
+          117,
+          117
+        ],
+        "hex": "#6d7575",
+        "p01": 69,
+        "p50": 117,
+        "p99": 146
+      },
+      "seam": {
+        "c": {
+          "u": 1.12,
+          "v": 1.15
+        },
+        "n": {
+          "u": 1.4,
+          "v": 1.11
+        },
+        "orm_g": {
+          "u": 1.1,
+          "v": 1.15
+        }
+      }
+    }
+  },
+  "rope": {
+    "category": "metal",
+    "size": 1024,
+    "tile_m": 0.1,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "rope_c.webp",
+      "n": "rope_n.webp",
+      "orm": "rope_orm.webp",
+      "c-low": "rope_c-low.webp",
+      "n-low": "rope_n-low.webp",
+      "orm-low": "rope_orm-low.webp"
+    },
+    "bytes": 381944,
+    "bytes_low": 112046,
+    "source": "https://ambientcg.com/a/Rope001",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Rope001",
+        "url": "https://ambientcg.com/a/Rope001",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Twisted manila rope (tire swing, flagpole halyard). U along the rope, one tile = 100 mm of rope / one turn around a ~30 mm rope.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          162,
+          143,
+          112
+        ],
+        "hex": "#a28f70",
+        "p01": 69,
+        "p50": 151,
+        "p99": 184
+      },
+      "seam": {
+        "c": {
+          "u": 0.99,
+          "v": 1
+        },
+        "n": {
+          "u": 1.03,
+          "v": 1.01
+        },
+        "orm_g": {
+          "u": 1.03,
+          "v": 0.97
+        }
+      }
+    }
+  },
+  "rust_metal": {
+    "category": "vehicle",
+    "size": 1024,
+    "tile_m": 1,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "rust_metal_c.webp",
+      "n": "rust_metal_n.webp",
+      "orm": "rust_metal_orm.webp",
+      "c-low": "rust_metal_c-low.webp",
+      "n-low": "rust_metal_n-low.webp",
+      "orm-low": "rust_metal_orm-low.webp"
+    },
+    "bytes": 181714,
+    "bytes_low": 54408,
+    "source": "https://polyhaven.com/a/rusty_metal_02",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "rusty_metal_02",
+        "url": "https://polyhaven.com/a/rusty_metal_02",
+        "license": "CC0",
+        "authors": [
+          "Rob Tuytel"
+        ]
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Rusted steel (wreck panels, drums, tower bolts).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          108,
+          76,
+          62
+        ],
+        "hex": "#6c4c3e",
+        "p01": 41,
+        "p50": 86,
+        "p99": 107
+      },
+      "seam": {
+        "c": {
+          "u": 0.96,
+          "v": 1.57
+        },
+        "n": {
+          "u": 1.98,
+          "v": 1.63
+        },
+        "orm_g": {
+          "u": 1.7,
+          "v": 1.6
+        }
+      }
+    }
+  },
+  "sapling_leaves": {
+    "category": "foliage",
+    "size": 1024,
+    "tile_m": 0.8,
+    "unit": true,
+    "decal": false,
+    "alpha": "cutout",
+    "tintable": false,
+    "material": {
+      "alphaTest": 0.5,
+      "side": "double"
+    },
+    "files": {
+      "c": "sapling_leaves_c.webp",
+      "n": "sapling_leaves_n.webp",
+      "orm": "sapling_leaves_orm.webp",
+      "c-low": "sapling_leaves_c-low.webp",
+      "n-low": "sapling_leaves_n-low.webp",
+      "orm-low": "sapling_leaves_orm-low.webp"
+    },
+    "bytes": 45710,
+    "bytes_low": 33402,
+    "source": "https://ambientcg.com/a/LeafSet024",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "LeafSet024",
+        "url": "https://ambientcg.com/a/LeafSet024",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "2x2 atlas of sapling leaf sprigs (SO03): a thin twig with 9-15 CC0 beech leaves per cell (~0.4 m sprig), soft alpha, nothing within 3 % of a cell border (no visible card edges), mean #7f9650 (#6f8a45-#9aa865). For GROUND's foliage_kit.sapling (nt_sapling_leaf).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          127,
+          150,
+          80
+        ],
+        "hex": "#7f9650",
+        "p01": 101,
+        "p50": 140,
+        "p99": 189
+      }
+    }
+  },
+  "scrub_sage": {
+    "category": "foliage",
+    "size": 1024,
+    "tile_m": 2.4,
+    "unit": true,
+    "decal": false,
+    "alpha": "cutout",
+    "tintable": false,
+    "material": {
+      "alphaTest": 0.5,
+      "side": "double"
+    },
+    "files": {
+      "c": "scrub_sage_c.webp",
+      "n": "scrub_sage_n.webp",
+      "orm": "scrub_sage_orm.webp",
+      "c-low": "scrub_sage_c-low.webp",
+      "n-low": "scrub_sage_n-low.webp",
+      "orm-low": "scrub_sage_orm-low.webp"
+    },
+    "bytes": 201054,
+    "bytes_low": 174224,
+    "source": "procedural (this repo)",
+    "sources": [],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "2x2 atlas of desert scrub, 4 species (WD05): big sagebrush (sage-grey #8a8a6a), rabbitbrush (yellow-green, yellow flower tufts), saltbush (blue-grey), a dry dead-twig bush; branch-structured, see-through silhouettes. One card = 1.2 m square, base on the cell's bottom edge. Original procedural (this repo, CC0). For LIGHT's backdrop (nt_scrub_card).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          109,
+          108,
+          84
+        ],
+        "hex": "#6d6c54",
+        "p01": 74,
+        "p50": 107,
+        "p99": 165
+      }
+    }
+  },
+  "shrub_cards": {
+    "category": "foliage",
+    "size": 1024,
+    "tile_m": 1,
+    "unit": true,
+    "decal": false,
+    "alpha": "cutout",
+    "tintable": false,
+    "material": {
+      "alphaTest": 0.5,
+      "side": "double"
+    },
+    "files": {
+      "c": "shrub_cards_c.webp",
+      "n": "shrub_cards_n.webp",
+      "orm": "shrub_cards_orm.webp",
+      "c-low": "shrub_cards_c-low.webp",
+      "n-low": "shrub_cards_n-low.webp",
+      "orm-low": "shrub_cards_orm-low.webp"
+    },
+    "bytes": 141270,
+    "bytes_low": 117784,
+    "source": "procedural (this repo)",
+    "sources": [],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "2x2 atlas of planter shrub clumps (GE04): three dusty grey-green lavender clumps with purple flower spikes (one sparse, one dense) and a boxwood clump; one card = 0.5 m square, base on the cell's bottom edge, open stem silhouettes. Original procedural (this repo, CC0). For GROUND's planters / foliage_kit.shrub_clump (nt_shrub_card).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          90,
+          93,
+          84
+        ],
+        "hex": "#5a5d54",
+        "p01": 49,
+        "p50": 92,
+        "p99": 148
+      }
+    }
+  },
+  "sidewalk_concrete": {
+    "category": "ground",
+    "size": 2048,
+    "tile_m": 3,
+    "macro_tile_m": 18,
+    "macro_strength": 0.08,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "sidewalk_concrete_c.webp",
+      "n": "sidewalk_concrete_n.webp",
+      "orm": "sidewalk_concrete_orm.webp",
+      "c-low": "sidewalk_concrete_c-low.webp",
+      "n-low": "sidewalk_concrete_n-low.webp",
+      "orm-low": "sidewalk_concrete_orm-low.webp",
+      "macro": "sidewalk_concrete_macro.webp"
+    },
+    "bytes": 2806618,
+    "bytes_low": 91150,
+    "source": "https://ambientcg.com/a/Concrete047A",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Concrete047A",
+        "url": "https://ambientcg.com/a/Concrete047A",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Pale sidewalk slabs: tooled control joints every 1.5 m (2x2 slabs per 3 m tile), cut deeper and darker than r0 with small chipped spalls along the joints (CUL08), smooth trowelled margins, per-slab tone. LOOK BIBLE slabs ~#ada993.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          171,
+          167,
+          146
+        ],
+        "hex": "#aba792",
+        "p01": 89,
+        "p50": 167,
+        "p99": 225
+      },
+      "seam": {
+        "c": {
+          "u": 1.36,
+          "v": 1.17
+        },
+        "n": {
+          "u": 1.23,
+          "v": 1.22
+        },
+        "orm_g": {
+          "u": 1.07,
+          "v": 1.06
+        }
+      }
+    }
+  },
+  "siding_board": {
+    "category": "exterior",
+    "size": 2048,
+    "tile_m": 2.44,
+    "macro_tile_m": 9,
+    "macro_strength": 0.07,
+    "decal": false,
+    "alpha": null,
+    "tintable": true,
+    "tints": {
+      "yellow_house_butter": "#fcefa0",
+      "yellow_house_olive": "#6c6d44",
+      "ranch_plum_brown": "#7d5a5e",
+      "ranch_pink": "#e8b2b6"
+    },
+    "files": {
+      "c": "siding_board_c.webp",
+      "n": "siding_board_n.webp",
+      "orm": "siding_board_orm.webp",
+      "c-low": "siding_board_c-low.webp",
+      "n-low": "siding_board_n-low.webp",
+      "orm-low": "siding_board_orm-low.webp",
+      "macro": "siding_board_macro.webp"
+    },
+    "bytes": 118360,
+    "bytes_low": 6052,
+    "source": "https://ambientcg.com/a/PaintedWood008A",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "PaintedWood008A",
+        "url": "https://ambientcg.com/a/PaintedWood008A",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Board-and-batten (procedural, this repo, on a CC0 paint-film scan): 305 mm boards, 64 mm battens 19 mm proud with eased edges, faint centre V on each board. _orm.R = occlusion fillet along both batten bases (the 5 m shadow line). Clean near-white base, fully tintable; no stains.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          233,
+          233,
+          229
+        ],
+        "hex": "#e9e9e5",
+        "p01": 231,
+        "p50": 232,
+        "p99": 234
+      },
+      "seam": {
+        "c": {
+          "u": 0.78,
+          "v": 0.96
+        },
+        "n": {
+          "u": 0.72,
+          "v": 0.87
+        },
+        "orm_g": {
+          "u": 0.92,
+          "v": 0.94
+        }
+      }
+    }
+  },
+  "siding_lap": {
+    "category": "exterior",
+    "size": 2048,
+    "tile_m": 2.4,
+    "macro_tile_m": 9,
+    "macro_strength": 0.07,
+    "decal": false,
+    "alpha": null,
+    "tintable": true,
+    "tints": {
+      "green_house_mint": "#94f4c2",
+      "white": "#ffffff",
+      "ranch_pink": "#e8b2b6",
+      "ranch_powder_blue": "#aac6dc"
+    },
+    "files": {
+      "c": "siding_lap_c.webp",
+      "n": "siding_lap_n.webp",
+      "orm": "siding_lap_orm.webp",
+      "c-low": "siding_lap_c-low.webp",
+      "n-low": "siding_lap_n-low.webp",
+      "orm-low": "siding_lap_orm-low.webp",
+      "macro": "siding_lap_macro.webp"
+    },
+    "bytes": 119250,
+    "bytes_low": 6370,
+    "source": "https://ambientcg.com/a/PaintedWood008A",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "PaintedWood008A",
+        "url": "https://ambientcg.com/a/PaintedWood008A",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Painted clapboard (procedural, this repo, on a CC0 paint-film scan): 16 courses x 150 mm per 2.4 m, image-up = world-up (the client flips V). Wedge boards (butt 19 mm, top 5 mm), eased butt; _orm.R = 2.5 cm drop-shadow/occlusion band under every butt (Spec.cavity multiplies it into the albedo). Clean near-white base, whole surface tintable; no knots, seams or stains.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          233,
+          232,
+          229
+        ],
+        "hex": "#e9e8e5",
+        "p01": 231,
+        "p50": 232,
+        "p99": 234
+      },
+      "seam": {
+        "c": {
+          "u": 1.04,
+          "v": 1.73
+        },
+        "n": {
+          "u": 1.05,
+          "v": 0.99
+        },
+        "orm_g": {
+          "u": 1.17,
+          "v": 34.63
+        }
+      }
+    }
+  },
+  "soffit_beadboard": {
+    "category": "exterior",
+    "size": 1024,
+    "tile_m": 1.2192,
+    "decal": false,
+    "alpha": null,
+    "tintable": true,
+    "files": {
+      "c": "soffit_beadboard_c.webp",
+      "n": "soffit_beadboard_n.webp",
+      "orm": "soffit_beadboard_orm.webp",
+      "c-low": "soffit_beadboard_c-low.webp",
+      "n-low": "soffit_beadboard_n-low.webp",
+      "orm-low": "soffit_beadboard_orm-low.webp"
+    },
+    "bytes": 25192,
+    "bytes_low": 7718,
+    "source": "https://ambientcg.com/a/PaintedWood008A",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "PaintedWood008A",
+        "url": "https://ambientcg.com/a/PaintedWood008A",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "White painted 4\" beadboard soffit (12 boards per 4 ft), V joints + centre bead along U. Use Spec.facing so the grooves only show on down-facing soffit faces (plain paint on fascia).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          234,
+          233,
+          230
+        ],
+        "hex": "#eae9e6",
+        "p01": 232,
+        "p50": 233,
+        "p99": 234
+      },
+      "seam": {
+        "c": {
+          "u": 1.61,
+          "v": 1.25
+        },
+        "n": {
+          "u": 2,
+          "v": 1.05
+        },
+        "orm_g": {
+          "u": 1.8,
+          "v": 1.24
+        }
+      }
+    }
+  },
+  "soil_bed": {
+    "category": "ground",
+    "size": 1024,
+    "tile_m": 1.5,
+    "macro_tile_m": 8,
+    "macro_strength": 0.12,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "soil_bed_c.webp",
+      "n": "soil_bed_n.webp",
+      "orm": "soil_bed_orm.webp",
+      "c-low": "soil_bed_c-low.webp",
+      "n-low": "soil_bed_n-low.webp",
+      "orm-low": "soil_bed_orm-low.webp",
+      "macro": "soil_bed_macro.webp"
+    },
+    "bytes": 930314,
+    "bytes_low": 199546,
+    "source": "https://ambientcg.com/a/Ground048",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Ground048",
+        "url": "https://ambientcg.com/a/Ground048",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Dark, rich flower-bed / planter soil with bark-mulch crumbs (CC0 Ground048). Planter tops, flower beds.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          75,
+          60,
+          48
+        ],
+        "hex": "#4b3c30",
+        "p01": 33,
+        "p50": 60,
+        "p99": 114
+      },
+      "seam": {
+        "c": {
+          "u": 0.98,
+          "v": 1.01
+        },
+        "n": {
+          "u": 1.08,
+          "v": 0.97
+        },
+        "orm_g": {
+          "u": 1.56,
+          "v": 1.51
+        }
+      }
+    }
+  },
+  "stone_field": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 2,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "stone_field_c.webp",
+      "n": "stone_field_n.webp",
+      "orm": "stone_field_orm.webp",
+      "c-low": "stone_field_c-low.webp",
+      "n-low": "stone_field_n-low.webp",
+      "orm-low": "stone_field_orm-low.webp"
+    },
+    "bytes": 496298,
+    "bytes_low": 168752,
+    "source": "https://polyhaven.com/a/stone_wall",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "stone_wall",
+        "url": "https://polyhaven.com/a/stone_wall",
+        "license": "CC0",
+        "authors": [
+          "Dario Barresi",
+          "Charlotte Baglioni"
+        ]
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Irregular fieldstone feature wall with dark mortar (interior stone wall, garage stone wall).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          154,
+          150,
+          142
+        ],
+        "hex": "#9a968e",
+        "p01": 90,
+        "p50": 154,
+        "p99": 195
+      },
+      "seam": {
+        "c": {
+          "u": 1.25,
+          "v": 1
+        },
+        "n": {
+          "u": 1.23,
+          "v": 0.82
+        },
+        "orm_g": {
+          "u": 2.22,
+          "v": 1.18
+        }
+      }
+    }
+  },
+  "stone_field_grey": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 2,
+    "macro_tile_m": 5,
+    "macro_strength": 0.08,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "stone_field_grey_c.webp",
+      "n": "stone_field_grey_n.webp",
+      "orm": "stone_field_grey_orm.webp",
+      "c-low": "stone_field_grey_c-low.webp",
+      "n-low": "stone_field_grey_n-low.webp",
+      "orm-low": "stone_field_grey_orm-low.webp",
+      "macro": "stone_field_grey_macro.webp"
+    },
+    "bytes": 546700,
+    "bytes_low": 157362,
+    "source": "https://polyhaven.com/a/rock_surface",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "rock_surface",
+        "url": "https://polyhaven.com/a/rock_surface",
+        "license": "CC0",
+        "authors": [
+          "Amal Kumar"
+        ]
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Grey irregular fieldstone with PALE mortar (BO1 yellow-house interior accent walls / passage, refs bo1-interior-stonewall-room-01, bo1-yellowhouse-frontdoor-01; YI09): relaxed-Voronoi flat stones 25-50 cm with chipped arrises and a CC0 rock-scan face, per-stone grey tone, ~2 cm recessed light mortar (deep normal + AO). Average ~#7a7466. Procedural layout (this repo, CC0).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          122,
+          116,
+          104
+        ],
+        "hex": "#7a7468",
+        "p01": 69,
+        "p50": 111,
+        "p99": 189
+      },
+      "seam": {
+        "c": {
+          "u": 1.24,
+          "v": 1.26
+        },
+        "n": {
+          "u": 1.1,
+          "v": 1.12
+        },
+        "orm_g": {
+          "u": 1.62,
+          "v": 1.2
+        }
+      }
+    }
+  },
+  "stone_ledge": {
+    "category": "exterior",
+    "size": 2048,
+    "tile_m": 2.6,
+    "macro_tile_m": 7,
+    "macro_strength": 0.1,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "stone_ledge_c.webp",
+      "n": "stone_ledge_n.webp",
+      "orm": "stone_ledge_orm.webp",
+      "c-low": "stone_ledge_c-low.webp",
+      "n-low": "stone_ledge_n-low.webp",
+      "orm-low": "stone_ledge_orm-low.webp",
+      "macro": "stone_ledge_macro.webp"
+    },
+    "bytes": 2108970,
+    "bytes_low": 205036,
+    "source": "https://polyhaven.com/a/rustic_stone_wall_02",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "rustic_stone_wall_02",
+        "url": "https://polyhaven.com/a/rustic_stone_wall_02",
+        "license": "CC0",
+        "authors": [
+          "Amal Kumar"
+        ]
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Stacked ledgestone / fieldstone veneer (green base + planters, yellow spine wall, chimney and front base; dark tint = the yellow rear base): warm cream-tan faces (GE15), courses 1.7x larger than r1 (2.6 m tile, YE07), near-white stones compressed, deep bed joints (displacement normal x2.6 + displacement AO in _orm.R for Spec.cavity).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          138,
+          127,
+          110
+        ],
+        "hex": "#8a7f6e",
+        "p01": 87,
+        "p50": 133,
+        "p99": 146
+      },
+      "seam": {
+        "c": {
+          "u": 1.41,
+          "v": 1.02
+        },
+        "n": {
+          "u": 1.09,
+          "v": 1.07
+        },
+        "orm_g": {
+          "u": 1.88,
+          "v": 1.03
+        }
+      }
+    }
+  },
+  "timber": {
+    "category": "exterior",
+    "size": 1024,
+    "tile_m": 1.2,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "timber_c.webp",
+      "n": "timber_n.webp",
+      "orm": "timber_orm.webp",
+      "c-low": "timber_c-low.webp",
+      "n-low": "timber_n-low.webp",
+      "orm-low": "timber_orm-low.webp"
+    },
+    "bytes": 88032,
+    "bytes_low": 14538,
+    "source": "https://ambientcg.com/a/Wood026",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wood026",
+        "url": "https://ambientcg.com/a/Wood026",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Planed stained timber, no board gaps, grain along U (posts use Spec.rot so the grain runs up the post).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          138,
+          106,
+          80
+        ],
+        "hex": "#8a6a50",
+        "p01": 96,
+        "p50": 111,
+        "p99": 124
+      },
+      "seam": {
+        "c": {
+          "u": 2.28,
+          "v": 0.88
+        },
+        "n": {
+          "u": 3.54,
+          "v": 1.16
+        },
+        "orm_g": {
+          "u": 2.17,
+          "v": 1.29
+        }
+      }
+    }
+  },
+  "tire_rubber": {
+    "category": "vehicle",
+    "size": 1024,
+    "tile_m": 0.75,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "tire_rubber_c.webp",
+      "n": "tire_rubber_n.webp",
+      "orm": "tire_rubber_orm.webp",
+      "c-low": "tire_rubber_c-low.webp",
+      "n-low": "tire_rubber_n-low.webp",
+      "orm-low": "tire_rubber_orm-low.webp"
+    },
+    "bytes": 469052,
+    "bytes_low": 76682,
+    "source": "https://ambientcg.com/a/Rubber004",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Rubber004",
+        "url": "https://ambientcg.com/a/Rubber004",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Tyre rubber (sidewalls, tread surface; tread blocks are geometry/normal-baked by the vehicle stream).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          48,
+          48,
+          47
+        ],
+        "hex": "#30302f",
+        "p01": 37,
+        "p50": 47,
+        "p99": 65
+      },
+      "seam": {
+        "c": {
+          "u": 1.37,
+          "v": 1.29
+        },
+        "n": {
+          "u": 1.14,
+          "v": 1.04
+        },
+        "orm_g": {
+          "u": 1.13,
+          "v": 1.2
+        }
+      }
+    }
+  },
+  "trim_paint": {
+    "category": "exterior",
+    "size": 1024,
+    "tile_m": 1.2,
+    "decal": false,
+    "alpha": null,
+    "tintable": true,
+    "files": {
+      "c": "trim_paint_c.webp",
+      "n": "trim_paint_n.webp",
+      "orm": "trim_paint_orm.webp",
+      "c-low": "trim_paint_c-low.webp",
+      "n-low": "trim_paint_n-low.webp",
+      "orm-low": "trim_paint_orm-low.webp"
+    },
+    "bytes": 16076,
+    "bytes_low": 3360,
+    "source": "https://ambientcg.com/a/PaintedWood008A",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "PaintedWood008A",
+        "url": "https://ambientcg.com/a/PaintedWood008A",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Clean semi-gloss white trim paint over smooth wood (fascia, corner boards, casings, rails). Detail only (brush film), no rust, chips or stains.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          234,
+          233,
+          230
+        ],
+        "hex": "#eae9e6",
+        "p01": 232,
+        "p50": 233,
+        "p99": 234
+      },
+      "seam": {
+        "c": {
+          "u": 1.61,
+          "v": 1.25
+        },
+        "n": {
+          "u": 2,
+          "v": 1.06
+        },
+        "orm_g": {
+          "u": 1.8,
+          "v": 1.24
+        }
+      }
+    }
+  },
+  "trim_walnut": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 1,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "trim_walnut_c.webp",
+      "n": "trim_walnut_n.webp",
+      "orm": "trim_walnut_orm.webp",
+      "c-low": "trim_walnut_c-low.webp",
+      "n-low": "trim_walnut_n-low.webp",
+      "orm-low": "trim_walnut_orm-low.webp"
+    },
+    "bytes": 71650,
+    "bytes_low": 10666,
+    "source": "https://ambientcg.com/a/Wood027",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wood027",
+        "url": "https://ambientcg.com/a/Wood027",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Smooth walnut moulding wood (baseboard, crown, casings, chair rail, stair skirt, handrails): no board gaps, grain along U (runs along horizontal trim; rotate for vertical casings).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          90,
+          60,
+          41
+        ],
+        "hex": "#5a3c29",
+        "p01": 54,
+        "p50": 65,
+        "p99": 74
+      },
+      "seam": {
+        "c": {
+          "u": 2.53,
+          "v": 1.32
+        },
+        "n": {
+          "u": 3.99,
+          "v": 0.92
+        },
+        "orm_g": {
+          "u": 2.16,
+          "v": 1.54
+        }
+      }
+    }
+  },
+  "vinyl_checker_navy": {
+    "category": "interior",
+    "size": 2048,
+    "tile_m": 1.2192,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "vinyl_checker_navy_c.webp",
+      "n": "vinyl_checker_navy_n.webp",
+      "orm": "vinyl_checker_navy_orm.webp",
+      "c-low": "vinyl_checker_navy_c-low.webp",
+      "n-low": "vinyl_checker_navy_n-low.webp",
+      "orm-low": "vinyl_checker_navy_orm-low.webp"
+    },
+    "bytes": 369782,
+    "bytes_low": 21262,
+    "source": "procedural (this repo)",
+    "sources": [],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Navy / cream 12 in vinyl checker (green kitchen, refs bo1-materials-kitchen-checkerfloor-crop-01, bo1-interior-kitchen-panorama-01; GI13): flat vinyl class means #3c427e / #d6d4c4, faint jaspé, scratches (light on navy), traffic scuffs + heel marks, per-tile tint, a thin dark seam GROOVE in the normal + AO. Fully procedural (this repo, CC0).",
+    "qa": {
+      "albedo": {
+        "mean": [
+          134,
+          136,
+          155
+        ],
+        "hex": "#86889b",
+        "p01": 35,
+        "p50": 72,
+        "p99": 226
+      },
+      "seam": {
+        "c": {
+          "u": 1.22,
+          "v": 1.15
+        },
+        "n": {
+          "u": 0.85,
+          "v": 0.99
+        },
+        "orm_g": {
+          "u": 1.22,
+          "v": 1.39
+        }
+      }
+    }
+  },
+  "vinyl_seat": {
+    "category": "vehicle",
+    "size": 1024,
+    "tile_m": 0.4,
+    "decal": false,
+    "alpha": null,
+    "tintable": true,
+    "tints": {
+      "red": "#a03029",
+      "cream": "#eadfc6",
+      "turquoise": "#4fa5a1",
+      "bus_green": "#5c7a5a"
+    },
+    "files": {
+      "c": "vinyl_seat_c.webp",
+      "n": "vinyl_seat_n.webp",
+      "orm": "vinyl_seat_orm.webp",
+      "c-low": "vinyl_seat_c-low.webp",
+      "n-low": "vinyl_seat_n-low.webp",
+      "orm-low": "vinyl_seat_orm-low.webp"
+    },
+    "bytes": 112026,
+    "bytes_low": 26676,
+    "source": "https://ambientcg.com/a/Leather025",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Leather025",
+        "url": "https://ambientcg.com/a/Leather025",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Grained vinyl upholstery (car/bus seats, dinette chairs), fully tintable.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          227,
+          222,
+          212
+        ],
+        "hex": "#e3ded4",
+        "p01": 219,
+        "p50": 222,
+        "p99": 227
+      },
+      "seam": {
+        "c": {
+          "u": 2.81,
+          "v": 2.59
+        },
+        "n": {
+          "u": 1.51,
+          "v": 1.27
+        },
+        "orm_g": {
+          "u": 1.61,
+          "v": 1.62
+        }
+      }
+    }
+  },
+  "wainscot_walnut": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 0.66,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "wainscot_walnut_c.webp",
+      "n": "wainscot_walnut_n.webp",
+      "orm": "wainscot_walnut_orm.webp",
+      "c-low": "wainscot_walnut_c-low.webp",
+      "n-low": "wainscot_walnut_n-low.webp",
+      "orm-low": "wainscot_walnut_orm-low.webp"
+    },
+    "bytes": 200828,
+    "bytes_low": 49206,
+    "source": "https://ambientcg.com/a/Wood027",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wood027",
+        "url": "https://ambientcg.com/a/Wood027",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Walnut vertical-board wainscot (110 mm boards, V-grooves, satin) for the living rooms / stairwells / back rooms (refs bo1-interior-livingroom-02, bo1-interior-paneled-room-01). Boards cut from a CC0 walnut scan. Map V up the wall; cap with nt_trim_walnut.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          92,
+          64,
+          47
+        ],
+        "hex": "#5c402f",
+        "p01": 32,
+        "p50": 69,
+        "p99": 98
+      },
+      "seam": {
+        "c": {
+          "u": 1.08,
+          "v": 1.17
+        },
+        "n": {
+          "u": 0.75,
+          "v": 1.39
+        },
+        "orm_g": {
+          "u": 0.92,
+          "v": 1.16
+        }
+      }
+    }
+  },
+  "wallpaper_floral": {
+    "category": "interior",
+    "size": 2048,
+    "tile_m": 1.38,
+    "macro_tile_m": 3.2,
+    "macro_strength": 0.1,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "wallpaper_floral_c.webp",
+      "n": "wallpaper_floral_n.webp",
+      "orm": "wallpaper_floral_orm.webp",
+      "c-low": "wallpaper_floral_c-low.webp",
+      "n-low": "wallpaper_floral_n-low.webp",
+      "orm-low": "wallpaper_floral_orm-low.webp",
+      "macro": "wallpaper_floral_macro.webp"
+    },
+    "bytes": 297618,
+    "bytes_low": 22256,
+    "source": "https://ambientcg.com/a/Wallpaper001A",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wallpaper001A",
+        "url": "https://ambientcg.com/a/Wallpaper001A",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Pale sage-cream fruit-vine paper (green kitchen, stairwell, back room; refs bo1-materials-floral-wallpaper-crop-01, bo1-interior-kitchen-panorama-01): the r1 4-vine pattern on a desaturated cream ground (albedo ~#d4cdac, r2 table: kitchen lit #bbb8a3), motifs olive / dusty fruit. Original pattern (CC0) on a CC0 paper scan.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          212,
+          205,
+          172
+        ],
+        "hex": "#d4cdac",
+        "p01": 113,
+        "p50": 210,
+        "p99": 216
+      },
+      "seam": {
+        "c": {
+          "u": 0.78,
+          "v": 0.97
+        },
+        "n": {
+          "u": 1.06,
+          "v": 0.99
+        },
+        "orm_g": {
+          "u": 2.05,
+          "v": 1.77
+        }
+      }
+    }
+  },
+  "wallpaper_geo_sage": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 0.5,
+    "macro_tile_m": 3.2,
+    "macro_strength": 0.05,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "wallpaper_geo_sage_c.webp",
+      "n": "wallpaper_geo_sage_n.webp",
+      "orm": "wallpaper_geo_sage_orm.webp",
+      "c-low": "wallpaper_geo_sage_c-low.webp",
+      "n-low": "wallpaper_geo_sage_n-low.webp",
+      "orm-low": "wallpaper_geo_sage_orm-low.webp",
+      "macro": "wallpaper_geo_sage_macro.webp"
+    },
+    "bytes": 41054,
+    "bytes_low": 6496,
+    "source": "https://ambientcg.com/a/Wallpaper001A",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wallpaper001A",
+        "url": "https://ambientcg.com/a/Wallpaper001A",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Sage geometric-squares backsplash paper (BO1 yellow kitchen band between the counter and the uppers, refs bo1-interior-kitchen-01): cream double-outlined 94 mm rounded squares alternating with small caramel squares in a cream frame on a 125 mm grid, pale sage ground (#9ca57a..#a6b282). Original pattern (CC0) on a CC0 paper scan.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          174,
+          177,
+          138
+        ],
+        "hex": "#aeb18a",
+        "p01": 144,
+        "p50": 169,
+        "p99": 229
+      },
+      "seam": {
+        "c": {
+          "u": 0.95,
+          "v": 1.05
+        },
+        "n": {
+          "u": 1.55,
+          "v": 1.08
+        },
+        "orm_g": {
+          "u": 1.97,
+          "v": 1.6
+        }
+      }
+    }
+  },
+  "wallpaper_oval": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 0.44,
+    "macro_tile_m": 3.2,
+    "macro_strength": 0.06,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "wallpaper_oval_c.webp",
+      "n": "wallpaper_oval_n.webp",
+      "orm": "wallpaper_oval_orm.webp",
+      "c-low": "wallpaper_oval_c-low.webp",
+      "n-low": "wallpaper_oval_n-low.webp",
+      "orm-low": "wallpaper_oval_orm-low.webp",
+      "macro": "wallpaper_oval_macro.webp"
+    },
+    "bytes": 62642,
+    "bytes_low": 15970,
+    "source": "https://ambientcg.com/a/Wallpaper001A",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wallpaper001A",
+        "url": "https://ambientcg.com/a/Wallpaper001A",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Mustard interlocking-oval chain paper (BO1 yellow house: entry, stairwell, living, kitchen; refs bo1-interior-livingroom-02, bo1-interior-kitchen-01): 6 mm cream lines on a flat mustard ground, adjacent lines in antiphase pinching into short chain links around 220 x 110 mm horizontal ovals (22 cm repeat). No filled centres, no brick bond (YI03). Original pattern (CC0) on a CC0 paper scan.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          190,
+          159,
+          73
+        ],
+        "hex": "#be9f49",
+        "p01": 147,
+        "p50": 151,
+        "p99": 225
+      },
+      "seam": {
+        "c": {
+          "u": 0.68,
+          "v": 0.12
+        },
+        "n": {
+          "u": 1.55,
+          "v": 1.08
+        },
+        "orm_g": {
+          "u": 1.97,
+          "v": 1.6
+        }
+      }
+    }
+  },
+  "wallpaper_star": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 0.53,
+    "macro_tile_m": 3.2,
+    "macro_strength": 0.08,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "wallpaper_star_c.webp",
+      "n": "wallpaper_star_n.webp",
+      "orm": "wallpaper_star_orm.webp",
+      "c-low": "wallpaper_star_c-low.webp",
+      "n-low": "wallpaper_star_n-low.webp",
+      "orm-low": "wallpaper_star_orm-low.webp",
+      "macro": "wallpaper_star_macro.webp"
+    },
+    "bytes": 41408,
+    "bytes_low": 6488,
+    "source": "https://ambientcg.com/a/Wallpaper001A",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wallpaper001A",
+        "url": "https://ambientcg.com/a/Wallpaper001A",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Pale cream atomic-star paper (green living room / landing, yellow back room; ref bo1-interior-upstairs-room-01): the r0 pattern on a lighter, desaturated ground (albedo ~#ddd09e, r2 table: lit #9c8c60 green / #c3af70-#d2bd7e yellow back room), brown stars kept. Original pattern (CC0) on a CC0 paper scan.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          221,
+          208,
+          158
+        ],
+        "hex": "#ddd09e",
+        "p01": 99,
+        "p50": 210,
+        "p99": 215
+      },
+      "seam": {
+        "c": {
+          "u": 1.91,
+          "v": 1.46
+        },
+        "n": {
+          "u": 1.55,
+          "v": 1.08
+        },
+        "orm_g": {
+          "u": 1.97,
+          "v": 1.6
+        }
+      }
+    }
+  },
+  "wallpaper_vine": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 0.46,
+    "macro_tile_m": 3.2,
+    "macro_strength": 0.08,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "wallpaper_vine_c.webp",
+      "n": "wallpaper_vine_n.webp",
+      "orm": "wallpaper_vine_orm.webp",
+      "c-low": "wallpaper_vine_c-low.webp",
+      "n-low": "wallpaper_vine_n-low.webp",
+      "orm-low": "wallpaper_vine_orm-low.webp",
+      "macro": "wallpaper_vine_macro.webp"
+    },
+    "bytes": 71422,
+    "bytes_low": 18896,
+    "source": "https://ambientcg.com/a/Wallpaper001A",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wallpaper001A",
+        "url": "https://ambientcg.com/a/Wallpaper001A",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Fine fruit-vine paper (3x the floral density), desaturated to sage-cream (albedo ~#d4ceae). Original pattern (CC0) on a CC0 paper scan.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          212,
+          206,
+          174
+        ],
+        "hex": "#d4ceae",
+        "p01": 112,
+        "p50": 210,
+        "p99": 216
+      },
+      "seam": {
+        "c": {
+          "u": 0.27,
+          "v": 1.07
+        },
+        "n": {
+          "u": 1.55,
+          "v": 1.08
+        },
+        "orm_g": {
+          "u": 1.97,
+          "v": 1.6
+        }
+      }
+    }
+  },
+  "wood_cabinet": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 1,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "wood_cabinet_c.webp",
+      "n": "wood_cabinet_n.webp",
+      "orm": "wood_cabinet_orm.webp",
+      "c-low": "wood_cabinet_c-low.webp",
+      "n-low": "wood_cabinet_n-low.webp",
+      "orm-low": "wood_cabinet_orm-low.webp"
+    },
+    "bytes": 134332,
+    "bytes_low": 19146,
+    "source": "https://ambientcg.com/a/Wood027",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wood027",
+        "url": "https://ambientcg.com/a/Wood027",
+        "license": "CC0"
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Dark walnut: kitchen cabinets, crown molding, door casings, furniture (LOOK BIBLE 'walnut trim/cabinets').",
+    "qa": {
+      "albedo": {
+        "mean": [
+          92,
+          62,
+          45
+        ],
+        "hex": "#5c3e2d",
+        "p01": 53,
+        "p50": 67,
+        "p99": 79
+      },
+      "seam": {
+        "c": {
+          "u": 2.35,
+          "v": 1.22
+        },
+        "n": {
+          "u": 4,
+          "v": 0.91
+        },
+        "orm_g": {
+          "u": 2.46,
+          "v": 1.55
+        }
+      }
+    }
+  },
+  "wood_paneling": {
+    "category": "interior",
+    "size": 1024,
+    "tile_m": 1.2,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "wood_paneling_c.webp",
+      "n": "wood_paneling_n.webp",
+      "orm": "wood_paneling_orm.webp",
+      "c-low": "wood_paneling_c-low.webp",
+      "n-low": "wood_paneling_n-low.webp",
+      "orm-low": "wood_paneling_orm-low.webp"
+    },
+    "bytes": 210488,
+    "bytes_low": 48202,
+    "source": "https://ambientcg.com/a/Wood058",
+    "sources": [
+      {
+        "provider": "ambientCG",
+        "id": "Wood058",
+        "url": "https://ambientcg.com/a/Wood058",
+        "license": "CC0"
+      }
+    ],
+    "procedural": true,
+    "license": "CC0",
+    "notes": "Grooved knotty-pine style wall paneling (200 mm boards, V-groove) for the paneled room / wainscot.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          152,
+          109,
+          72
+        ],
+        "hex": "#986d48",
+        "p01": 38,
+        "p50": 116,
+        "p99": 150
+      },
+      "seam": {
+        "c": {
+          "u": 1.01,
+          "v": 1.07
+        },
+        "n": {
+          "u": 1.07,
+          "v": 1.01
+        },
+        "orm_g": {
+          "u": 1.12,
+          "v": 0.98
+        }
+      }
+    }
+  },
+  "wood_pole": {
+    "category": "metal",
+    "size": 1024,
+    "tile_m": 0.5,
+    "decal": false,
+    "alpha": null,
+    "tintable": false,
+    "files": {
+      "c": "wood_pole_c.webp",
+      "n": "wood_pole_n.webp",
+      "orm": "wood_pole_orm.webp",
+      "c-low": "wood_pole_c-low.webp",
+      "n-low": "wood_pole_n-low.webp",
+      "orm-low": "wood_pole_orm-low.webp"
+    },
+    "bytes": 330232,
+    "bytes_low": 78694,
+    "source": "https://polyhaven.com/a/rough_wood",
+    "sources": [
+      {
+        "provider": "Poly Haven",
+        "id": "rough_wood",
+        "url": "https://polyhaven.com/a/rough_wood",
+        "license": "CC0",
+        "authors": [
+          "Rob Tuytel"
+        ]
+      }
+    ],
+    "procedural": false,
+    "license": "CC0",
+    "notes": "Creosote-weathered utility-pole / timber (power poles, pergola posts if stained dark). V along the pole.",
+    "qa": {
+      "albedo": {
+        "mean": [
+          85,
+          72,
+          61
+        ],
+        "hex": "#55483d",
+        "p01": 35,
+        "p50": 74,
+        "p99": 120
+      },
+      "seam": {
+        "c": {
+          "u": 0.92,
+          "v": 1.61
+        },
+        "n": {
+          "u": 1.05,
+          "v": 1.27
+        },
+        "orm_g": {
+          "u": 1.33,
+          "v": 1.96
+        }
+      }
+    }
+  }
+}

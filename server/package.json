@@ -1,0 +1,17 @@
+{
+  "name": "kong-local-server",
+  "private": true,
+  "type": "module",
+  "main": "dist/server.mjs",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node dist/server.mjs --port=8765",
+    "test:protocol": "node test-client.mjs"
+  },
+  "dependencies": {
+    "ws": "^8"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24"
+  }
+}
