@@ -1,6 +1,6 @@
 # BANANA SHIPMENT (local ripoff)
 
-Local copy of the browser game at https://cnvs.dev/kong/?map=nuketown — **including a custom multiplayer game server** (the original only ships the client; the server code is not published). The server in `server/` is a clean-room rebuild based on the official network protocol (`shared/protocol.ts`) and uses the same authoritative simulation engine (`shared/sim.ts`) that the client's offline Quick Play runs.
+Local copy of the browser game at https://cnvs.dev/kong/ — **including a custom multiplayer game server** (the original only ships the client; the server code is not published). The server in `server/` is a clean-room rebuild based on the official network protocol (`shared/protocol.ts`) and uses the same authoritative simulation engine (`shared/sim.ts`) that the client's offline Quick Play runs.
 
 **Important: always start the game via the HTTP server, never by double-clicking `index.html`.** Under `file://`, Chromium blocks all of the client's `fetch()` calls — menu 3D backgrounds go missing and Quick Play fails with "FAILED TO FETCH".
 
@@ -12,7 +12,7 @@ npm run build         (one-time: builds server/dist + client/dist)
 npm run server        (hub on :8765 with the mirrored client — then open the URL below)
 ```
 
-http://localhost:8765/kong/?map=nuketown — `?map=shipment|dust2|ares|nuketown` picks the map.
+http://localhost:8765/kong/ — pick the map in the menu (Shipment, Dust2, Ares Relay, Nuketown).
 
 ## Screenshots
 
@@ -44,14 +44,14 @@ cd server && npm run test:protocol            (protocol test)
 
 The server provides all of these at once:
 - the game files (web root `client/public` or `client/dist`)
-- the multiplayer protocol (`ws://host:8765/kong/ws?map=<id>`)
+- the multiplayer protocol (`ws://host:8765/kong/ws` — the client appends the selected map itself)
 - `/healthz` for health checks
 
 The menu offers **QUICK PLAY** (offline vs bots), **PUBLIC MATCH** (multiplayer) and **PRIVATE MATCH** (code lobby, joinable via `?join=<CODE>` link — also across LAN PCs using the server IP).
 
 ## Multiplayer
 
-The server is a **HUB**: the client picks the map (`?map=<id>`), and the hub routes each connection to a lazily spawned worker process for exactly that map (worker ports: hub port + 101..104). One live match per map, bot fill up to the map's seat count, rollover after match end, spectator bench with promotion, chat, loadout, ping.
+The server is a **HUB**: the client picks the map in the menu, and the hub routes each connection to a lazily spawned worker process for exactly that map (worker ports: hub port + 101..104). One live match per map, bot fill up to the map's seat count, rollover after match end, spectator bench with promotion, chat, loadout, ping.
 
 Seat counts per map (from the original `shared/modes.ts`): Shipment 5v5 / 10 FFA, Dust2/Ares/Nuketown 6v6 / 12 FFA.
 
