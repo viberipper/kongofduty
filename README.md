@@ -14,6 +14,14 @@ npm run server        (hub on :8765 with the mirrored client — then open the U
 
 http://localhost:8765/kong/?map=nuketown — `?map=shipment|dust2|ares|nuketown` picks the map.
 
+## Screenshots
+
+| ARES RELAY (ADS) | NUKETOWN (TDM triple kill) |
+|---|---|
+| ![Aiming down sights on Ares Relay](docs/screenshots/ares-ads.png) | ![Triple kill on Nuketown](docs/screenshots/nuketown-tdm.png) |
+| NUKETOWN (ADS vs Jungle Jim) | SHIPMENT (pause menu, 5v5) |
+| ![Aiming at Jungle Jim on Nuketown](docs/screenshots/nuketown-ads.png) | ![Paused 5v5 match on Shipment](docs/screenshots/shipment-pause.png) |
+
 ## Scripts
 
 ```bat
