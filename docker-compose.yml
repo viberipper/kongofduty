@@ -1,0 +1,25 @@
+services:
+  server:
+    build: .
+    image: gamerip-server:latest
+    container_name: gamerip-server
+    ports:
+      # Pure server: WS ws://.../ws?map=<id> + /healthz.
+      # No client in the image (hosted externally).
+      # Worker ports (hub port + 101..104) stay container-internal.
+      - "${KONG_PORT:-8765}:${KONG_PORT:-8765}"
+    environment:
+      KONG_PORT: "${KONG_PORT:-8765}"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:'+(process.env.KONG_PORT||'8765')+'/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped

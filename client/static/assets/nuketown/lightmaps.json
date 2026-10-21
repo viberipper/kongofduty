@@ -1,0 +1,27 @@
+{
+ "houses": {
+  "ao": "ao_houses.webp",
+  "gi": "gi_houses.webp",
+  "giScale": 4.14557
+ },
+ "terrain": {
+  "ao": "ao_terrain.webp",
+  "gi": "gi_terrain.webp",
+  "giScale": 1.4645
+ },
+ "structures": {
+  "ao": "ao_structures.webp",
+  "gi": "gi_structures.webp",
+  "giScale": 1.48013
+ },
+ "fences": {
+  "fill": true,
+  "gi": "gi_fences.webp",
+  "giScale": 1.44195
+ },
+ "hedges": {
+  "ao": "ao_hedges.webp",
+  "gi": "gi_hedges.webp",
+  "giScale": 1.46404
+ }
+}

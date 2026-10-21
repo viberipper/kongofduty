@@ -1,0 +1,381 @@
+{
+  "pack": "tropical-arcade",
+  "title": "TROPICAL ARCADE",
+  "codec": "opus/ogg",
+  "sourceFormat": {
+    "sampleRate": 44100,
+    "bitDepth": 16,
+    "container": "wav"
+  },
+  "encodedAt": "2026-08-16",
+  "bitrate": {
+    "mono": "88k",
+    "stereo": "112k"
+  },
+  "bytes": 1175429,
+  "masterBytes": 14651272,
+  "fileCount": 64,
+  "sizes": {
+    "gun-ar-1.ogg": 4791,
+    "gun-ar-2.ogg": 4163,
+    "gun-ar-3.ogg": 4864,
+    "gun-ar-4.ogg": 4784,
+    "gun-ak-1.ogg": 4920,
+    "gun-ak-2.ogg": 4631,
+    "gun-ak-3.ogg": 5125,
+    "gun-ak-4.ogg": 5311,
+    "gun-smg-1.ogg": 4541,
+    "gun-smg-2.ogg": 4148,
+    "gun-smg-3.ogg": 4370,
+    "gun-smg-4.ogg": 4991,
+    "gun-sniper-1.ogg": 6269,
+    "gun-sniper-2.ogg": 5113,
+    "gun-sniper-3.ogg": 6848,
+    "gun-sniper-4.ogg": 5998,
+    "gun-ar-far-1.ogg": 13616,
+    "gun-ar-far-2.ogg": 13159,
+    "gun-ak-far-1.ogg": 13362,
+    "gun-ak-far-2.ogg": 13167,
+    "gun-smg-far-1.ogg": 12735,
+    "gun-smg-far-2.ogg": 12414,
+    "gun-sniper-far-1.ogg": 13116,
+    "gun-sniper-far-2.ogg": 12827,
+    "reload-out-1.ogg": 4064,
+    "reload-out-2.ogg": 3390,
+    "reload-in-1.ogg": 3769,
+    "reload-in-2.ogg": 3641,
+    "reload-rack-1.ogg": 4020,
+    "reload-rack-2.ogg": 3347,
+    "reload-rack-sniper.ogg": 7820,
+    "step-dirt-1.ogg": 2429,
+    "step-dirt-2.ogg": 2107,
+    "step-dirt-3.ogg": 2245,
+    "step-dirt-4.ogg": 2739,
+    "step-metal-1.ogg": 1993,
+    "step-metal-2.ogg": 2676,
+    "step-metal-3.ogg": 2411,
+    "step-metal-4.ogg": 2437,
+    "hitmarker-1.ogg": 2048,
+    "hitmarker-2.ogg": 2135,
+    "headshot.ogg": 4857,
+    "kill.ogg": 14649,
+    "damage-1.ogg": 5938,
+    "damage-2.ogg": 4937,
+    "nade-pin.ogg": 2889,
+    "nade-throw.ogg": 3029,
+    "nade-bounce-1.ogg": 3409,
+    "nade-bounce-2.ogg": 2731,
+    "explosion-near.ogg": 24408,
+    "explosion-far.ogg": 32402,
+    "medal-kill.ogg": 16117,
+    "medal-double.ogg": 15991,
+    "medal-triple.ogg": 15768,
+    "medal-fury.ogg": 19665,
+    "medal-streak.ogg": 29154,
+    "ui-click.ogg": 2236,
+    "ui-deploy.ogg": 12737,
+    "ui-match-start.ogg": 23649,
+    "ui-match-end.ogg": 20098,
+    "amb-jungle-loop.ogg": 602779,
+    "amb-bird-piha.ogg": 28999,
+    "amb-bird-chirp.ogg": 18657,
+    "amb-insect.ogg": 31796
+  },
+  "events": {
+    "gun-ar": {
+      "files": [
+        "gun-ar-1.ogg",
+        "gun-ar-2.ogg",
+        "gun-ar-3.ogg",
+        "gun-ar-4.ogg"
+      ],
+      "gain": 0.85,
+      "pitchVarPct": 3,
+      "notes": "M4A1-class near shot, 4 real round-robin takes (AR-15 + Marlin 336). Tuned tail on G2."
+    },
+    "gun-ak": {
+      "files": [
+        "gun-ak-1.ogg",
+        "gun-ak-2.ogg",
+        "gun-ak-3.ogg",
+        "gun-ak-4.ogg"
+      ],
+      "gain": 0.9,
+      "pitchVarPct": 3,
+      "notes": "AK47-class near shot, 4 distinct AK-47 takes from one session. Tuned tail on E2 — the darkest of the four."
+    },
+    "gun-smg": {
+      "files": [
+        "gun-smg-1.ogg",
+        "gun-smg-2.ogg",
+        "gun-smg-3.ogg",
+        "gun-smg-4.ogg"
+      ],
+      "gain": 0.78,
+      "pitchVarPct": 3.5,
+      "notes": "SMG near shot, Carl Gustav M45 + PPSh takes. Shortest body, highest tuned tail (C3)."
+    },
+    "gun-sniper": {
+      "files": [
+        "gun-sniper-1.ogg",
+        "gun-sniper-2.ogg",
+        "gun-sniper-3.ogg",
+        "gun-sniper-4.ogg"
+      ],
+      "gain": 1,
+      "pitchVarPct": 2.5,
+      "notes": "M40A3-class near shot, 4 Mosin Nagant takes. Longest tail, tuned C2 — the pack's low anchor."
+    },
+    "gun-ar-far": {
+      "files": [
+        "gun-ar-far-1.ogg",
+        "gun-ar-far-2.ogg"
+      ],
+      "gain": 0.3,
+      "pitchVarPct": 4,
+      "notes": "Other-player AR at distance: soft attack, thin low end, long jungle tail."
+    },
+    "gun-ak-far": {
+      "files": [
+        "gun-ak-far-1.ogg",
+        "gun-ak-far-2.ogg"
+      ],
+      "gain": 0.32,
+      "pitchVarPct": 4,
+      "notes": "Other-player AK at distance, blended with the library's genuine mid-distance AK take."
+    },
+    "gun-smg-far": {
+      "files": [
+        "gun-smg-far-1.ogg",
+        "gun-smg-far-2.ogg"
+      ],
+      "gain": 0.28,
+      "pitchVarPct": 4.5,
+      "notes": "Other-player SMG at distance — the quietest far layer, expect many at once."
+    },
+    "gun-sniper-far": {
+      "files": [
+        "gun-sniper-far-1.ogg",
+        "gun-sniper-far-2.ogg"
+      ],
+      "gain": 0.36,
+      "pitchVarPct": 3,
+      "notes": "Other-player sniper at distance: loudest far variant, longest tail."
+    },
+    "reload": {
+      "files": [
+        "reload-out-1.ogg",
+        "reload-out-2.ogg",
+        "reload-in-1.ogg",
+        "reload-in-2.ogg",
+        "reload-rack-1.ogg",
+        "reload-rack-2.ogg",
+        "reload-rack-sniper.ogg"
+      ],
+      "gain": 0.6,
+      "pitchVarPct": 4,
+      "notes": "Shared 3-stage reload (out / in / rack) with 2 variants per stage plus a slower two-stage bolt for the sniper class."
+    },
+    "step-dirt": {
+      "files": [
+        "step-dirt-1.ogg",
+        "step-dirt-2.ogg",
+        "step-dirt-3.ogg",
+        "step-dirt-4.ogg"
+      ],
+      "gain": 0.32,
+      "pitchVarPct": 8,
+      "notes": "Jungle floor. Light and clicky: high-passed at 240 Hz with a 2.6 kHz tick on top. Run = same files at higher rate/rate-of-fire."
+    },
+    "step-metal": {
+      "files": [
+        "step-metal-1.ogg",
+        "step-metal-2.ogg",
+        "step-metal-3.ogg",
+        "step-metal-4.ogg"
+      ],
+      "gain": 0.36,
+      "pitchVarPct": 8,
+      "notes": "Crate/ship deck. Thimras takes with a 1.6 kHz resonance and a faint tuned ping (C5-G5) so decks belong to the steel-drum family."
+    },
+    "hitmarker": {
+      "files": [
+        "hitmarker-1.ogg",
+        "hitmarker-2.ogg"
+      ],
+      "gain": 0.18,
+      "pitchVarPct": 2,
+      "notes": "75 ms high steel tick + UI click. Fires constantly, so it is deliberately tiny."
+    },
+    "headshot": {
+      "files": [
+        "headshot.ogg"
+      ],
+      "gain": 0.33,
+      "pitchVarPct": 0,
+      "notes": "Hitmarker plus a bell ding a fifth above it — same gesture as the hitmarker, unmistakably 'better'."
+    },
+    "kill": {
+      "files": [
+        "kill.ogg"
+      ],
+      "gain": 0.83,
+      "pitchVarPct": 0,
+      "notes": "Kill confirm: 2-note steel-drum lick (root then fifth, 105 ms apart) over a C2 thump. The pack's dopamine signature."
+    },
+    "damage": {
+      "files": [
+        "damage-1.ogg",
+        "damage-2.ogg"
+      ],
+      "gain": 0.43,
+      "pitchVarPct": 6,
+      "notes": "Damage taken: dark body thud, low-passed at 3.4 kHz so it never competes with the bright feedback family."
+    },
+    "nade-pin": {
+      "files": [
+        "nade-pin.ogg"
+      ],
+      "gain": 0.44,
+      "pitchVarPct": 4,
+      "notes": "Pin pull: two metal clicks, high-passed."
+    },
+    "nade-throw": {
+      "files": [
+        "nade-throw.ogg"
+      ],
+      "gain": 0.39,
+      "pitchVarPct": 6,
+      "notes": "Throw whoosh: two swishes pitched down a major third with a G3 air tone."
+    },
+    "nade-bounce": {
+      "files": [
+        "nade-bounce-1.ogg",
+        "nade-bounce-2.ogg"
+      ],
+      "gain": 0.11,
+      "pitchVarPct": 12,
+      "notes": "Bounce variants: 1 = dirt/soft, 2 = metal/tin. Wide pitch variance so repeated hops never sound looped."
+    },
+    "explosion-near": {
+      "files": [
+        "explosion-near.ogg"
+      ],
+      "gain": 0.93,
+      "pitchVarPct": 6,
+      "notes": "Banana-nade blast: firework cannons + sub layer + debris, with a tuned G1 boom."
+    },
+    "explosion-far": {
+      "files": [
+        "explosion-far.ogg"
+      ],
+      "gain": 0.57,
+      "pitchVarPct": 6,
+      "notes": "Off-screen blast: 2.6 kHz low-pass, slow attack, 2.6 s of tail."
+    },
+    "medal-kill": {
+      "files": [
+        "medal-kill.ogg"
+      ],
+      "gain": 0.75,
+      "pitchVarPct": 0,
+      "notes": "Banner tier 1 — C, G."
+    },
+    "medal-double": {
+      "files": [
+        "medal-double.ogg"
+      ],
+      "gain": 0.78,
+      "pitchVarPct": 0,
+      "notes": "Tier 2 — C, E, G."
+    },
+    "medal-triple": {
+      "files": [
+        "medal-triple.ogg"
+      ],
+      "gain": 0.82,
+      "pitchVarPct": 0,
+      "notes": "Tier 3 — C, E, G, C'."
+    },
+    "medal-fury": {
+      "files": [
+        "medal-fury.ogg"
+      ],
+      "gain": 0.86,
+      "pitchVarPct": 0,
+      "notes": "Tier 4 — C, E, G, C', E'."
+    },
+    "medal-streak": {
+      "files": [
+        "medal-streak.ogg"
+      ],
+      "gain": 0.9,
+      "pitchVarPct": 0,
+      "notes": "Tier 5 — full C-major-pentatonic climb to C''. Same steel note as every other tier, so stacking tiers stays consonant."
+    },
+    "ui-click": {
+      "files": [
+        "ui-click.ogg"
+      ],
+      "gain": 0.13,
+      "pitchVarPct": 0,
+      "notes": "Menu click: 12 ms tick plus the steel note two octaves up."
+    },
+    "ui-deploy": {
+      "files": [
+        "ui-deploy.ogg"
+      ],
+      "gain": 0.7,
+      "pitchVarPct": 0,
+      "notes": "Deploy: C-E-G arpeggio, lands on the fifth."
+    },
+    "ui-match-start": {
+      "files": [
+        "ui-match-start.ogg"
+      ],
+      "gain": 0.85,
+      "pitchVarPct": 0,
+      "notes": "Match start: C-E-G pickup into an octave downbeat with a punch and coin shimmer."
+    },
+    "ui-match-end": {
+      "files": [
+        "ui-match-end.ogg"
+      ],
+      "gain": 0.9,
+      "pitchVarPct": 0,
+      "notes": "MASHED! / match end: descending flourish into a six-voice pentatonic slam."
+    },
+    "amb-jungle-loop": {
+      "files": [
+        "amb-jungle-loop.ogg"
+      ],
+      "gain": 0.35,
+      "pitchVarPct": 0,
+      "notes": "47 s seamless stereo bed: BigSoundBank forest daytime bird bed + a 16% cicada layer + 29 wrapped bird one-shots. Birds forward by design (+2.5 dB shelf at 6 kHz, -3.5 dB at 260 Hz)."
+    },
+    "amb-bird-piha": {
+      "files": [
+        "amb-bird-piha.ogg"
+      ],
+      "gain": 0.27,
+      "pitchVarPct": 10,
+      "notes": "Sparse accent: screaming piha, the signature jungle bird."
+    },
+    "amb-bird-chirp": {
+      "files": [
+        "amb-bird-chirp.ogg"
+      ],
+      "gain": 0.082,
+      "pitchVarPct": 12,
+      "notes": "Sparse accent: two-bird chirp exchange, panned apart."
+    },
+    "amb-insect": {
+      "files": [
+        "amb-insect.ogg"
+      ],
+      "gain": 0.12,
+      "pitchVarPct": 8,
+      "notes": "Sparse accent: cicada swell, high-passed at 900 Hz so it sits above the gunfire band."
+    }
+  }
+}
