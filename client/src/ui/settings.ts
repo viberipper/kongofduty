@@ -9,6 +9,10 @@
  * FPS and render scale on change). Q / E switch tabs, ESC closes.
  */
 import { DEFAULT_PREFS, RANGES, prefs, resetPrefs, setPrefs, type Prefs } from "./prefs";
+import { QUALITY_PRESETS } from "../graphics-presets";
+// NIT 4 (3. Review): gpuBackendNote() ist kein Dead weight — der
+// Renderer-Row trägt unten den Live-Backend-Befund (descOf).
+import { gpuBackendNote } from "../gpu-backend";
 import { uiSfx, wireSfx } from "./sfx";
 // feel stream: CONTROLS rebinds the live keybinding table every game input reads.
 import { ACTIONS, DEFAULT_BINDS, binds, bindable, keyLabel, resetBinds, setBind, wheelCodes, type Action } from "./keybinds";
@@ -143,6 +147,30 @@ const ROWS: Record<Exclude<Tab, "controls">, Row[]> = {
   graphics: [
     { group: "DISPLAY" },
     {
+      key: "renderer",
+      label: "GPU Backend",
+      desc: "Preferred graphics API. AUTO uses WebGPU when available, otherwise WebGL2. This build runs WebGL2 — the vendored three r170 ships no WebGPU renderer yet (see gpu-backend.ts). Takes effect after reload.",
+      kind: "seg",
+      opts: [
+        { v: "auto", label: "AUTO" },
+        { v: "webgpu", label: "WEBGPU" },
+        { v: "webgl", label: "WEBGL" },
+      ],
+    },
+    {
+      key: "quality",
+      label: "Quality Preset",
+      desc: "One switch for the whole look: LOW (fast, internal resolution capped at 0.75x) to CINEMATIC (everything on, up to 8x MSAA on capable GPUs, depth of field, motion blur). MEDIUM caps at 0.85x. NATIVE render scale bypasses the cap. Applies instantly and sets every switch below — they stay individually adjustable afterwards. Weapons/viewmodel unaffected.",
+      kind: "seg",
+      opts: [
+        { v: "low", label: "LOW" },
+        { v: "medium", label: "MEDIUM" },
+        { v: "high", label: "HIGH" },
+        { v: "ultra", label: "ULTRA" },
+        { v: "cinematic", label: "CINEMA" },
+      ],
+    },
+    {
       key: "renderScale",
       label: "Render Resolution",
       desc: "ADAPTIVE lowers the internal resolution when the frame gets expensive and restores it when it is cheap — the smoothest option. NATIVE always renders at your display's full resolution.",
@@ -152,7 +180,69 @@ const ROWS: Record<Exclude<Tab, "controls">, Row[]> = {
         { v: "native", label: "NATIVE" },
       ],
     },
+    {
+      key: "shadowQuality",
+      label: "Shadow Quality",
+      desc: "Shadow map resolution. HIGH keeps the map's own resolution, OFF disables shadows entirely (fastest). Applies live, no reload.",
+      kind: "seg",
+      opts: [
+        { v: "off", label: "OFF" },
+        { v: "low", label: "LOW" },
+        { v: "medium", label: "MED" },
+        { v: "high", label: "HIGH" },
+        { v: "ultra", label: "ULTRA" },
+      ],
+    },
     { key: "showFps", label: "FPS Counter", desc: "Show frames per second in the top-right corner.", kind: "seg", opts: ON_OFF },
+    { group: "CINEMATIC" },
+    { key: "bloom", label: "Bloom", desc: "Selective glow on HDR highlights only — sun, muzzle flash, explosions. Never a fullscreen wash.", kind: "seg", opts: ON_OFF },
+    {
+      key: "bloomStrength",
+      label: "Bloom Strength",
+      desc: "How strongly highlights glow. 0 is the same as Bloom OFF.",
+      kind: "slider",
+      min: RANGES.bloomStrength[0],
+      max: RANGES.bloomStrength[1],
+      step: RANGES.bloomStrength[2],
+      fmt: (v) => v.toFixed(2),
+    },
+    { key: "ao", label: "Ambient Occlusion", desc: "Screen-space contact shadows under props, feet and furniture, on every map. Hardware GPUs only; not available in split-depth mode (automatic fallback without EXT_clip_control).", kind: "seg", opts: ON_OFF },
+    {
+      key: "aoStrength",
+      label: "AO Strength",
+      desc: "How deep the contact shadows go. Subtle by default — walls never turn black.",
+      kind: "slider",
+      min: RANGES.aoStrength[0],
+      max: RANGES.aoStrength[1],
+      step: RANGES.aoStrength[2],
+      fmt: (v) => v.toFixed(2),
+    },
+    { key: "chromatic", label: "Chromatic Aberration", desc: "Slight radial color fringing toward the frame edges. Lens character, not a filter.", kind: "seg", opts: ON_OFF },
+    { key: "grain", label: "Film Grain", desc: "Animated fine grain over the finished frame. Costs nothing measurable.", kind: "seg", opts: ON_OFF },
+    { key: "vignette", label: "Vignette", desc: "Darkens the frame corners, stronger while aiming down sights.", kind: "seg", opts: ON_OFF },
+    { key: "motionBlur", label: "Motion Blur", desc: "Subtle afterimage smoothing while turning fast. Off by default — it smears aim feedback.", kind: "seg", opts: ON_OFF },
+    { key: "dof", label: "Depth of Field", desc: "Softens the far frame edges (cheap center-focus look, no depth buffer). Off by default.", kind: "seg", opts: ON_OFF },
+    {
+      key: "sharpen",
+      label: "Sharpness",
+      desc: "Recovers texture detail lost to upscaling and post blur. 0 is off.",
+      kind: "slider",
+      min: RANGES.sharpen[0],
+      max: RANGES.sharpen[1],
+      step: RANGES.sharpen[2],
+      fmt: (v) => v.toFixed(2),
+    },
+    { group: "LIGHT" },
+    {
+      key: "exposure",
+      label: "Exposure",
+      desc: "Overall brightness on top of each map's signed exposure. 1.12 is neutral.",
+      kind: "slider",
+      min: RANGES.exposure[0],
+      max: RANGES.exposure[1],
+      step: RANGES.exposure[2],
+      fmt: (v) => v.toFixed(2),
+    },
     { group: "ACCESSIBILITY" },
     {
       key: "motion",
@@ -312,7 +402,7 @@ function render(): void {
       }
       const el = buildRow(row, describe);
       rows.append(el);
-      if (!first) first = { label: row.label, desc: row.desc, note: defaultNote(row) };
+      if (!first) first = { label: row.label, desc: descOf(row), note: defaultNote(row) };
     }
     if (first) describe(first.label, first.desc, first.note);
   }
@@ -355,6 +445,12 @@ function render(): void {
   if (keepScroll) rows.scrollTop = keepScroll;
 }
 
+/** NIT 4 (3. Review): Live-Backend-Befund im Renderer-Desc (kein Dead weight). */
+function descOf(row: Exclude<Row, { group: string }>): string {
+  if (row.key === "renderer") return `${row.desc} Status: ${gpuBackendNote()}`;
+  return row.desc;
+}
+
 function defaultNote(row: Exclude<Row, { group: string }>): string {
   if (row.key === "pack") return "";
   const d = DEFAULT_PREFS[row.key as keyof Prefs];
@@ -372,7 +468,7 @@ function buildRow(row: Exclude<Row, { group: string }>, describe: (t: string, d:
   const focus = (): void => {
     root?.querySelectorAll(".set-row.is-focus").forEach((n) => n.classList.remove("is-focus"));
     el.classList.add("is-focus");
-    describe(row.label, row.desc, defaultNote(row));
+    describe(row.label, descOf(row), defaultNote(row));
   };
   el.addEventListener("pointerenter", focus);
   el.addEventListener("focusin", focus);
@@ -411,6 +507,14 @@ function buildRow(row: Exclude<Row, { group: string }>, describe: (t: string, d:
       b.setAttribute("role", "radio");
       b.setAttribute("aria-checked", String(o.v === cur));
       b.addEventListener("click", () => {
+        if (row.key === "quality") {
+          // AAA: a preset fans out onto every graphics switch, then the whole
+          // tab re-renders so every slider shows the preset's values.
+          setPrefs({ ...QUALITY_PRESETS[o.v as keyof typeof QUALITY_PRESETS], quality: o.v } as Partial<Prefs>);
+          uiSfx("select");
+          render();
+          return;
+        }
         setPrefs({ [row.key]: o.v } as Partial<Prefs>);
         seg.querySelectorAll("button").forEach((n) => {
           const on = n === b;

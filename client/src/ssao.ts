@@ -1,39 +1,47 @@
 import * as THREE from "three";
 import { Pass, FullScreenQuad } from "three/addons/postprocessing/Pass.js";
 import type { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { FOG_DENSITY, FOG_GROUND, FOG_H, FOG_VEIL } from "./nuketown-sky";
 
 /**
- * NUKETOWN contact AO (OWNER: LIGHT, P1; WORK-ORDERS L5, orchestrator
- * decision 5a.5: hardware tier only, must pass every flicker-gate run).
+ * client/src/ssao.ts — MAP-UNABHÄNGIGE Screen-Space Kontakt-AO (OWNER: LIGHT).
+ * ============================================================================
  *
- * The bake (nt_bake.py) owns large-scale occlusion: sky visibility in the GI
- * lightmap, 1.6 m AO, the placed props as occluders. What a bake cannot give
- * is contact: a bus's tyres on the asphalt, a BBQ on the lawn, a mannequin's
- * feet, furniture in a corner, the props themselves (not lightmapped). This
- * pass adds that in screen space, before GRADE, in one cheap stack:
+ * Verallgemeinerung von client/src/nuketown-ao.ts (dessen ZERO-FLICKER-
+ * Begründung gilt unverändert: keine Temporal-Anteile, eine feste
+ * Tap-Rotation, Mean statt Horizon-Max). Unterschiede zum Nuketown-Original:
  *
- *  1. half-res AO from the resolved scene depth (normals from depth),
- *     SAO-style hemisphere estimator, 12 taps on a spiral, ~0.9 m world
- *     radius, faded out by 70 m (the bake covers distance);
- *  2. a 5 + 5 tap separable, depth-aware blur;
- *  3. full-res joint-bilateral upsample, multiplied into the HDR colour.
- *
- * ZERO-FLICKER: nothing is temporal. The per-pixel spiral rotation is a fixed
- * 4x4 interleaved pattern the blur integrates out, so a still camera renders
- * the identical frame every time (gate `temporal`) and a 7 mm move changes
- * the AO only as much as the geometry moved (gate `shimmer`).
- *
- * Depth: the composer targets' depth is resolved for this pass (the flicker
- * stream's depth-precision.ts leaves it unresolved because nothing else reads
- * it); reversed-Z (float32) and standard (24-bit) are both decoded. Pixels
- * nearer than 0.6 m (the viewmodel) take no AO.
+ *  - FOG JE MAP (m1), kein Nuketown-Hardcode: uFogMode 0 = kein/unbekannter
+ *    Fog, 1 = FogExp2 (Standard-exp2), 2 = lineares THREE.Fog (dust2/jungle —
+ *    exakt threes smoothstep(near, far, d)), 3 = Nuketown-Height-Fog. Für
+ *    Modus 3 ruft game.ts setHeightFog() mit den Konstanten aus
+ *    nuketown-sky.ts auf (kein statischer Import hier — sonst stünde der
+ *    Nuketown-Sky in jedem Map-Bundle). Unbekannter Fog: AO blendet ab 25 m
+ *    auf 1.0, damit nie in vernebelte Farbe hinein-okkludiert wird.
+ *  - Läuft auf ALLEN Maps (vor dem Cinematic-Pass, Hardware-Tier only) —
+ *    AUSSER im Split-Depth-Modus (MINOR 1, 3. Review): Ohne EXT_clip_control
+ *    löscht der ViewmodelPass (depth-precision.ts) die Szenentiefe nach dem
+ *    Welt-Pass, sodass AO überall die Far-Ebene lesen würde (stiller No-op).
+ *    game.ts baut den Pass dort gar nicht (mit console.info-Grund); der
+ *    AO-Schalter im Menü bleibt wirkungslos — siehe Settings-Desc.
+ *  - QA-Killswitch: `?ssao=0` (alias `?ntao=0`) — dann wird auch kein
+ *    Depth-Resolve bezahlt (m2): Der Konstruktor fasst die Composer-Targets
+ *    nur an, wenn der Pass jemals laufen kann.
+ *  - QA-BASELINES (m7): HIGH-Defaults lassen den Pass aus (ao:false) — und
+ *    wenn an, ist er deterministisch: kein Temporal, fixe Taps, keine
+ *    Historie. flicker-qa/depthProbe messen die signierte Pipeline.
  */
-export class NuketownAO extends Pass {
+export class ContactAO extends Pass {
   /** 0 = off, 1 = full (the composite strength). */
   strength = 0.7;
-  /** QA: 1 = AO, 2 = linear depth bands, 3 = raw half-res AO (x0.5, pre-grade). */
+  /** QA: 1 = AO, 2 = linear depth bands, 3 = raw half-res AO (x0.5). */
   debug = 0;
+  /** QA-Killswitch (?ssao=0): enabled bleibt aus — setGraphicsOptions() kann ihn
+   *  nicht einschalten (nur ein Reload ohne Flag hilft). NIT 4: präzise so,
+   *  nicht "wird nie eingeschaltet" (der Pass kann per Pref/Reload laufen). */
+  readonly qaOff: boolean;
+  /** m2: true sobald die Composer-Targets einen resolveten Depth-Texture tragen. */
+  depthResolved = false;
+  private heightFog: { density: number; ground: number; h: number; veil: number } | null = null;
   private aoRT: THREE.WebGLRenderTarget;
   private blurRT: THREE.WebGLRenderTarget;
   private aoQuad: FullScreenQuad;
@@ -43,17 +51,24 @@ export class NuketownAO extends Pass {
   private blurMat: THREE.ShaderMaterial;
   private compMat: THREE.ShaderMaterial;
 
-  constructor(private camera: THREE.PerspectiveCamera, composer: EffectComposer, reversed: boolean, private scene?: THREE.Scene) {
+  constructor(private camera: THREE.PerspectiveCamera, composer: EffectComposer, reversed: boolean, private scene?: THREE.Scene, prefOn = true) {
     super();
     this.needsSwap = true;
-    // QA A/B only (perf, before/after captures): ?ntao=0 skips the pass
-    if (typeof location !== "undefined" && new URLSearchParams(location.search).get("ntao") === "0") this.enabled = false;
-    // the scene depth, resolved out of the MSAA buffer into a texture this pass can read
-    for (const rt of [composer.renderTarget1, composer.renderTarget2]) {
-      if (!rt.depthTexture) rt.depthTexture = new THREE.DepthTexture(rt.width, rt.height, THREE.UnsignedIntType);
-      rt.resolveDepthBuffer = true;
-      rt.dispose();
+    // QA A/B only (perf, before/after captures): ?ssao=0 (alias ?ntao=0) skips the pass
+    let qaOff = false;
+    try {
+      const q = new URLSearchParams(location.search);
+      qaOff = q.get("ssao") === "0" || q.get("ntao") === "0";
+    } catch {
+      /* no location */
     }
+    this.qaOff = qaOff;
+    if (qaOff) this.enabled = false;
+    // m2: Depth-Resolve nur, wenn der Pass laufen kann UND die Pref an ist.
+    // Bei Default-aus (HIGH) zahlt kein Frame den Resolve; wer AO live
+    // einschaltet, bekommt ihn einmalig via ensureDepthResolved() nachgereicht.
+    else if (prefOn) this.ensureDepthResolved(composer);
+    else this.enabled = false;
     const half = () => new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
     this.aoRT = half();
     this.blurRT = half();
@@ -73,10 +88,10 @@ export class NuketownAO extends Pass {
         return vec3((s * 2.0 - 1.0) * (-z) / uProj, z);
       }`;
     this.aoMat = new THREE.ShaderMaterial({
-      uniforms: { tDepth: { value: null }, uNear: { value: 0.1 }, uFar: { value: 400 }, uProj: { value: new THREE.Vector2(1, 1) }, uFull: { value: new THREE.Vector2(1, 1) }, uTexel: { value: new THREE.Vector2() }, uRes: { value: new THREE.Vector2() }, uRadius: { value: 0.9 } },
+      uniforms: { tDepth: { value: null }, uNear: { value: 0.1 }, uFar: { value: 400 }, uProj: { value: new THREE.Vector2(1, 1) }, uFull: { value: new THREE.Vector2(1, 1) }, uRes: { value: new THREE.Vector2() }, uRadius: { value: 0.9 } },
       vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
       fragmentShader: /* glsl */ `precision highp float;
-        varying vec2 vUv; uniform vec2 uTexel, uRes; uniform float uRadius;
+        varying vec2 vUv; uniform vec2 uRes; uniform float uRadius;
         ${depthFns}
         void main(){
           ivec2 ic = ivec2(gl_FragCoord.xy) * 2;
@@ -90,13 +105,12 @@ export class NuketownAO extends Pass {
           vec3 N = normalize(cross(dx, dy));
           // ONE fixed set of directions and step offsets for every pixel: no
           // screen-space pattern at all, so the AO is a pure function of the
-          // geometry and cannot crawl against it when the camera moves (a 4x4
-          // interleaved pattern left a residue at depth edges that did)
+          // geometry and cannot crawl against it when the camera moves.
           float rot = 0.3926991;  // 22.5 deg: the 8 directions sit between the axes
           float jit = 0.5;
           // near the eye a few mm of camera motion re-reveals parts of an overhang
           // (screen-space parallax): smaller radius there, and the strength fades in
-          // from 1.5 m to 4.5 m (gate "shimmer"); contact at play distances is untouched
+          // from 1.5 m to 4.5 m; contact at play distances is untouched
           float rad = min(uRadius, 0.2 + 0.25 * dist);
           float rPx = min(rad * uProj.y * 0.5 * uRes.y / dist, 64.0);
           float r2 = rad * rad;
@@ -149,10 +163,23 @@ export class NuketownAO extends Pass {
       depthWrite: false,
     });
     this.compMat = new THREE.ShaderMaterial({
-      uniforms: { tDiffuse: { value: null }, tAO: { value: null }, tDepth: { value: null }, uNear: { value: 0.1 }, uFar: { value: 400 }, uProj: { value: new THREE.Vector2(1, 1) }, uFull: { value: new THREE.Vector2(1, 1) }, uHalf: { value: new THREE.Vector2() }, uStrength: { value: 0.85 }, uDebug: { value: 0 }, uFogColor: { value: new THREE.Color(0, 0, 0) }, uCamY: { value: 0 } },
+      uniforms: {
+        tDiffuse: { value: null }, tAO: { value: null }, tDepth: { value: null },
+        uNear: { value: 0.1 }, uFar: { value: 400 }, uProj: { value: new THREE.Vector2(1, 1) },
+        uFull: { value: new THREE.Vector2(1, 1) }, uHalf: { value: new THREE.Vector2() },
+        uStrength: { value: 0.85 }, uDebug: { value: 0 },
+        uFogColor: { value: new THREE.Color(0, 0, 0) },
+        uFogMode: { value: 0 }, uFogDensity: { value: 0 },
+        uFogNear: { value: 0 }, uFogFar: { value: 1 },
+        uFogGround: { value: 0 }, uFogH: { value: 1 }, uFogVeil: { value: 0 },
+        uFogUnknown: { value: 0 }, uCamY: { value: 0 },
+      },
       vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
       fragmentShader: /* glsl */ `precision highp float;
-        varying vec2 vUv; uniform sampler2D tDiffuse, tAO; uniform vec2 uHalf; uniform float uStrength; uniform int uDebug; uniform vec3 uFogColor; uniform float uCamY;
+        varying vec2 vUv; uniform sampler2D tDiffuse, tAO; uniform vec2 uHalf;
+        uniform float uStrength; uniform int uDebug; uniform vec3 uFogColor;
+        uniform int uFogMode; uniform float uFogDensity; uniform float uFogNear, uFogFar;
+        uniform float uFogGround, uFogH, uFogVeil, uFogUnknown, uCamY;
         ${depthFns}
         void main(){
           vec4 col = texture2D(tDiffuse, vUv);
@@ -168,11 +195,23 @@ export class NuketownAO extends Pass {
             w += k;
           }
           float ao = w > 1e-4 ? s / w : 1.0;
-          ao = mix(1.0, ao, uStrength);
-          // occlude the SURFACE, not the haze in front of it (nuketown-sky.ts installHeightFog,
-          // level-ray approximation): col = surf (1 - f) + fog f  ->  surf (1 - f) ao + fog f
-          float fogF = 1.0 - (1.0 - ${FOG_VEIL.toFixed(4)}) * exp(-${FOG_DENSITY.toFixed(6)} * d * (1.0 + ${FOG_GROUND.toFixed(3)} * exp(-max(uCamY, 0.0) / ${FOG_H.toFixed(2)})));
+          if (!(ao >= 0.0 && ao <= 1.0)) ao = 1.0;
+          // Review-Runde 2: uStrength bis 1.5 darf nie invertieren — klemmen
+          // (schützt Slider wie Presets).
+          ao = clamp(mix(1.0, ao, uStrength), 0.0, 1.0);
+          // MAP-AGNOSTIC FOG (m1): occlude the SURFACE, not the haze in front
+          // of it (col = surf (1 - f) + fog f  ->  surf (1 - f) ao + fog f (1 - ao)).
+          float fogF = 0.0;
+          if (uFogMode == 1) fogF = 1.0 - exp(-uFogDensity * uFogDensity * d * d);
+          else if (uFogMode == 2) fogF = smoothstep(uFogNear, uFogFar, d);
+          else if (uFogMode == 3) fogF = 1.0 - (1.0 - uFogVeil) * exp(-uFogDensity * d * (1.0 + uFogGround * exp(-max(uCamY, 0.0) / uFogH)));
           col.rgb = col.rgb * ao + uFogColor * fogF * (1.0 - ao);
+          // Unbekannter Fog-Typ: AO ab 25 m ausblenden, damit nie in bereits
+          // vernebelte Farbe hinein-okkludiert wird.
+          if (uFogMode == 0 && uFogUnknown > 0.5) {
+            float fade = smoothstep(25.0, 78.0, d);
+            col.rgb = mix(col.rgb, texture2D(tDiffuse, vUv).rgb, fade);
+          }
           if (uDebug == 1) col.rgb = vec3(ao) * 0.5;
           if (uDebug == 2) col.rgb = vec3(fract(d * 0.5)) * 0.5;
           if (uDebug == 3) col.rgb = vec3(texture2D(tAO, vUv).r) * 0.5;
@@ -186,11 +225,43 @@ export class NuketownAO extends Pass {
     this.compQuad = new FullScreenQuad(this.compMat);
   }
 
+  /**
+   * Nuketown-Height-Fog einkoppeln (m1): game.ts übergibt die Konstanten aus
+   * nuketown-sky.ts NACH dem dynamischen Sky-Import — dieser Import bleibt
+   * map-agnostisch und zieht den Sky in kein anderes Map-Bundle.
+   *
+   * NIT 3 (3. Review, bewusste Näherung statt K-Faktor): Der shipped
+   * Height-Fog (nuketown-sky.ts) gewichtet zusätzlich mit
+   * K = (1 - e^(-dY/H)) / (dY/H) über die Höhendifferenz dY. Hier steht die
+   * Formel OHNE K — exakt wie im zuvor shipped NuketownAO (nuketown-ao.ts):
+   * K → 1 für dY → 0 (der Contact-Radius ≤ 0.9 m, dY klein) und der Fog-Term
+   * wirkt erst jenseits ~10 m, wo die AO längst auf 1.0 verblasst (45–78 m).
+   * Angleichen würde World-Y pro Pixel brauchen (teurer Reconstruct) für
+   * einen Term, der im AO-Fenster ≈ 1 ist — dokumentiert statt gerechnet.
+   */
+  setHeightFog(p: { density: number; ground: number; h: number; veil: number } | null): void {
+    this.heightFog = p;
+  }
+
+  /**
+   * m2: Depth-Resolve nachreichen (einmalig). Die Composer-Targets werden
+   * disposed, damit three sie mit Depth-Texture neu anlegt — ein Re-Alloc
+   * beim expliziten Einschalten, nie pro Frame.
+   */
+  ensureDepthResolved(composer: EffectComposer): void {
+    if (this.depthResolved) return;
+    for (const rt of [composer.renderTarget1, composer.renderTarget2]) {
+      if (!rt.depthTexture) rt.depthTexture = new THREE.DepthTexture(rt.width, rt.height, THREE.UnsignedIntType);
+      rt.resolveDepthBuffer = true;
+      rt.dispose();
+    }
+    this.depthResolved = true;
+  }
+
   setSize(width: number, height: number): void {
     const w = Math.max(1, Math.round(width / 2)), h = Math.max(1, Math.round(height / 2));
     this.aoRT.setSize(w, h);
     this.blurRT.setSize(w, h);
-    this.aoMat.uniforms.uTexel.value.set(1 / width, 1 / height);
     this.aoMat.uniforms.uRes.value.set(w, h);
     this.compMat.uniforms.uHalf.value.set(1 / w, 1 / h);
   }
@@ -220,8 +291,30 @@ export class NuketownAO extends Pass {
     this.compMat.uniforms.tAO.value = this.aoRT.texture;
     this.compMat.uniforms.uStrength.value = this.strength;
     this.compMat.uniforms.uDebug.value = this.debug;
-    const fog = this.scene?.fog as THREE.FogExp2 | null | undefined;
-    if (fog) this.compMat.uniforms.uFogColor.value.copy(fog.color);
+    // m1: Fog je Map auflösen.
+    const u = this.compMat.uniforms;
+    const fog = this.scene?.fog as THREE.FogExp2 | THREE.Fog | null | undefined;
+    u.uFogUnknown.value = 0;
+    if (this.heightFog && fog && (fog as THREE.FogExp2).isFogExp2) {
+      u.uFogMode.value = 3;
+      u.uFogColor.value.copy((fog as THREE.FogExp2).color);
+      u.uFogDensity.value = this.heightFog.density;
+      u.uFogGround.value = this.heightFog.ground;
+      u.uFogH.value = this.heightFog.h;
+      u.uFogVeil.value = this.heightFog.veil;
+    } else if (fog && (fog as THREE.FogExp2).isFogExp2) {
+      u.uFogMode.value = 1;
+      u.uFogColor.value.copy((fog as THREE.FogExp2).color);
+      u.uFogDensity.value = (fog as THREE.FogExp2).density;
+    } else if (fog && (fog as THREE.Fog).isFog) {
+      u.uFogMode.value = 2;
+      u.uFogColor.value.copy((fog as THREE.Fog).color);
+      u.uFogNear.value = (fog as THREE.Fog).near;
+      u.uFogFar.value = (fog as THREE.Fog).far;
+    } else {
+      u.uFogMode.value = 0;
+      if (fog) u.uFogUnknown.value = 1;
+    }
     this.compMat.uniforms.uCamY.value = cam.position.y;
     renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
     this.compQuad.render(renderer);

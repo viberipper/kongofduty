@@ -77,6 +77,12 @@ A few modules required for the build exist in no shipped bundle sourcemap and we
 
 Build differences vs the original: chunks land with new hashes (our build); three.js is vendored locally; `client/dist/`, `server/dist/` and `node_modules/` are git-ignored — after cloning, run `npm run install:all && npm run build`.
 
+## Graphics (AAA pass, branch `feature/aaa-graphics`)
+
+Post chain: `RenderPass` (HDR + MSAA) → `ContactAO` (`client/src/ssao.ts`, all maps, hardware tier) → `BloomPass` (`client/src/bloom.ts`, HDR highlights only) → optional `MotionBlurPass` (`client/src/motion-blur.ts`, default OFF) → `CINEMATIC` (`client/src/cinematic.ts`: tone map + sRGB encode plus vignette, chromatic aberration, film grain, color grade, CAS-lite sharpen, DOF-lite in one fused pass) → `FXAA` (software tier only). Quality presets LOW/MEDIUM/HIGH/ULTRA/CINEMATIC plus every switch individually, in SETTINGS → GRAPHICS (only the GPU backend wants a reload).
+
+**Why WebGL2 is active:** the vendored three r170 (`client/vendor/three/examples/jsm/`) ships no `WebGPURenderer` and no TSL nodes, so there is no WebGPU post-chain to drive yet. `client/src/gpu-backend.ts` detects the WebGPU API, resolves the `renderer` pref (`auto`/`webgpu`/`webgl`) and falls back to the fully supported WebGL2 path with a console note. After a three upgrade that vendors `WebGPURenderer`, only `createRenderer()` there needs the async TSL path — prefs, menu and fallback already exist.
+
 ## Asset ownership
 
 All game files (models, textures, audio, code bundles) belong to the original author and must **not** be redistributed. This copy exists solely for personal offline use.

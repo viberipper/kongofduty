@@ -133,6 +133,15 @@ import { softwareMaterials } from "./software-materials";
 import { RenderTimeline } from "./render-timeline";
 import { DepthPrecision, depthRendererOptions } from "./depth-precision";
 import { COUNTDOWN_MS, inputLocked, type MatchPhase } from "@shared/matchphase";
+// AAA graphics (feature/aaa-graphics): fused cinematic final pass, map-agnostic
+// contact AO, selective bloom, opt-in motion blur, quality presets, GPU-backend
+// detection (WebGPU-first when the vendored three ships it — see gpu-backend).
+import { CINEMATIC } from "./cinematic";
+import { ContactAO } from "./ssao";
+import { BloomPass } from "./bloom";
+import { MotionBlurPass } from "./motion-blur";
+import { QUALITY_ENV_BOOST, QUALITY_MAX_SCALE, SHADOW_SIZES } from "./graphics-presets";
+import { resolveBackend } from "./gpu-backend";
 
 /** One received server snapshot, timestamped on the SERVER's clock in ms. */
 type Snapshot = { t: number; players: PlayerSnap[]; nades?: NadeSnap[] };
@@ -173,102 +182,25 @@ const SOFTWARE_DPR = 0.45;
 let softwareTier = false;
 
 /**
- * THE ONE POST PASS. Grade + tone map + sRGB encode, fused.
+ * THE POST CHAIN (slots; see the notes at each pass in init()):
  *
- * It used to be three passes — a grade ShaderPass, an SMAAPass, then an
- * OutputPass — each a full-screen read/write of a half-float buffer. Fusing
- * them bought the frame budget that pays for `aaSamples()` MSAA, which is
- * strictly better AA than SMAA was: SMAA ran on LINEAR HDR pixels (its luma
- * edge detector expects display-referred sRGB, so it under-detected exactly the
- * dark container edges it was there for), while MSAA antialiases the geometry
- * before anything is resolved. MSAA alone is NOT enough: an alphaTest cutout
- * silhouette is a per-fragment kill that MSAA never sees, so EVERY cutout
- * material must also set `alphaToCoverage` (leaves, palms, understory, vines,
- * canopy cards, hedge ring — jungle-world.ts threads `cutoutAA` to all six).
- * Miss one and it ships a 1-pixel staircase; missing the canopy/hedge pair once
- * put a hard step along the entire horizon.
- * Where MSAA is unaffordable — software rasterisers, `aaSamples() === 0` —
- * init() puts an FXAA pass AFTER this one, where the pixels are finally
- * display-referred sRGB and its edge detector works as designed. No tier ships
- * without edge AA.
+ *   RenderPass (HDR, MSAA) -> ContactAO (ssao.ts, hardware tier only)
+ *   -> BloomPass (bloom.ts, HDR highlights only)
+ *   -> [MotionBlurPass (motion-blur.ts, opt-in, default OFF)]
+ *   -> CINEMATIC (cinematic.ts: the old GRADE's tone map + sRGB encode
+ *      VERBATIM, fused with vignette, chromatic aberration, film grain,
+ *      color grade, CAS-lite sharpen and DOF-lite)
+ *   -> [FXAA (software tier only, display-referred, where its edge detector
+ *      works as designed)].
  *
- * The tone map and encode below are three's own OutputPass math
- * (ACESFilmicToneMapping + sRGBTransferOETF) inlined verbatim, so the image is
- * the signed-off one; renderer.toneMapping stays ACESFilmic so anything that
- * bypasses the composer and renders straight to the canvas (qa/flip-hunt) still
- * gets the same look from the material path.
+ * MSAA on the composer's own target (aaSamples) is the real anti-aliasing:
+ * SMAA used to run on LINEAR HDR pixels and under-detected exactly the dark
+ * edges it was there for, while MSAA antialiases the geometry before anything
+ * is resolved. MSAA alone is NOT enough: an alphaTest cutout silhouette is a
+ * per-fragment kill that MSAA never sees, so EVERY cutout material must also
+ * set alphaToCoverage (jungle-world.ts threads cutoutAA to all six card
+ * systems). Miss one and it ships a 1-pixel staircase.
  */
-const GRADE = {
-  uniforms: {
-    tDiffuse: { value: null as THREE.Texture | null },
-    uTime: { value: 0 },
-    uHurt: { value: 0 },
-    uAds: { value: 0 },
-    uExposure: { value: 1 },
-  },
-  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-  fragmentShader: `
-    uniform sampler2D tDiffuse; uniform float uTime; uniform float uHurt; uniform float uAds;
-    uniform float uExposure;
-    varying vec2 vUv;
-    float n(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
-    vec3 rrtODT(vec3 v){
-      vec3 a = v * (v + 0.0245786) - 0.000090537;
-      vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
-      return a / b;
-    }
-    vec3 aces(vec3 col){
-      const mat3 IN = mat3(0.59719, 0.07600, 0.02840, 0.35458, 0.90834, 0.13383, 0.04823, 0.01566, 0.83777);
-      const mat3 OUT = mat3(1.60475, -0.10208, -0.00327, -0.53108, 1.10813, -0.07276, -0.07367, -0.00605, 1.07602);
-      col *= uExposure / 0.6;
-      col = OUT * rrtODT(IN * col);
-      return clamp(col, 0.0, 1.0);
-    }
-    vec3 encodeSRGB(vec3 c){
-      return mix(pow(c, vec3(0.41666)) * 1.055 - vec3(0.055), c * 12.92, vec3(lessThanEqual(c, vec3(0.0031308))));
-    }
-    /**
-     * MID-BAND DEPTH. A filmic S-curve applied to LUMA ONLY, in display space,
-     * windowed to the middle of the range: the yard's dirt and steel sat in a
-     * flat 0.45-0.55 band that read as one washed value, and separating it is
-     * what makes a frame look resolved rather than photographed through gauze.
-     *
-     * Two properties are load-bearing, not stylistic:
-     *  - The window is IDENTICALLY ZERO below y = 0.18 (46/255). Nothing in the
-     *    shadows moves, so the darkgate floor (max channel >= 30) cannot be
-     *    reached by grading: the worst darkening anywhere on the curve is ~5%,
-     *    and it only applies to pixels whose luma — and therefore whose max
-     *    channel — is already above 0.3. At the top end it does NOT reach zero
-     *    before 1.0 — the window is still ~0.16 at y = 0.9, where the ratio is
-     *    1.007 — so a channel already at 1.0 is pushed above it and clamped by
-     *    the hardware. That is the whole exposure: measured white_gt247
-     *    0.0032% -> 0.0031%, no highlight detail lost anywhere in the frame.
-     *  - It scales all three channels by ONE ratio, so hue and saturation come
-     *    out bit-for-bit unchanged. The signed-off palette is untouched; only
-     *    the tonal spacing inside it changes.
-     */
-    vec3 depth(vec3 c){
-      float y = dot(c, vec3(0.2126, 0.7152, 0.0722));
-      if (y < 0.18) return c;
-      float w = smoothstep(0.18, 0.52, y) * (1.0 - smoothstep(0.60, 1.0, y));
-      float s = y * y * (3.0 - 2.0 * y);
-      return c * (1.0 + (s - y) * 0.55 * w / max(y, 1e-4));
-    }
-    void main(){
-      vec2 uv = vUv;
-      vec2 c = uv-0.5;
-      float v = 1.0 - dot(c,c)* (0.07 + uAds*0.16);
-      vec3 col = texture2D(tDiffuse, uv).rgb;
-      col *= vec3(1.14, 1.08, 1.0);
-      col = mix(col, vec3(dot(col, vec3(0.3,0.5,0.2))), 0.03);
-      col *= v;
-      col += uHurt * vec3(0.25, 0.02, 0.02);
-      col += (n(uv*vec2(1100.0,800.0)+uTime*40.0)-0.5)*0.008;
-      gl_FragColor = vec4(depth(encodeSRGB(aces(col))), 1.0);
-    }
-  `,
-};
-
 const EMPTY: unknown[] = [];
 const EMPTY_NADES: NadeSnap[] = [];
 
@@ -756,18 +688,59 @@ export class Game {
       this.composer.renderTarget1.texture.type = THREE.UnsignedByteType;
       this.composer.renderTarget2.texture.type = THREE.UnsignedByteType;
     }
+    // Renderer-Backend auflösen (WebGPU-first wenn der vendored three es hergibt;
+    // aktuell immer WebGL2 — m4: das Ergebnis WIRD genutzt, als Console-Note).
+    const backend = await resolveBackend(prefs().renderer);
+    console.info(`[gpu] renderer: ${backend.note}`);
     const samples = aaSamples(this.renderer);
     this.setSamples(samples);
     this.composer.addPass(new RenderPass(this.world.scene, this.camera));
     // ZERO-FLICKER hook: float depth targets (+ split-mode viewmodel pass).
     this.depth.attachComposer(this.composer, this.world.scene, this.camera, [this.vm.root]);
-    // nuketown: screen-space contact AO before the grade, hardware tier only (LIGHT, client/src/nuketown-ao.ts)
-    if (MAP.id === "nuketown" && !softwareTier) this.composer.addPass(new (await import("./nuketown-ao")).NuketownAO(this.camera, this.composer, this.depth.mode === "reversed", this.world.scene));
-    this.grade = new ShaderPass(GRADE);
-    this.grade.uniforms.uExposure.value = this.renderer.toneMappingExposure;
-    // nuketown: its own exposure (LIGHT, client/src/nuketown-sky.ts); the module is already loaded with the world
-    if (MAP.id === "nuketown") this.grade.uniforms.uExposure.value = (await import("./nuketown-sky")).NUKETOWN_EXPOSURE;
+    // AAA: screen-space contact AO vor dem Grade, Hardware-Tier only (ssao.ts).
+    // ?ssao=0 baut den Pass mit enabled=false (läuft nie) und spart den
+    // Depth-Resolve (m2, Review-Runde 2) — der Pass wird also konstruiert,
+    // aber weder gerendert noch bezahlt.
+    // NIT (Review-Runde 2): EIN dynamischer Sky-Import für beide Nutzungen
+    // (Height-Fog-Konstanten + NUKETOWN_EXPOSURE) statt zwei.
+    const ntSky = MAP.id === "nuketown" ? await import("./nuketown-sky") : null;
+    // MINOR 1 (3. Review): Im Split-Depth-Modus (kein EXT_clip_control) löscht
+    // der ViewmodelPass die Szenentiefe nach dem Welt-Pass — AO würde überall
+    // die Far-Ebene lesen (stiller No-op). Hart gaten statt still laufen:
+    if (!softwareTier && this.depth.mode !== "split") {
+      this.aoPass = new ContactAO(this.camera, this.composer, this.depth.mode === "reversed", this.world.scene, prefs().ao);
+      // m1: Nuketown-Height-Fog einkoppeln (Konstanten aus nuketown-sky.ts —
+      // kein statischer Import in ssao.ts, damit der Sky in keinem anderen
+      // Map-Bundle landet). Das Modul ist mit der Welt bereits geladen.
+      if (ntSky) {
+        this.aoPass.setHeightFog({ density: ntSky.FOG_DENSITY, ground: ntSky.FOG_GROUND, h: ntSky.FOG_H, veil: ntSky.FOG_VEIL });
+      }
+      this.composer.addPass(this.aoPass);
+    } else if (this.depth.mode === "split") {
+      console.info("[gpu] ContactAO off: split depth mode clears scene depth for the viewmodel pass — AO would read far plane everywhere.");
+    }
+    // AAA: selektives HDR-Bloom (bloom.ts) — nur Highlights, kein Vollbild-Wash.
+    this.bloomPass = new BloomPass();
+    this.composer.addPass(this.bloomPass);
+    // AAA: opt-in Afterimage-Motion-Blur (motion-blur.ts), default OFF.
+    this.motionPass = new MotionBlurPass();
+    this.composer.addPass(this.motionPass);
+    this.grade = new ShaderPass(CINEMATIC);
+    // Die Map-Exposure als Basis (nuketown: NUKETOWN_EXPOSURE), der
+    // Exposure-Slider skaliert relativ dazu — siehe setGraphicsOptions().
+    this.baseExposure = ntSky?.NUKETOWN_EXPOSURE ?? 1.12;
+    // M3: map-autorisierte Shadow-Größe messen, BEVOR Prefs sie anfassen
+    // (Shipment/Nuketown/Ares/Dust2: 4096). ?classic/minimalWorld setzt
+    // weder mapSize (Default 512) noch castShadow — siehe mapShadowsOn.
+    // shadowQuality "high" löst gegen mapShadowSize auf und überschreibt
+    // die Welt nie.
+    this.mapShadowSize = this.world.sun.shadow.mapSize.x > 0 ? this.world.sun.shadow.mapSize.x : 2048;
+    this.mapShadowsOn = this.world.sun.castShadow;
+    // m8: Env-Basen messen (reversibel — setGraphicsOptions trägt den Boost
+    // pro Preset live auf, ohne Compounding).
+    this.captureEnvBases();
     this.composer.addPass(this.grade);
+    this.setGraphicsOptions();
     // Software rendering uses one display-space AA pass instead of SMAA's
     // three passes and lookup textures. Hardware keeps its MSAA pipeline.
     if (samples === 0) {
@@ -939,7 +912,9 @@ export class Game {
   resize(): void {
     const w = innerWidth;
     const h = innerHeight;
-    const pr = pixelRatio() * (prefs().renderScale === "native" ? 1 : this.quality.scale); // UI stream hook
+    // AAA: das Preset deckelt die interne Skala (LOW rendert kleiner).
+    const cap = QUALITY_MAX_SCALE[prefs().quality] ?? 1;
+    const pr = pixelRatio() * (prefs().renderScale === "native" ? 1 : Math.min(this.quality.scale, cap)); // UI stream hook
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     // The composer caches the pixel ratio it was CONSTRUCTED with; without this
@@ -956,8 +931,201 @@ export class Game {
     // Optional chaining is load-bearing: the composer is built in init(), while
     // this now runs from the constructor's listener too (menu resizes).
     this.composer?.setSize(w, h);
-    if (this.composer) this.setSamples(aaSamples(this.renderer));
+    // AAA: MSAA folgt dem Preset — LOW halbiert auf 2x. CINEMATIC darf auf 8x,
+    // aber NUR mit DPR-Gate (S1): pixelRatio() <= 1.25 UND der Treiber meldet
+    // MAX_SAMPLES >= 8. Sonst bleibt es bei aaSamples() — kein kaputter FBO.
+    if (this.composer) {
+      const q = prefs().quality;
+      let samples = aaSamples(this.renderer);
+      if (q === "low") samples = Math.min(samples, 2);
+      else if (q === "cinematic" && samples === 4 && pixelRatio() <= 1.25 && this.maxSamples() >= 8) samples = 8;
+      this.setSamples(samples);
+    }
+    // M4: echte Pixel für Chroma/Schärfe/DOF (uTexel), DPR-unabhängig.
+    if (this.grade) {
+      const db = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+      this.grade.uniforms.uTexel.value.set(1 / Math.max(1, db.x), 1 / Math.max(1, db.y));
+    }
     if (this.softwareAA) this.softwareAA.uniforms.resolution.value.set(1 / (w * pr), 1 / (h * pr));
+  }
+
+  /** S1: GL_MAX_SAMPLES, einmalig gelesen und gecacht. */
+  private maxSamples(): number {
+    if (this.cachedMaxSamples) return this.cachedMaxSamples;
+    try {
+      const gl = this.renderer.getContext() as WebGL2RenderingContext;
+      const v = gl.getParameter(gl.MAX_SAMPLES) as number;
+      this.cachedMaxSamples = Number.isFinite(v) && v > 0 ? v : 4;
+    } catch {
+      this.cachedMaxSamples = 4;
+    }
+    return this.cachedMaxSamples;
+  }
+
+  /**
+   * AAA: alle Grafik-Prefs live anwenden (kein Reload). Wird aus init() einmal
+   * und danach bei jeder Prefs-Änderung aus main.ts aufgerufen. Auf dem
+   * Software-Tier bleiben Bloom/AO/Chroma/DOF/Schärfe grundsätzlich aus —
+   * dort zählt jede Fragment-Shader-Anweisung in Millisekunden.
+   */
+  setGraphicsOptions(): void {
+    // Guard ist das Existieren der Chain (init baut sie), nicht `inited` —
+    // init() ruft das hier auf, BEVOR es `inited = true` setzt.
+    if (!this.grade) return;
+    const p = prefs();
+    const sw = softwareTier;
+    // Review-Runde 2: Der adaptive Cap gilt nur unter ADAPTIVE-Skala. Bei
+    // NATIVE ist er gegenstandslos — zurücksetzen, sonst bleibt ein alter
+    // 2048-Cap über ULTRA/CINEMATIC hängen (main.ts ruft uns bei jedem
+    // renderScale-Wechsel, weil renderScale in der GFX-Liste steht).
+    if (p.renderScale === "native") this.adaptiveShadowCap = null;
+    if (this.aoPass) {
+      const on = p.ao && !sw && !this.aoPass.qaOff;
+      // m2: Resolve erst zahlen, wenn AO wirklich läuft (Default HIGH: aus).
+      if (on && !this.aoPass.depthResolved) this.aoPass.ensureDepthResolved(this.composer);
+      this.aoPass.enabled = on;
+      this.aoPass.strength = p.aoStrength;
+    }
+    if (this.bloomPass) {
+      this.bloomPass.enabled = p.bloom && !sw && p.bloomStrength > 0;
+      this.bloomPass.strength = p.bloom ? p.bloomStrength : 0;
+    }
+    if (this.motionPass) {
+      const on = p.motionBlur && !sw;
+      this.motionPass.enabled = on;
+      this.motionPass.amount = on ? 0.25 : 0;
+      if (!on) this.motionPass.reset();
+    }
+    const g = this.grade.uniforms;
+    g.uChroma.value = p.chromatic && !sw ? 1 : 0;
+    g.uGrain.value = p.grain ? 1 : 0;
+    g.uVignette.value = p.vignette ? 1 : 0;
+    g.uSharpen.value = sw ? 0 : p.sharpen;
+    g.uDof.value = p.dof && !sw ? 1 : 0;
+    // Exposure: signierte Map-Basis mal Spieler-Slider (1.12 = neutral).
+    const exposure = this.baseExposure * (p.exposure / 1.12);
+    g.uExposure.value = exposure;
+    // MINOR 4 (3. Review): KEIN renderer.toneMappingExposure-Sync mehr — die
+    // alte Zeile behauptete eine Invariante, die auf Nuketown nie galt (0.63
+    // vs p.exposure). three wendet Tonemapping ohnehin nur auf Direkt-Renders
+    // ans Canvas an (nie auf RTs/Composer-Pfade); der Cinematic-Pass mappt
+    // via uExposure selbst. Direkt-Renders (qa/flip-hunt) behalten den
+    // Konstruktor-Wert 1.12.
+    this.applyShadowQuality();
+    this.applyEnvBoost();
+  }
+
+  /**
+   * AAA: Schattenauflösung live umschalten. OFF killt den ganzen Shadow-Map-
+   * Pass — auf schwachen GPUs der größte Einzelhebel.
+   *
+   * MAJOR-Fix (2. Review): `renderer.shadowMap.enabled = false` ALLEIN
+   * recompiliert nichts — die USE_SHADOWMAP-Programme blieben stehen und
+   * würden gegen eine disposed (Null-)Textur sampeln. Der Schalter, der
+   * wirklich recompiliert, ist `sun.castShadow`: er ändert numDirectional-
+   * Shadows → lights state version → alle Materialien wählen in BEIDE
+   * Richtungen (OFF→ON inklusive) das passende Programm. shadowMap.enabled
+   * wird synchron mitgeführt (Skip des Shadow-Pass), map disposal wie zuvor.
+   *
+   * EIGENTUM (M3/m3): Die Pref gewinnt. "high" löst gegen mapShadowSize auf
+   * (kein Overwrite der Map-Autorisierung); adaptQuality legt NUR den
+   * transienten adaptiveShadowCap darüber (min), der hier nie gelöscht wird.
+   * Re-Alloc nur bei tatsächlicher Größenänderung (kein Re-Alloc pro
+   * Slider-Tick — der Guard unten).
+   *
+   * MINOR 3 (3. Review): Der ERSTE OFF→ON-Wechsel nach einem schattenlosen
+   * Boot kompiliert alle Schatten-Programme neu — ein einmaliger Hitch
+   * (danach gecacht, Umschalten ist frei). prepareGraphics wärmt bewusst
+   * nur die Boot-Konfiguration; ein zweites Voll-Compile im Boot wäre
+   * teurer als der einmalige Live-Hitch. NIT 1: ?classic/minimalWorld
+   * autorisiert keine Schatten (mapShadowsOn=false) und bleibt auf jeder
+   * Stufe schattenlos wie bisher.
+   */
+  applyShadowQuality(): void {
+    if (!this.world) return;
+    const q = softwareTier ? "off" : prefs().shadowQuality;
+    let size = q === "high" ? this.mapShadowSize : (SHADOW_SIZES[q] ?? 2048);
+    if (this.adaptiveShadowCap && size > this.adaptiveShadowCap) size = this.adaptiveShadowCap;
+    const sun = this.world.sun;
+    const shadow = sun.shadow;
+    if (size > 0) {
+      if (shadow.mapSize.x !== size) {
+        shadow.map?.dispose();
+        shadow.map = null;
+        shadow.mapSize.set(size, size);
+        shadow.needsUpdate = true;
+      }
+    } else {
+      shadow.map?.dispose();
+      shadow.map = null;
+    }
+    // Der Recompile-Hebel: castShadow ändert die Light-State-Version, also
+    // wählen alle Materialien das Schatten- bzw. Nicht-Schatten-Programm —
+    // in beide Richtungen, ohne materials-needsUpdate-Marathon. NIT 1: nur
+    // wenn die Map Schatten autorisiert (?classic bleibt schattenlos).
+    const want = size > 0 && this.mapShadowsOn;
+    sun.castShadow = want;
+    this.renderer.shadowMap.enabled = want;
+  }
+
+  /**
+   * m8 + VIEWMODEL-FREEZE (strikte User-Vorgabe): Env-Basen einmalig messen
+   * (Hardware-Tier only).
+   *
+   * Der Kamera-Subtree (vm.root, Mündungs-Blitz, gunKey+Target, Punktlicht)
+   * hängt per world.scene.add(camera) IN dieser Szene — per Objekt-Identität
+   * (camera.traverse) als Exclude-Liste geführt. Waffen-Materialien werden so
+   * nie erfasst (Material-Identität zusätzlich als Gurt-und-Hosenträger, falls
+   * je ein Material geteilt würde), und applyEnvBoost fasst sie nicht einmal
+   * transient an → Waffen-Look bit-identisch auf allen Presets (kein
+   * Boost-drauf-und-zurück, sondern Exclude von vornherein).
+   */
+  private captureEnvBases(): void {
+    this.envBases.clear();
+    if (softwareTier || !this.world) return;
+    const vmObjects = new Set<THREE.Object3D>();
+    this.camera.traverse((o) => vmObjects.add(o));
+    const vmMats = new Set<THREE.Material>();
+    for (const o of vmObjects) {
+      const mesh = o as THREE.Mesh;
+      const mats = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+      for (const m of mats) vmMats.add(m);
+    }
+    this.world.scene.traverse((o) => {
+      if (vmObjects.has(o)) return;
+      const mesh = o as THREE.Mesh;
+      const mats = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+      for (const m of mats) {
+        if (vmMats.has(m)) continue;
+        const std = m as THREE.MeshStandardMaterial;
+        if (typeof std.envMapIntensity === "number" && !this.envBases.has(m)) this.envBases.set(m, std.envMapIntensity);
+      }
+    });
+  }
+
+  /**
+   * m8 + VIEWMODEL-FREEZE: Env-Boost pro Preset, REVERSIBEL um die gemessene
+   * Basis — live bei jedem Preset-Wechsel.
+   *
+   * ENTSCHEIDUNG (Waffen-Look eingefroren): NUR per-Material-Boost für
+   * Welt-Materialien; scene.environmentIntensity wird NICHT mehr global
+   * skaliert (das träfe die Waffe mit, da sie in derselben Szene hängt).
+   * Die Welt verliert dadurch KEIN sichtbares IBL: Jedes erfasste
+   * Welt-Material trägt seine eigene envMapIntensity (textures.ts setzt sie
+   * explizit, z.B. 0.18–0.55; Default 1.0 sonst) — das Produkt
+   * envMapIntensity × environmentIntensity steigt für die Welt präzise um den
+   * Preset-Faktor, für die Waffe bleibt es unangetastet (ihre Uniforms und das
+   * globale environmentIntensity ändern sich nie → bit-identisch).
+   * Hinweis: Zuvor wurde zusätzlich global skaliert (effektiv boost²); das
+   * Doppel-Scaling entfällt — ULTRA/CINEMATIC sind auf den intendierten
+   * boost× retuniert, HIGH (Default 1.0) ist in beiden Varianten identisch.
+   */
+  private applyEnvBoost(): void {
+    if (!this.world || !this.envBases.size) return;
+    const boost = QUALITY_ENV_BOOST[prefs().quality] ?? 1;
+    for (const [m, base] of this.envBases) {
+      (m as THREE.MeshStandardMaterial).envMapIntensity = base * boost;
+    }
   }
 
   /**
@@ -983,6 +1151,29 @@ export class Game {
   private warmActor: BruiserActor | null = null;
   private preparedActors: BruiserActor[] = [];
   private softwareAA: ShaderPass | null = null;
+  /** AAA post chain (feature/aaa-graphics) — null bis init() die Chain baut. */
+  private aoPass: ContactAO | null = null;
+  private bloomPass: BloomPass | null = null;
+  private motionPass: MotionBlurPass | null = null;
+  /** Die signierte Map-Exposure (nuketown: NUKETOWN_EXPOSURE, sonst 1.12). */
+  private baseExposure = 1.12;
+  /** M3: map-autorisierte Shadow-Größe (beim Weltaufbau gemessen). */
+  private mapShadowSize = 2048;
+  /**
+   * NIT 1 (Review-Runde 3): Ob die Map überhaupt Schatten autorisiert —
+   * beim Weltaufbau gemessen (sun.castShadow). Shipment/Nuketown/Ares/Dust2:
+   * true (4096). ?classic/minimalWorld (dev-only): false — kein castShadow,
+   * keine mapSize, nie Schatten gerendert. HIGH/ULTRA schalten dort NICHTS
+   * dazu (Look des Dev-Pfads bleibt), sondern die Map bleibt wie bisher
+   * schattenlos.
+   */
+  private mapShadowsOn = true;
+  /** m3: transienter adaptQuality-Cap — überschreibt NIE die Pref (Eigentümer: Pref). */
+  private adaptiveShadowCap: number | null = null;
+  /** m8: Env-Basen für reversiblen Live-Boost (Material → Basis-Intensity). Welt-Materialien only (kein Viewmodel, siehe captureEnvBases). */
+  private envBases = new Map<THREE.Material, number>();
+  /** S1: gecachter GL_MAX_SAMPLES für das 8x-Gate. */
+  private cachedMaxSamples = 0;
   private actorFrustum = new THREE.Frustum();
   private actorProjection = new THREE.Matrix4();
   private actorSphere = new THREE.Sphere(new THREE.Vector3(), 3);
@@ -993,14 +1184,16 @@ export class Game {
     // UI stream hook: GRAPHICS → RENDER RESOLUTION (prefs also honours ?quality=native).
     if (this.testMode || prefs().renderScale === "native") return;
     if (!this.quality.sample(renderMs, performance.now())) return;
-    if (this.quality.scale < 0.9 && this.world) {
-      const shadow = this.world.sun.shadow;
-      if (shadow.mapSize.x > 2048) {
-        shadow.map?.dispose();
-        shadow.map = null;
-        shadow.mapSize.set(2048, 2048);
-        shadow.needsUpdate = true;
-      }
+    // m3: EIN Eigentümer — die Pref. adaptQuality setzt nur einen transienten
+    // Cap (Schatten ≤2048 bei kleiner Skala), der die Pref nie überschreibt;
+    // applyShadowQuality löst min(Pref, Cap) auf und löscht ihn nie zurück.
+    // NIT 2 (3. Review): NATIVE→ADAPTIV hinterlässt den Cap höchstens ~2 s
+    // (RenderQuality-Cooldown) — der nächste adapt-Tick bewertet neu
+    // (self-heals); setGraphicsOptions löscht ihn bei NATIVE sofort.
+    const cap = this.quality.scale < 0.9 ? 2048 : null;
+    if (cap !== this.adaptiveShadowCap) {
+      this.adaptiveShadowCap = cap;
+      this.applyShadowQuality();
     }
     this.resize();
   }

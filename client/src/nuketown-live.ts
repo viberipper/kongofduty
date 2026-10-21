@@ -36,7 +36,7 @@ import * as THREE from "three";
 import type { Game } from "./game";
 import { MATCH_TIME } from "@shared/protocol";
 import { NukeFx } from "./nuke-fx";
-import { reducedMotion } from "./ui/prefs";
+import { reducedMotion, prefs } from "./ui/prefs";
 import { isSoftwareGL } from "./textures";
 import { MannequinEgg } from "./nuketown-egg";
 import { BreakableGlass } from "./nuketown-glass";
@@ -74,7 +74,7 @@ export class NuketownLive {
   private t = -1;
   private fx: NukeFx | null = null;
   private overlay: HTMLElement | null = null;
-  private saved: { far: number; exposure: number; filter: string } | null = null;
+  private saved: { far: number; exposure: number; slider: number; filter: string } | null = null;
   private boomed = false;
   private rumbled = false;
   private midnightFrom = { h: 0, m: 0, s: 0 };
@@ -224,7 +224,7 @@ export class NuketownLive {
     this.fx = new NukeFx(gz, CAM_FROM, SUN, haze, isSoftwareGL(g.renderer));
     this.fx.shockAt = SHOCK_S;
     g.world!.scene.add(this.fx.group);
-    this.saved = { far: g.camera.far, exposure: Number(g.grade?.uniforms.uExposure?.value ?? 1), filter: g.renderer.domElement.style.filter };
+    this.saved = { far: g.camera.far, exposure: Number(g.grade?.uniforms.uExposure?.value ?? 1), slider: prefs().exposure, filter: g.renderer.domElement.style.filter };
     this.overlay = document.getElementById("nuke-fx") ?? document.createElement("div");
     this.overlay.id = "nuke-fx";
     if (!this.overlay.isConnected) (document.getElementById("app") ?? document.body).append(this.overlay);
@@ -241,7 +241,13 @@ export class NuketownLive {
     if (this.saved) {
       g.camera.far = this.saved.far;
       g.camera.updateProjectionMatrix();
-      if (g.grade?.uniforms.uExposure) g.grade.uniforms.uExposure.value = this.saved.exposure;
+      // NIT (Review-Runde 2): Der Live-Slider darf während der Nuke-Sequenz
+      // weiterdrehen — beim Restore wird er respektiert statt vom
+      // gespeicherten (stalen) Wert überschrieben.
+      if (g.grade?.uniforms.uExposure) {
+        const base = this.saved.slider > 0 ? this.saved.exposure / (this.saved.slider / 1.12) : this.saved.exposure;
+        g.grade.uniforms.uExposure.value = base * (prefs().exposure / 1.12);
+      }
       g.renderer.domElement.style.filter = this.saved.filter;
       this.saved = null;
     }

@@ -267,11 +267,17 @@ void main() {
     o = vec4(col * vC.rgb * cov * along * f * vW * vC.a, 0.0);
   } else if (shape == 2) {
     // TRACER: a thin white-hot core inside a soft orange glow, brightest at
-    // the round, fading down the streak; capped softly at the head
-    float L = max(vX.x, 1e-3), W = vX.y, coreF = vX.z;
-    float x = vUv.x, y = vUv.y;
+    // the round, fading down the streak; capped softly at the head.
+    // GUARDS: max(x,0) keeps pow(x,1.7) off negative x (edge extrapolation /
+    // centroid rounding — pow(neg, non-int) is undefined per GLSL and compiles
+    // to exp2(1.7*log2(neg)) = NaN on D3D11); max(coreF/W, 1e-3) keeps the
+    // Gaussian denominators strictly non-zero even if a record ever carries 0.
+    // A single NaN pixel here is smeared by Bloom into a ~50px black box along
+    // the bullet path (and held ~1s by Motion Blur).
+    float L = max(vX.x, 1e-3), W = max(vX.y, 1e-3), coreF = max(vX.z, 1e-3);
+    float x = clamp(vUv.x, 0.0, 1.0), y = vUv.y;
     float hd = (1.0 - x) * L;                      // metres behind the round
-    float along = pow(x, 1.7) * ss(0.0, min(0.05, L * 0.3), hd + 0.004);
+    float along = pow(max(x, 0.0), 1.7) * ss(0.0, min(0.05, L * 0.3), hd + 0.004);
     float core = exp(-(y * y) / (coreF * coreF) * 1.6);
     float glow = exp(-y * y * 4.0) * 0.55 + exp(-y * y * 14.0) * 0.45;
     // a hotter bead right at the round
@@ -281,9 +287,12 @@ void main() {
     o = vec4(col * vC.rgb * along * vW * vC.a * near * (1.0 - vFog * 0.85), 0.0);
   } else if (shape == 3) {
     // muzzle / impact flash core: a ragged hot disc with a few faint prongs
-    // (no cartoon star) — white heart, yellow body, orange edge
+    // (no cartoon star) — white heart, yellow body, orange edge.
+    // NOTE: +1e-5 keeps atan() off its (0,0) singularity at the quad centre
+    // (undefined per GLSL spec — NaN on strict drivers; a single NaN pixel is
+    // invisible raw but bloom smears it into a black box on ULTRA/CINEMATIC).
     float r = length(vUv);
-    float th = atan(vUv.y, vUv.x);
+    float th = atan(vUv.y, vUv.x + 1e-5);
     float n = vnoise(vec2(th * 2.2 + seed * 13.0, seed * 7.0 + k * 3.0));
     float prong = pow(abs(cos(th * 2.0 + seed * 6.283)), 10.0) * 0.32 + pow(abs(cos(th * 3.0 + seed * 3.1)), 14.0) * 0.18;
     float rad = 0.42 + 0.22 * n + prong;
@@ -294,10 +303,13 @@ void main() {
     float f = 1.0 - ss(0.35, 1.0, k);
     o = vec4(col * vC.rgb * a * f * vC.a, a * f * 0.12 * vC.a);
   } else if (shape == 4) {
-    // flame tongue anchored at its base (3P muzzle flash body / prongs)
-    float x = vUv.x, y = vUv.y;
+    // flame tongue anchored at its base (3P muzzle flash body / prongs).
+    // GUARD: clamp x to [0,1] — pow(neg, 0.35/0.9) is undefined per GLSL and
+    // compiles to exp2(e*log2(neg)) = NaN on D3D11 (one NaN pixel at the
+    // base/tip edge is smeared by Bloom into a ~50px black box at the muzzle).
+    float x = clamp(vUv.x, 0.0, 1.0), y = vUv.y;
     float n = vnoise(vec2(x * 5.0 + seed * 20.0, y * 1.7 + seed * 7.0));
-    float hw = pow(x, 0.35) * pow(1.0 - x, 0.9) * 1.9 * (0.72 + 0.5 * n);
+    float hw = pow(max(x, 0.0), 0.35) * pow(max(1.0 - x, 0.0), 0.9) * 1.9 * (0.72 + 0.5 * n);
     float cov = ss(hw, hw * 0.35, abs(y)) * ss(0.0, 0.06, x);
     float T = (1.0 - x * 0.95) * (1.0 - 0.6 * abs(y) / max(hw, 1e-3));
     vec3 col = mix(vec3(1.3, 0.3, 0.04), vec3(3.4, 2.0, 0.55), ss(0.1, 0.45, T));
@@ -308,10 +320,17 @@ void main() {
     // 4-point glint: the ping off bare steel
     vec2 p = abs(vUv);
     float g = exp(-p.x * 18.0) * exp(-p.y * 2.4) + exp(-p.y * 18.0) * exp(-p.x * 2.4) + exp(-dot(p, p) * 22.0) * 1.5;
-    float f = sin(3.14159 * sqrt(k));
+    float f = sin(3.14159 * sqrt(max(k, 0.0)));
     o = vec4(vC.rgb * g * f * vC.a, 0.0);
   }
   o.rgb *= 1.0 - vFog * 0.7;
+  // Letzte NaN/Inf-Sperre im Glow-Shader selbst (bevor One/OneMinusSrcAlpha-
+  // Blending das RT verseucht — NaN im Framebuffer frisst selbst den bereits
+  // gezeichneten Hintergrund!). OHNE isnan() (D3D11 X3577 optimiert es weg).
+  if (!(o.r >= 0.0 && o.r <= 60000.0)) o.r = 0.0;
+  if (!(o.g >= 0.0 && o.g <= 60000.0)) o.g = 0.0;
+  if (!(o.b >= 0.0 && o.b <= 60000.0)) o.b = 0.0;
+  if (!(o.a >= 0.0 && o.a <= 1.0)) o.a = 0.0;
   if (o.a <= 0.0 && dot(o.rgb, vec3(1.0)) <= 0.0004) discard;
   ${OUT}
 }`;
@@ -361,11 +380,15 @@ void main() {
     float n = fbm(vec2(vUv.x * vX.x * 0.9 + seed * 17.0, y * 0.8 + k * 1.5 + seed * 3.0));
     float body = exp(-y * y * 3.2) * (0.45 + 0.75 * n);
     float ends = ss(0.0, 0.03, vUv.x) * ss(1.0, 0.985, vUv.x);
-    float a = body * ends * vC.a * pow(1.0 - k, 1.6) * vW;
+    float a = body * ends * vC.a * pow(max(1.0 - k, 0.0), 1.6) * vW;
     vec3 lit = vC.rgb * (uAmb + uSunCol * 0.6 * sunK);
     lit = mix(lit, uFogCol, vFog);
     o = vec4(lit * a, a);
   }
+  if (!(o.r >= 0.0 && o.r <= 60000.0)) o.r = 0.0;
+  if (!(o.g >= 0.0 && o.g <= 60000.0)) o.g = 0.0;
+  if (!(o.b >= 0.0 && o.b <= 60000.0)) o.b = 0.0;
+  if (!(o.a >= 0.0 && o.a <= 1.0)) o.a = 0.0;
   if (o.a <= 0.002) discard;
   ${OUT}
 }`;
@@ -378,7 +401,11 @@ void main() {
   vec2 q = vUv;
   float r = length(q);
   if (r > 1.0) discard;
-  float th = atan(q.y, q.x);
+  // NOTE: +1e-5 keeps atan() off its (0,0) singularity at the disc centre
+  // (undefined per GLSL spec — NaN on strict drivers; one NaN pixel is
+  // invisible raw but bloom smears it into a black box on ULTRA/CINEMATIC).
+  // Cracks/rays/lines are all masked to r > 0.1+, so the shift is invisible.
+  float th = atan(q.y, q.x + 1e-5);
   float wob = ringNoise(q, 3.0, seed * 17.0);
   float fine = vnoise(q * 11.0 + seed * 31.0);
   float F = 1.0;      // multiplier on the surface
@@ -454,6 +481,10 @@ void main() {
   float fade = (1.0 - ss(0.82, 1.0, k)) * vC.a * ss(0.0, 0.002, k);
   float m = mix(1.0, F, a * fade);
   m = mix(m, 1.0, vFog);
+  // MODULATE 2x (dst*src + src*dst = 2*src*dst): ein einziges NaN hier
+  // verseucht das gesamte überdeckte RT-Pixel zu NaN -> Bloom macht daraus
+  // eine ~50px schwarze Box (und Motion Blur hält sie ~1s fest).
+  if (!(m >= 0.0 && m <= 4.0)) m = 1.0;
   if (abs(m - 1.0) < 0.004) discard;
   gl_FragColor = vec4(vec3(m * 0.5), 1.0);
 }`;

@@ -143,9 +143,13 @@ export class DepthPrecision {
   attachComposer(composer: EffectComposer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, vmRoots: THREE.Object3D[]): void {
     if (this.mode === "standard") return;
     for (const rt of [composer.renderTarget1, composer.renderTarget2]) {
-      // Nothing samples scene depth after the world pass, so the multisampled
-      // depth is never blitted (three had been resolving it every frame) and
-      // is invalidated after the colour resolve — less bandwidth, not more.
+      // m2: Solange kein Pass die Szenentiefe liest, wird sie nie geblittet
+      // (three hatte sie jeden Frame resolved) und nach dem Colour-Resolve
+      // invalidiert — weniger Bandbreite, nicht mehr. ContactAO (ssao.ts)
+      // schaltet resolveDepthBuffer ZURÜCK auf true, sobald AO wirklich läuft
+      // (alle Maps, Hardware-Tier, Pref an); bei ?ssao=0 oder AO-aus bleibt es
+      // hier bei false und kein Resolve wird bezahlt (Lazy-Nachreichung in
+      // setGraphicsOptions via ensureDepthResolved).
       rt.resolveDepthBuffer = false;
       if (this.mode === "reversed") {
         // FloatType -> DEPTH_COMPONENT32F, for the multisampled renderbuffer

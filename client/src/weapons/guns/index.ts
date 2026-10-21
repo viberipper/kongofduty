@@ -51,6 +51,10 @@ const builders = new Map<string, (lod: "fp" | "tp") => GunModel>();
 
 /** The viewmodel workstream registers the real builders here. */
 export function registerGun(id: GunId, fn: (lod: "fp" | "tp") => GunModel): void {
+  // Dev-only override guard: registration runs once at boot (no hot path, no
+  // spam) — a warn here would have caught the placeholder-last import-order
+  // regression (grey box dummies overwriting every real builder) instantly.
+  if (import.meta.env.DEV && builders.has(id)) console.warn(`[guns] builder for "${id}" overwritten (import order is last-wins — see register.ts)`);
   builders.set(id, fn);
 }
 

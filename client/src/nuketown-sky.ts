@@ -356,7 +356,8 @@ export async function loadLightmaps(lightmaps: LightmapsFile | null, soft: boole
  *    in it: the sun is the directional light) at ENV_FILL over a sunlit-
  *    ground bounce hemisphere, the same fill on an up-facing surface.
  * Contact stays: the GI and AO bakes keep their occlusion, and the screen-
- * space AO (nuketown-ao.ts) adds it under props.
+ * space AO (ssao.ts — früher nuketown-ao.ts, jetzt map-agnostisch) adds it
+ * under props.
  */
 /** The fill's colour: BO1's shade is warm-neutral desert bounce, not the cyan
  *  sky + green lawn the bake sees (which reads teal on asphalt and mint). */

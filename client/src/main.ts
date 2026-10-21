@@ -87,7 +87,19 @@ function sfx(key: string): void {
 }
 
 function wsUrl(): string {
-  return prefs().server.trim() || defaultWs();
+  // S2: Custom-Server hart validieren — nur ws:/wss: mit Host, sonst Default.
+  // (Pre-existing Lücke: zuvor reichte startsWith("ws") für einen Connect.)
+  const raw = prefs().server.trim();
+  if (raw) {
+    try {
+      const u = new URL(raw);
+      if ((u.protocol === "ws:" || u.protocol === "wss:") && u.host) return raw;
+    } catch {
+      /* kein URL — fall through zum Default */
+    }
+    console.warn("[net] custom server rejected (only ws:// or wss:// URLs allowed), using default");
+  }
+  return defaultWs();
 }
 
 // ---------------------------------------------------------------- settings
@@ -118,6 +130,26 @@ function packNote(): string {
 
 /** Live-apply every setting the game does not read per frame itself. */
 function applyPrefs(): void {
+  // AAA graphics keys: anything the post chain, shadows or resolution own.
+  // The renderer backend itself needs a reload (note in the settings desc).
+  // renderScale steht drin, damit setGraphicsOptions() den adaptiven
+  // Shadow-Cap bei NATIVE-Wechsel zurücksetzen kann (Review-Runde 2).
+  const GFX: (keyof ReturnType<typeof prefs>)[] = [
+    "quality",
+    "renderScale",
+    "bloom",
+    "bloomStrength",
+    "ao",
+    "aoStrength",
+    "chromatic",
+    "grain",
+    "vignette",
+    "motionBlur",
+    "dof",
+    "sharpen",
+    "exposure",
+    "shadowQuality",
+  ];
   onPrefs((p, changed) => {
     game.audio.setVol(p.master);
     game.audio.setMix?.(p.effects, p.ui, p.ambience);
@@ -126,7 +158,8 @@ function applyPrefs(): void {
     document.documentElement.classList.toggle("reduce-motion", reducedMotion());
     document.documentElement.classList.toggle("full-motion", p.motion === "full");
     fpsOn(p.showFps);
-    if (changed.includes("renderScale")) game.resize();
+    if (changed.includes("renderScale") || changed.includes("quality")) game.resize();
+    if (changed.some((k) => (GFX as string[]).includes(k))) game.setGraphicsOptions();
     if (game.opts) {
       game.opts.sens = p.sens;
       game.opts.tac = p.tacSprint;
