@@ -606,7 +606,13 @@ export class Game {
     // weapons stream: pin the key light's target in camera space (unparented it aimed at the WORLD origin, so the gun's light swung as you walked)
     gunKey.target.position.set(0, 0, -1);
     this.camera.add(gunKey.target);
-    this.camera.add(new THREE.PointLight(0xc8d6ee, 0.16, 2.2, 1.6));
+    // Off-axis fill: sitting at (0,0,0) on the sight line put N·H = 1.0 dead
+    // centre on flat optic lenses during the ADS raise (a white specular ball
+    // over the reticle). Offset up-left keeps the fill on the gun without
+    // retro-reflecting straight back into the eye.
+    const gunFill = new THREE.PointLight(0xc8d6ee, 0.16, 2.2, 1.6);
+    gunFill.position.set(-0.22, 0.28, 0.14);
+    this.camera.add(gunFill);
   }
 
   async init(): Promise<void> {

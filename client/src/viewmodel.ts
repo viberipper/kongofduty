@@ -696,10 +696,19 @@ export class Viewmodel {
     // ---- optics: reticle in with the sights, glass thins out so the sight picture stays clean
     if (lo.reticle) lo.reticle.opacity = smooth01((ae - 0.55) / 0.35);
     if (lo.lensMat) {
-      // aimed through it, the glass all but disappears: a faint coating, no mirror
-      lo.lensMat.opacity = 0.24 - 0.2 * ae;
-      lo.lensMat.envMapIntensity = 1.6 * (1 - 0.9 * ae);
-      lo.lensMat.clearcoat = 1 - 0.9 * ae;
+      // aimed through it, the glass disappears completely: in three's physical
+      // shader, direct GGX specular (from the camera fill light on the sight
+      // axis, N·H = 1 at the lens centre) is NOT scaled by opacity — even at
+      // opacity 0.04 and roughness 0.04 it plants a bright white specular ball
+      // right on top of the KR-4 / MX-9 reticle (and bloom blows it up further).
+      // Fade the lens out to zero by ae = 0.75 and hide the lens meshes once
+      // aimed so the sight window is 100% clean; at the hip it keeps its glint.
+      const k = Math.max(0, 1 - ae / 0.75);
+      lo.lensMat.opacity = 0.24 * k;
+      lo.lensMat.envMapIntensity = 1.6 * k;
+      lo.lensMat.clearcoat = k;
+      lo.lensMat.roughness = 0.04 + 0.6 * (1 - k);
+      for (const m of lo.lens) m.visible = k > 0.01;
     }
 
     // ---- muzzle flash at the real muzzle: smaller and dimmer aimed

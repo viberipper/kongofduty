@@ -1,4 +1,4 @@
-# BANANA SHIPMENT (local ripoff)
+# BANANA SHIPMENT (ripoff)
 
 Local copy of the browser game at https://cnvs.dev/kong/ — **including a custom multiplayer game server** (the original only ships the client; the server code is not published). The server in `server/` is a clean-room rebuild based on the official network protocol (`shared/protocol.ts`) and uses the same authoritative simulation engine (`shared/sim.ts`) that the client's offline Quick Play runs.
 
