@@ -544,7 +544,7 @@ export function buildNuketown(raw: unknown): MapDef {
     return { x: r.x, z: r.z, sx: sx!, sz: sz!, yaw: r.yaw ?? 0 };
   });
   // Clone: promotion writes climb/vault below and must not leak into MAP_DATA.
-  const solids: OBB[] = rawSolids.map((o) => ({ ...o }));
+  const solids: OBB[] = rawSolids.map((o) => (o.visual === "boundary" && !o.open ? { ...o, open: true } : { ...o }));
   const A = NUKETOWN_AUDIT;
   A.built = true;
 

@@ -33,7 +33,8 @@ import { bulletPath } from "@shared/penetration";
 import { activeMap, withMapQuery } from "@shared/maps";
 import { ClientDiagnostics } from "./diagnostics";
 import { openUdp, udpApiFor, type UdpLane } from "./udp";
-import { FootstepCadence, footstepRange, type FootstepStyle } from "./footsteps";
+import { FootstepCadence, footstepRange, type FootSurface, type FootstepStyle } from "./footsteps";
+import { footSurface } from "./foot-surface";
 import { nuketownHardFloor } from "./nuketown-surface"; // nuketown: footstep surface
 import { captureBugReport } from "./bug-report";
 
@@ -2819,11 +2820,27 @@ export class Game {
         style.occluded = obstruction.t < distance - 0.15;
       }
       this.audio.footstep({
-        ...style, metal: MAP.id === "ares" || this.isMetalAt(p.x, p.z, p.y), src: p.id,
+        ...style, surface: this.footSurfaceAt(p.x, p.z, p.y), src: p.id,
         ...(local ? {} : { x: p.x, y: p.y + 0.12, z: p.z }),
       });
     }
     this.footstepCadence.retain(seen);
+  }
+
+  /**
+   * The footstep voice under a body (client/src/foot-surface.ts): the solid it
+   * stands on by material; on the bare floor, each map's own ground — Shipment's
+   * earth (or a walk-through container's steel floor), dust2's sand, Nuketown's
+   * street asphalt or a house's floorboards.
+   */
+  footSurfaceAt(x: number, z: number, y: number): FootSurface {
+    const s = footSurface(MAP.id, x, y, z, () => {
+      if (MAP.id === "dust2") return "sand";
+      if (MAP.id === "nuketown") return nuketownHardFloor(x, y, z) ? "wood" : "hard";
+      return this.isMetalAt(x, z, y) ? "metal" : "dirt";
+    });
+    // Nuketown's ground floors stand on lawn-height slabs: indoors, that is floorboards.
+    return MAP.id === "nuketown" && s === "grass" && nuketownHardFloor(x, y, z) ? "wood" : s;
   }
 
   /**
