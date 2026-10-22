@@ -237,6 +237,9 @@ function toMenu(): void {
   detachSpectate(game);
   detachLobby();
   closeGate();
+  // Explicit defense-in-depth: detachLobby already closes settings, but toMenu
+  // must never show the menu with a modal stacked on it even if that changes.
+  if (settingsOpen()) closeSettings();
   resetHud();
   show("hud", false);
   show("boot", false);
@@ -261,6 +264,7 @@ function hideMenus(): void {
  * appears if the server refuses it.
  */
 function openGate(kind: GateKind, room: string, extra: { mode?: ModeId; auto?: boolean; headline?: string }, onEnter: (r: GateResult) => void): void {
+  if (settingsOpen()) closeSettings();
   hideMenus();
   openCallsignGate({
     room,
@@ -412,13 +416,19 @@ async function deploy(online: boolean, phase: MatchPhase | null = null, spectate
           // The host pressed START: the lobby closes and the match HUD comes up.
           // The 3-2-1 is drawn over the live map by the countdown layer.
           onStart: () => {
+            if (settingsOpen()) closeSettings();
             show("hud", true);
             hideEndcard();
           },
           onRefused: (msg) => console.warn("lobby refused:", msg),
-          onLeave: toMenu,
+          onLeave: () => {
+            if (settingsOpen()) closeSettings();
+            toMenu();
+          },
+          onSettings: () => openSettings(settingsDeps),
           // The match ended and the room dropped back to its pre-game lobby.
           onReturn: () => {
+            if (settingsOpen()) closeSettings();
             hideEndcard();
             closePause();
             show("hud", false);

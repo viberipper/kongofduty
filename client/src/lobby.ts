@@ -48,6 +48,7 @@ import { goToMap, mapCardUrl, mapLabel, type Intent } from "./ui/flow";
 import { uiSfx, wireSfx } from "./ui/sfx";
 import { renderKeyline } from "./ui/keys";
 import { actionOf } from "./ui/keybinds";
+import { closeSettings, settingsOpen } from "./ui/settings";
 
 /**
  * The whole of this module's dependency on the game object. Three fields, so the
@@ -149,6 +150,8 @@ export type LobbyHooks = {
   onRefused: (msg: string) => void;
   /** The player pressed LEAVE LOBBY. */
   onLeave: () => void;
+  /** Open the settings modal while waiting in the lobby. */
+  onSettings?: () => void;
   /** The match ended and the room dropped back to its pre-game lobby. */
   onReturn?: () => void;
   sfx?: (key: string) => void;
@@ -160,10 +163,10 @@ export type LobbyHooks = {
 
 /**
  * The deployed client uses our Hetzner game server by default. The dev client
- * on :5173 talks to the local net server on :8787.
+ * on :5173 proxies sockets through its own origin to the local hub on :8787.
  */
 export function defaultWs(): string {
-  if (location.port === "5173") return withMapQuery(`ws://${location.hostname}:8787/ws`, activeMap().id);
+  if (location.port === "5173") return withMapQuery(`ws://${location.host}/ws`, activeMap().id);
   // `?map=<id>`: the server is a hub of one process per map (server/hub.ts)
   // and this is how the socket lands on the process simulating the map THIS
   // page locked. Without it a dust2 page was handed a Shipment room — drawn
@@ -379,6 +382,7 @@ type Ui = {
   start: HTMLButtonElement;
   wait: HTMLButtonElement;
   hostnote: HTMLElement;
+  settings: HTMLButtonElement;
   leave: HTMLButtonElement;
 };
 
@@ -399,7 +403,8 @@ function esc(s: string): string {
  * The three screens, on the design system (ui/tokens.css + ui/screens.css).
  * Ids are the contract the QA probes read (#nana-gate, #nana-name,
  * #nana-enter, #nana-full, #nana-retry, #nana-lobby, #nana-code, #nana-link,
- * #nana-copy, #nana-roster .nana-row .nana-name, #nana-start, #nana-in…);
+ * #nana-copy, #nana-roster .nana-row .nana-name, #nana-start, #nana-wait,
+ * #nana-settings, #nana-in…);
  * classes are free to change.
  */
 function buildUi(): Ui {
@@ -536,7 +541,10 @@ function buildUi(): Ui {
   const leave = el("button", "btn btn--ghost nana-quiet", "LEAVE LOBBY");
   leave.type = "button";
   leave.dataset.sfx = "back";
-  acts.append(start, wait, hostnote, leave);
+  const settings = el("button", "btn", "SETTINGS");
+  settings.id = "nana-settings";
+  settings.type = "button";
+  acts.append(start, wait, hostnote, settings, leave);
   right.append(mapCard, rules, inviteBox, acts);
   grid.append(left, right);
 
@@ -586,6 +594,7 @@ function buildUi(): Ui {
     start,
     wait,
     hostnote,
+    settings,
     leave,
   };
 }
@@ -1028,6 +1037,10 @@ export function showFull(
   eyebrow = "NO SEATS LEFT",
   action: "retry" | "create" | "watch" = "retry",
 ): void {
+  // A FULL refusal can arrive while SETTINGS is open in the lobby — close it
+  // first so the modal never sits orphaned over the FULL card. Covers all
+  // showFull callers (FULL, LOBBY NOT FOUND, WATCH, capacity).
+  if (settingsOpen()) closeSettings();
   const d = dom();
   diag.screen = "full";
   diag.fullAction = action;
@@ -1085,6 +1098,11 @@ export function attachLobby(game: GameLike, h: LobbyHooks, phase: MatchPhase, sp
   diag.spectator = spectating;
   diag.you = game.you;
   wireButtons();
+  // The SETTINGS button is always built, but it only does something when a
+  // handler exists — hide it for hook sets without onSettings. Inline
+  // classList (not the show() helper below it) so this stays above show()'s
+  // definition. paint() deliberately never touches it.
+  d.settings.classList.toggle("hidden", !h.onSettings);
   wireSocket();
   // A NEW SOCKET IS A NEW SEAT. game.ts reconnects with backoff on a drop, and
   // the listener installed above belongs to the socket that died; without this the
@@ -1111,6 +1129,9 @@ export function attachLobby(game: GameLike, h: LobbyHooks, phase: MatchPhase, sp
 /** Stop listening and tear every screen down (RETURN TO MENU / game over). */
 export function detachLobby(): void {
   const d = dom();
+  // An open settings modal outlives the lobby screen — close it first so it
+  // never sits orphaned over the HUD, countdown, or menu.
+  if (settingsOpen()) closeSettings();
   if (watchdog) {
     clearInterval(watchdog);
     watchdog = 0;
@@ -1201,6 +1222,7 @@ function onServerMessage(ev: MessageEvent): void {
     if (returned) {
       startPressedAt = 0;
       playedHere = true;
+      if (settingsOpen()) closeSettings();
       const d = dom();
       show(d.gate, false);
       show(d.full, false);
@@ -1221,6 +1243,9 @@ function onServerMessage(ev: MessageEvent): void {
     startPressedAt = 0;
     diag.phase = "countdown";
     diag.startAt = msg.startAt;
+    // The lobby goes away on START — take an open settings modal with it so
+    // it never overlays the HUD/countdown.
+    if (settingsOpen()) closeSettings();
     const d = dom();
     show(d.lobby, false);
     diag.screen = "none";
@@ -1324,6 +1349,7 @@ function wireButtons(): void {
   d.start.addEventListener("click", () => {
     const ws = bound?.net;
     if (!ws || ws.readyState !== 1) return;
+    if (settingsOpen()) closeSettings();
     d.start.disabled = true;
     d.start.textContent = "STARTING…";
     startPressedAt = performance.now();
@@ -1336,6 +1362,7 @@ function wireButtons(): void {
     detachLobby();
     hooks?.onLeave();
   });
+  d.settings.addEventListener("click", () => hooks?.onSettings?.());
 }
 
 /**
@@ -1506,6 +1533,9 @@ function paint(): void {
   // The screen follows the server's phase (see the onStart contract): a roster
   // that arrives after the match went live hands straight over to the match.
   if (s.phase !== "pregame" && !d.lobby.classList.contains("hidden")) {
+    // Same orphan-modal guard as the "start" message: closing the lobby takes
+    // an open settings modal with it.
+    if (settingsOpen()) closeSettings();
     show(d.lobby, false);
     if (diag.screen === "lobby") diag.screen = "none";
     hooks?.onStart(s.startAt);

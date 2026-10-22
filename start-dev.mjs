@@ -1,6 +1,6 @@
 // Dev loop: starts the game server (:8787, HUB mode — the client picks the
-// map; defaultWs() explicitly binds to ws://host:8787/ws on port 5173) and the
-// Vite dev server (:5173, project root client/). Then open the page at
+// map; Vite proxies same-origin /ws connections to the hub) and the Vite dev
+// server (:5173, project root client/). Then open the page at
 // http://localhost:5173/?map=<id>.
 import { spawn } from "node:child_process";
 import path from "node:path";
