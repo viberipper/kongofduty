@@ -7,9 +7,12 @@ services:
       # Pure server: WS ws://.../ws?map=<id> + /healthz.
       # No client in the image (hosted externally).
       # Worker ports (hub port + 101..104) stay container-internal.
-      - "${KONG_PORT:-8765}:${KONG_PORT:-8765}"
+      - "127.0.0.1:${KONG_PORT:-8765}:${KONG_PORT:-8765}"
     environment:
       KONG_PORT: "${KONG_PORT:-8765}"
+      # The process listens on the container interface; the host port above
+      # remains loopback-only unless an operator changes the mapping.
+      KONG_HOST: "0.0.0.0"
     healthcheck:
       test:
         [

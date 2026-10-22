@@ -35,6 +35,7 @@
  *           t:"startmatch", 3200 ms countdown, then live.
  */
 import http from "node:http";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
@@ -62,6 +63,38 @@ const SERVER_MAP = (() => {
 const IS_WORKER = !!MAP_ARG || !!process.env.SHIPMENT_MAP;
 
 const PORT = Number(argVal("--port=") ?? process.env.KONG_PORT ?? 8765) || 8765;
+// M6: default-bind loopback; LAN play is opt-in via --host=0.0.0.0 (or an
+// explicit IP). Prevents accidentally exposing the game + static root to a
+// hostile LAN (combined with CSWSH, malicious pages could otherwise reach it).
+const HOST = argVal("--host=") ?? process.env.KONG_HOST ?? "127.0.0.1";
+
+// ---------------------------------------------------------------------------
+// Abuse limits (H2/H3/H4). All fail-closed: over-limit sockets get err+close,
+// never silent drops that a client would retry in a hot loop.
+// ---------------------------------------------------------------------------
+/** Max private rooms per worker process (H2: room exhaustion). */
+const MAX_PRIVATE_ROOMS = 50;
+/** Max concurrent WS connections per worker (H3: global flood). */
+const MAX_CONNECTIONS = 220;
+/** Max concurrent WS connections from one IP (H3). */
+const MAX_CONN_PER_IP = 20;
+/** Per-socket message budget: 120 msgs / 1 s sliding window (H3).
+ * Honest clients send `in` at 64 Hz + ping/chat — 120 gives ~2x headroom
+ * for jitter/TCP-burst catch-up without killing legit play. */
+const MSG_WINDOW_MS = 1000;
+const MSG_MAX_PER_WINDOW = 120;
+/** ping ≤ 4/s per socket; lobbyq ≤ 2/s per socket (H3 fan-out). */
+const PING_MIN_GAP_MS = 250;
+const LOBBYQ_MIN_GAP_MS = 500;
+/** Pre-auth upgrade socket idle timeout (H4 Slowloris). */
+const UPGRADE_TIMEOUT_MS = 5000;
+/** WS payload cap (H1): protocol messages are < 4 KB; 64 KB has 16x headroom. */
+const WS_MAX_PAYLOAD = 64 * 1024;
+/** checkname/join rate limit per socket: 10 per 10 s (M3 enumeration). */
+const JOIN_WINDOW_MS = 10_000;
+const JOIN_MAX_PER_WINDOW = 10;
+const IP_JOIN_MAX_PER_WINDOW = 40;
+const MAX_TRACKED_JOIN_IPS = 4096;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // Web root: the built client (client/dist); the raw assets source is
@@ -129,9 +162,9 @@ await import("../../shared/maps");
 
 // Engine chain from here on (sim builds on activeMap()).
 import { GameSession, type SimPlayer } from "../../shared/sim";
-import { MAX_PLAYABLE, MAX_SPECTATORS, COUNTDOWN_MS, inputLocked } from "../../shared/matchphase";
+import { MAX_SPECTATORS, COUNTDOWN_MS } from "../../shared/matchphase";
 import type { ClientMsg, InputCmd, LobbyMember, NameCheck, NetEvent, PredictionState, ServerMsg, Snapshot, Team, MatchPhase } from "../../shared/protocol";
-import { BOT_NAMES, MATCH_TIME } from "../../shared/protocol";
+import { BOT_NAMES, MATCH_TIME, MAX_INPUT_QUEUE } from "../../shared/protocol";
 import { packPlayers } from "../../shared/snapshot-wire";
 import { sanitizeLoadout, type Loadout } from "../../shared/loadout";
 import { seatsFor, type ModeId } from "../../shared/modes";
@@ -206,14 +239,28 @@ const REAL_ROOT: string = (() => {
 
 function deny(res: http.ServerResponse, status: 400 | 404 | 405, extra?: Record<string, string>): void {
   const label = status === 400 ? "Bad Request" : status === 405 ? "Method Not Allowed" : "Not Found";
-  res.writeHead(status, { "Content-Type": "text/html; charset=utf-8", ...extra });
+  res.writeHead(status, {
+    "Content-Type": "text/html; charset=utf-8",
+    // L3: clickjacking/referrer hardening on error pages too.
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "no-referrer",
+    ...extra,
+  });
   res.end(`<!doctype html><meta charset=utf-8><h1>${status} ${label}</h1>`);
+}
+
+function setStaticHeaders(res: http.ServerResponse): void {
+  // D: nosniff on EVERY response — set centrally before any writeHead.
+  // L3: SAMEORIGIN framing + no-referrer on every static response.
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Referrer-Policy", "no-referrer");
 }
 
 function serveStatic(req: http.IncomingMessage, res: http.ServerResponse): void {
   // D: nosniff on EVERY response — set centrally before any writeHead,
   // so 200/302/400/404/405/healthz all carry it (writeHead merges).
-  res.setHeader("X-Content-Type-Options", "nosniff");
+  setStaticHeaders(res);
   if (req.method && req.method !== "GET" && req.method !== "HEAD") {
     res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8", Allow: "GET, HEAD" });
     res.end("Method Not Allowed");
@@ -416,7 +463,15 @@ function serveStatic(req: http.IncomingMessage, res: http.ServerResponse): void 
 // Names / codes
 // ---------------------------------------------------------------------------
 function cleanName(raw: unknown): string {
+  // L2+M2: normalize compatibility forms and strip bidi/zero-width controls.
+  // This reduces invisible formatting tricks; it does not fold homoglyphs.
+  // Controls collapse to space.
+  // NOTE: <>&"' are kept on the wire — every client sink escapes via esc()
+  // (lobby.ts, hud.ts, roundstrip.ts, game.ts escHtml). Server-side
+  // HTML-escaping here would double-escape; clients MUST keep using esc().
   const n = String(raw ?? "")
+    .normalize("NFKC")
+    .replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, "")
     .replace(/[\x00-\x1f\x7f]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
@@ -450,7 +505,7 @@ function num(v: unknown, dflt = 0): number {
   return Number.isFinite(n) ? n : dflt;
 }
 
-function sanitizeCmd(c: unknown): InputCmd | null {
+function sanitizeCmd(c: unknown, serverNowSec: number): InputCmd | null {
   if (!c || typeof c !== "object") return null;
   const o = c as Record<string, unknown>;
   const dt = Math.min(0.15, Math.max(0, num(o.dt, 1 / 64)));
@@ -459,6 +514,18 @@ function sanitizeCmd(c: unknown): InputCmd | null {
     const wrapped = ((v % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
     return wrapped;
   };
+  // M4: bound aim/origin hints without clipping the full Dust2 play area.
+  const clampHint = (v: unknown, lo = -128, hi = 128): number =>
+    Math.max(lo, Math.min(hi, num(v)));
+  const clampDirection = (v: unknown): number => Math.max(-1, Math.min(1, num(v)));
+  // Input timestamps are seconds on the simulation clock, not wall-clock time.
+  const ct = num(o.clientTime, serverNowSec);
+  const clientTime = Math.abs(ct - serverNowSec) > 60 ? serverNowSec : ct;
+  const rt = typeof o.rt === "number" && Number.isFinite(o.rt) ? o.rt : undefined;
+  // weapon is inert server-side (trySwap only swaps to the holstered gun),
+  // but allowlist it anyway so per-tick strings can't probe sim handling.
+  const wRaw = typeof o.weapon === "string" ? o.weapon.slice(0, 16) : "";
+  const weapon = wRaw === "ar" || wRaw === "smg" || wRaw === "sniper" || wRaw === "pistol" ? wRaw : "";
   return {
     seq: Math.max(0, Math.floor(num(o.seq))) || 0,
     dt,
@@ -474,15 +541,15 @@ function sanitizeCmd(c: unknown): InputCmd | null {
     fire: o.fire === true,
     reload: o.reload === true,
     melee: o.melee === true,
-    weapon: typeof o.weapon === "string" ? o.weapon.slice(0, 16) : "",
-    clientTime: num(o.clientTime),
-    rt: Number.isFinite(Number(o.rt)) ? Number(o.rt) : undefined,
-    ox: num(o.ox),
-    oy: num(o.oy),
-    oz: num(o.oz),
-    dx: num(o.dx),
-    dy: num(o.dy),
-    dz: num(o.dz),
+    weapon,
+    clientTime,
+    rt,
+    ox: clampHint(o.ox),
+    oy: clampHint(o.oy),
+    oz: clampHint(o.oz),
+    dx: clampDirection(o.dx),
+    dy: clampDirection(o.dy),
+    dz: clampDirection(o.dz),
     nade: o.nade === true,
     nadeHold: o.nadeHold === true,
   };
@@ -506,6 +573,14 @@ type Seat = {
   team: Team;
   chatTimes: number[];
   closed: boolean;
+  /** H3 sliding-window message timestamps (ms). */
+  msgTimes: number[];
+  /** H3 per-type last-seen for ping/lobbyq fan-out gates. */
+  lastPing: number;
+  lastLobbyQ: number;
+  /** M3 checkname/join attempts window. */
+  /** H1 repeated oversize/invalid-frame violations. */
+  violations: number;
 };
 
 function memberOf(s: Seat): LobbyMember {
@@ -520,6 +595,12 @@ function memberOf(s: Seat): LobbyMember {
 }
 
 let seatSeq = 0;
+function nextSeatId(): string {
+  // L1: sequential p1/p2/... leaks total-join count/uptime. Random 64-bit
+  // suffix — unguessable, still log-friendly. seatSeq kept for logs only.
+  seatSeq++;
+  return `p-${crypto.randomBytes(8).toString("hex")}`;
+}
 
 class Room {
   id: string; // "" = PUBLIC YARD, else code
@@ -579,7 +660,9 @@ class Room {
 
   addBot(team: Team): void {
     const id = `bot-${this.botSeq++}`;
-    const taken = new Set([...this.session.players.values()].map((p) => p.name));
+    // Case-insensitive taken set (fix: previously raw names stored but
+    // lowercased on lookup, so "stem scout" never blocked "Stem Scout").
+    const taken = new Set([...this.session.players.values()].map((p) => p.name.toLowerCase()));
     let name = BOT_NAMES[(this.botSeq - 1) % BOT_NAMES.length] ?? "GRUNT";
     while (taken.has(name.toLowerCase())) name = dedupeName(name, [...taken]);
     const primary = ["ar", "smg", "sniper"][(this.botSeq - 1) % 3] ?? "ar";
@@ -635,7 +718,7 @@ class Room {
   // ------------------------------------------------------------ Join/Leave
   addSeat(ws: WsConn, name: string, packed: boolean): Seat {
     const clean = dedupeName(cleanName(name), this.allNames());
-    const id = `p${++seatSeq}`;
+    const id = nextSeatId();
     const playableFull = this.playableHumans().length >= this.seatCount;
     const spectFull = this.spectators().length >= MAX_SPECTATORS;
     const seat: Seat = {
@@ -653,6 +736,10 @@ class Room {
       team: 0,
       chatTimes: [],
       closed: false,
+      msgTimes: [],
+      lastPing: 0,
+      lastLobbyQ: 0,
+      violations: 0,
     };
     if (!seat.spectator) {
       seat.slot = this.nextSlot();
@@ -805,22 +892,27 @@ class Room {
     switch (m.t) {
       case "in": {
         if (seat.spectator || !this.seatBody(seat)) return;
-        const cmd = sanitizeCmd(m.cmd);
+        // The sim applies the pre-live gate while still accepting aim/sequence.
+        const cmd = sanitizeCmd(m.cmd, this.session.time);
         if (!cmd) return;
         seat.queue.push(cmd);
-        while (seat.queue.length > 32) seat.queue.shift();
+        while (seat.queue.length > MAX_INPUT_QUEUE) seat.queue.shift();
         return;
       }
       case "inb": {
         if (seat.spectator || !Array.isArray(m.c)) return;
         for (const raw of m.c.slice(-8)) {
-          const cmd = sanitizeCmd(raw);
+          const cmd = sanitizeCmd(raw, this.session.time);
           if (cmd) seat.queue.push(cmd);
         }
-        while (seat.queue.length > 32) seat.queue.shift();
+        while (seat.queue.length > MAX_INPUT_QUEUE) seat.queue.shift();
         return;
       }
       case "ping": {
+        // H3: ping is a pong-amplification oracle — gate per-socket.
+        const now = Date.now();
+        if (now - seat.lastPing < PING_MIN_GAP_MS) return;
+        seat.lastPing = now;
         if (typeof m.rtt === "number" && m.rtt >= 0 && m.rtt < 1000) {
           seat.ping = Math.round(m.rtt);
           const p = this.seatBody(seat);
@@ -837,6 +929,8 @@ class Room {
       }
       case "chat": {
         const text = String(m.text ?? "")
+          .normalize("NFKC")
+          .replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, "")
           .replace(/[\x00-\x1f\x7f]/g, " ")
           .trim()
           .slice(0, 80);
@@ -851,9 +945,14 @@ class Room {
       case "startmatch":
         this.startMatch(seat);
         return;
-      case "lobbyq":
+      case "lobbyq": {
+        // H3: each lobbyq fans out to the whole room — gate per-socket.
+        const now = Date.now();
+        if (now - seat.lastLobbyQ < LOBBYQ_MIN_GAP_MS) return;
+        seat.lastLobbyQ = now;
         if (this.kind === "private") this.broadcastLobby();
         return;
+      }
       case "aux":
         // UDP fast path (optional): just an ack — the WebSocket keeps running.
         this.send(seat, { t: "auxok" });
@@ -1036,9 +1135,14 @@ if (!IS_WORKER && !argVal("--map=")) {
   rooms.set("", new Room("", "yard", "tdm"));
 }
 
-function getOrCreateRoom(code: string, mode: ModeId): Room {
+function getOrCreateRoom(code: string, mode: ModeId): Room | null {
   const existing = rooms.get(code);
   if (existing) return existing;
+  // H2: unbounded room creation = memory + tick exhaustion. Cap private
+  // rooms per worker; over-limit joins get err+close (fail-closed).
+  let privateCount = 0;
+  for (const [k] of rooms) if (k !== "") privateCount++;
+  if (privateCount >= MAX_PRIVATE_ROOMS) return null;
   const r = new Room(code, "private", mode);
   rooms.set(code, r);
   return r;
@@ -1098,21 +1202,135 @@ if (rooms.size > 0 || IS_WORKER) {
 // ---------------------------------------------------------------------------
 // WebSocket
 // ---------------------------------------------------------------------------
-const wss = new WebSocketServer({ noServer: true });
+// H1: ws default maxPayload is ~100 MB — one unauthenticated 50 MB frame OOMs
+// the worker. Protocol messages are < 4 KB; 64 KB has 16x headroom.
+const wss = new WebSocketServer({ noServer: true, maxPayload: WS_MAX_PAYLOAD });
+
+// H3: per-IP / global connection accounting (hub + worker share this module
+// per process; hub counts proxied sockets, worker counts real WS sockets).
+const ipConns = new Map<string, number>();
+let totalConns = 0;
+function clientIp(req: http.IncomingMessage): string {
+  // Use Cloudflare's visitor-IP header on the public path; X-Forwarded-For
+  // can contain an attacker-supplied first entry, so do not use it for quotas.
+  const cfIp = req.headers["cf-connecting-ip"];
+  if (typeof cfIp === "string" && net.isIP(cfIp.trim())) return cfIp.trim();
+  return (req.socket.remoteAddress ?? "unknown").slice(0, 64);
+}
+
+const ipJoinTimes = new Map<string, number[]>();
+const ipJoinCleanup = setInterval(() => {
+  const cutoff = Date.now() - JOIN_WINDOW_MS;
+  for (const [ip, times] of ipJoinTimes) {
+    const fresh = times.filter((t) => t >= cutoff);
+    if (fresh.length) ipJoinTimes.set(ip, fresh);
+    else ipJoinTimes.delete(ip);
+  }
+}, JOIN_WINDOW_MS);
+ipJoinCleanup.unref();
+
+function allowIpJoin(ip: string, now: number): boolean {
+  const existing = ipJoinTimes.get(ip);
+  const fresh = (existing ?? []).filter((t) => now - t < JOIN_WINDOW_MS);
+  if (fresh.length >= IP_JOIN_MAX_PER_WINDOW) {
+    ipJoinTimes.set(ip, fresh);
+    return false;
+  }
+  if (!existing && ipJoinTimes.size >= MAX_TRACKED_JOIN_IPS) return false;
+  fresh.push(now);
+  ipJoinTimes.set(ip, fresh);
+  return true;
+}
+function connAcquire(ip: string): boolean {
+  if (totalConns >= MAX_CONNECTIONS) return false;
+  if ((ipConns.get(ip) ?? 0) >= MAX_CONN_PER_IP) return false;
+  ipConns.set(ip, (ipConns.get(ip) ?? 0) + 1);
+  totalConns++;
+  return true;
+}
+function connRelease(ip: string): void {
+  const n = (ipConns.get(ip) ?? 1) - 1;
+  if (n <= 0) ipConns.delete(ip);
+  else ipConns.set(ip, n);
+  totalConns = Math.max(0, totalConns - 1);
+}
+
+// M1: CSWSH — any website can open ws:// to a LAN server. Allow non-browser
+// clients (no Origin) and same-origin pages (Origin host === Host header).
+// Evil origin https://evil.com vs Host 192.168.1.10:8765 → reject.
+function checkOrigin(req: http.IncomingMessage): boolean {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  try {
+    const o = new URL(origin);
+    const host = req.headers.host ?? "";
+    if (!host) return false;
+    // Compare full host (hostname:port) — same-origin pages match exactly.
+    return o.host.toLowerCase() === host.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+// H4: arm an idle timeout on a pre-auth socket; cleared on upgrade/proxy.
+function armUpgradeTimeout(socket: net.Socket): () => void {
+  socket.setTimeout(UPGRADE_TIMEOUT_MS);
+  const onTimeout = (): void => {
+    try {
+      socket.destroy();
+    } catch {
+      /* ignore */
+    }
+  };
+  socket.once("timeout", onTimeout);
+  return () => {
+    try {
+      socket.setTimeout(0);
+      socket.removeListener("timeout", onTimeout);
+    } catch {
+      /* ignore */
+    }
+  };
+}
 
 if (IS_WORKER) {
   // WORKER: exactly one map. A ?map= mismatch stays an error (the hub
   // routes correctly; this only protects direct connections).
   server.on("upgrade", (req, socket, head) => {
+    const disarm = armUpgradeTimeout(socket);
+    // H3: per-IP / global cap before handshake work.
+    const ip = clientIp(req);
+    if (!connAcquire(ip)) {
+      disarm();
+      try {
+        socket.destroy();
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    socket.once("close", () => connRelease(ip));
     try {
+      // M1: reject cross-site upgrades before any ws state.
+      if (!checkOrigin(req)) {
+        disarm();
+        try {
+          socket.destroy();
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
       const u = new URL(req.url ?? "/", "http://x");
       if (!u.pathname.endsWith("/ws")) {
+        disarm();
         socket.destroy();
         return;
       }
       const mapQ = u.searchParams.get("map");
       if (mapQ && VALID_MAPS.has(mapQ) && mapQ !== SERVER_MAP) {
         wss.handleUpgrade(req, socket, head, (ws) => {
+          disarm();
           ws.send(
             JSON.stringify({
               t: "err",
@@ -1123,8 +1341,12 @@ if (IS_WORKER) {
         });
         return;
       }
-      wss.handleUpgrade(req, socket, head, (ws) => onSocket(ws));
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        disarm();
+      onSocket(ws, ip);
+      });
     } catch {
+      disarm();
       try {
         socket.destroy();
       } catch {
@@ -1192,6 +1414,10 @@ async function ensureWorker(map: string): Promise<number | null> {
         "--worker",
         `--map=${map}`,
         `--port=${port}`,
+        // M5: workers are hub-internal — always loopback, even if the hub
+        // itself was started with --host=0.0.0.0 / KONG_HOST for LAN play.
+        // (Explicit flag beats the inherited KONG_HOST env.)
+        "--host=127.0.0.1",
       ];
       const child = spawn(process.execPath, args, {
         stdio: "ignore",
@@ -1219,24 +1445,64 @@ async function ensureWorker(map: string): Promise<number | null> {
 }
 
 /** Pass upgrade bytes 1:1 to the worker, then pipe bidirectionally. */
-function proxyUpgrade(req: http.IncomingMessage, socket: net.Socket, head: Buffer, port: number): void {
+function proxyUpgrade(req: http.IncomingMessage, socket: net.Socket, head: Buffer, port: number, ip: string): void {
   const upstream = net.connect({ port, host: "127.0.0.1" });
+  upstream.setTimeout(UPGRADE_TIMEOUT_MS);
   let sent = false;
   upstream.on("connect", () => {
-    // Request line + original headers (the worker knows none of the header
-    // details in the strict sense, but the ws upgrade wants the Sec-WebSocket keys).
+    try {
+      upstream.setTimeout(0);
+    } catch {
+      /* ignore */
+    }
+    // M5: forward ONLY the WS handshake headers. Cookie/Authorization/X-*
+    // from the client must not reach the worker; Host is the ORIGINAL hub
+    // host so the worker's same-origin check sees the page's origin.
+    const allow = new Set([
+      "host",
+      "upgrade",
+      "connection",
+      "sec-websocket-key",
+      "sec-websocket-version",
+      "sec-websocket-extensions",
+      "sec-websocket-protocol",
+      "origin",
+    ]);
     const lines = [`GET ${req.url ?? "/"} HTTP/1.1`];
     for (let i = 0; i < (req.rawHeaders?.length ?? 0); i += 2) {
       const k = req.rawHeaders[i];
+      if (!k) continue;
+      const lk = k.toLowerCase();
+      if (!allow.has(lk)) continue;
       const v = req.rawHeaders[i + 1] ?? "";
-      if (k.toLowerCase() === "connection") lines.push("Connection: Upgrade");
-      else lines.push(`${k}: ${v}`);
+      // Harden: strip CR/LF just in case (static layer already 400s them).
+      const sv = String(v).replace(/[\r\n]/g, "");
+      if (lk === "connection") lines.push("Connection: Upgrade");
+      else lines.push(`${k}: ${sv}`);
     }
-    if (!req.rawHeaders.some((h, i) => i % 2 === 0 && h.toLowerCase() === "connection")) {
+    // Forward the already-validated client IP from the hub to the worker.
+    lines.push(`CF-Connecting-IP: ${ip}`);
+    if (!lines.some((l) => l.toLowerCase().startsWith("connection:"))) {
       lines.push("Connection: Upgrade", "Upgrade: websocket");
     }
     upstream.write(lines.join("\r\n") + "\r\n\r\n");
-    if (head && head.length) upstream.write(head);
+    if (head && head.length) {
+      // H4: cap buffered head — a giant pre-handshake body must not pin RAM.
+      if (head.length > WS_MAX_PAYLOAD) {
+        try {
+          socket.destroy();
+        } catch {
+          /* ignore */
+        }
+        try {
+          upstream.destroy();
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      upstream.write(head);
+    }
     sent = true;
     socket.pipe(upstream);
     upstream.pipe(socket);
@@ -1253,6 +1519,7 @@ function proxyUpgrade(req: http.IncomingMessage, socket: net.Socket, head: Buffe
       /* ignore */
     }
   };
+  upstream.once("timeout", kill);
   upstream.on("error", kill);
   socket.on("error", kill);
   socket.on("close", () => {
@@ -1268,9 +1535,42 @@ function proxyUpgrade(req: http.IncomingMessage, socket: net.Socket, head: Buffe
 
 if (!IS_WORKER) {
   server.on("upgrade", (req, socket, head) => {
+    // H4: pre-auth sockets must not linger (Slowloris). Disarmed once the
+    // proxy pipes or the socket is destroyed.
+    const disarm = armUpgradeTimeout(socket);
+    // H3: hub-level per-IP/global cap on half-open upgrades.
+    const ip = clientIp(req);
+    if (!connAcquire(ip)) {
+      disarm();
+      try {
+        socket.destroy();
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    socket.once("close", () => connRelease(ip));
+    // M5: workers bind loopback only (see listen below); the hub is the
+    // only ingress. Direct worker ports are not reachable off-host.
+    const done = (): void => {
+      // connRelease happens on socket close; disarm the idle timer now that
+      // proxyUpgrade owns the socket lifecycle.
+      disarm();
+    };
     try {
+      // M1: same-origin gate at the hub (worker re-checks after proxy).
+      if (!checkOrigin(req)) {
+        disarm();
+        try {
+          socket.destroy();
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
       const u = new URL(req.url ?? "/", "http://x");
       if (!u.pathname.endsWith("/ws")) {
+        disarm();
         socket.destroy();
         return;
       }
@@ -1278,8 +1578,10 @@ if (!IS_WORKER) {
       const map = mapQ && VALID_MAPS.has(mapQ) ? mapQ : "nuketown";
       ensureWorker(map)
         .then((port) => {
-          if (port) proxyUpgrade(req, socket, head, port);
-          else {
+          if (port) {
+            done();
+            proxyUpgrade(req, socket, head, port, ip);
+          } else {
             try {
               socket.destroy();
             } catch {
@@ -1313,19 +1615,114 @@ if (!IS_WORKER) {
   });
 }
 
-function onSocket(ws: WsConn): void {
+function onSocket(ws: WsConn, ip: string): void {
   let seat: Seat | null = null;
   let room: Room | null = null;
+  // H3: separate general message and room-probe budgets for pre-join sockets.
+  const preJoinTimes: number[] = [];
+  const joinTimes: number[] = [];
 
-  ws.on("message", (raw) => {
+  ws.on("message", (raw: unknown, isBinary?: boolean) => {
+    // H1: ws delivers text frames as Buffer (RawData) — decode them, but
+    // drop true binary frames outright (protocol is JSON text only).
+    if (isBinary === true) {
+      try {
+        ws.close(1009, "binary not supported");
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    const text: string =
+      typeof raw === "string"
+        ? raw
+        : (() => {
+            try {
+              if (raw instanceof Buffer) return raw.toString("utf8");
+              if (raw instanceof ArrayBuffer) return Buffer.from(raw).toString("utf8");
+              if (Array.isArray(raw)) return Buffer.concat(raw as Buffer[]).toString("utf8");
+              return String(raw);
+            } catch {
+              return "";
+            }
+          })();
+    if (text.length > WS_MAX_PAYLOAD) {
+      if (seat) {
+        seat.violations++;
+        if (seat.violations >= 3) {
+          try {
+            ws.close(1009, "too large");
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
+      } else {
+        try {
+          ws.close(1009, "too large");
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+    }
     let msg: unknown;
     try {
-      msg = JSON.parse(String(raw));
+      msg = JSON.parse(text);
     } catch {
       return;
     }
     const m = msg as Partial<ClientMsg>;
     if (!m || typeof m !== "object" || typeof m.t !== "string") return;
+
+    // H3: per-socket sliding-window rate limit (post-join seats use
+    // seat.msgTimes; pre-join sockets use preJoinTimes).
+    const nowRL = Date.now();
+    if (seat) {
+      seat.msgTimes = seat.msgTimes.filter((t) => nowRL - t < MSG_WINDOW_MS);
+      if (seat.msgTimes.length >= MSG_MAX_PER_WINDOW) {
+        try {
+          ws.send(JSON.stringify({ t: "err", msg: "rate limited" }));
+        } catch {
+          /* ignore */
+        }
+        try {
+          ws.close(1013, "rate limited");
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      seat.msgTimes.push(nowRL);
+    } else {
+      const fresh = preJoinTimes.filter((t) => nowRL - t < MSG_WINDOW_MS);
+      preJoinTimes.length = 0;
+      preJoinTimes.push(...fresh);
+      if (fresh.length >= MSG_MAX_PER_WINDOW) {
+        try {
+          ws.close(1013, "rate limited");
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      preJoinTimes.push(nowRL);
+    }
+
+    if (!seat && (m.t === "checkname" || m.t === "join")) {
+      const fresh = joinTimes.filter((t) => nowRL - t < JOIN_WINDOW_MS);
+      joinTimes.length = 0;
+      joinTimes.push(...fresh);
+      if (joinTimes.length >= JOIN_MAX_PER_WINDOW || !allowIpJoin(ip, nowRL)) {
+        try {
+          ws.close(1013, "rate limited");
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      joinTimes.push(nowRL);
+    }
 
     if (m.t === "checkname") {
       const asked = cleanRoomCode(m.room);
@@ -1359,7 +1756,6 @@ function onSocket(ws: WsConn): void {
         );
         return;
       }
-      r.seats.size; // touch
       ws.send(JSON.stringify(r.namecheck(m)));
       return;
     }
@@ -1369,6 +1765,20 @@ function onSocket(ws: WsConn): void {
       const mode: ModeId = m.mode === "ffa" ? "ffa" : "tdm";
       const code = cleanRoomCode(m.room);
       const target = code ? getOrCreateRoom(code, mode) : yardRoom();
+      if (!target) {
+        // H2: private-room cap hit.
+        try {
+          ws.send(JSON.stringify({ t: "err", msg: "server full" }));
+        } catch {
+          /* ignore */
+        }
+        try {
+          ws.close(1013, "server full");
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
       if (target.seats.size >= target.seatCount + MAX_SPECTATORS) {
         ws.send(JSON.stringify({ t: "err", msg: "server full" }));
         ws.close();
@@ -1411,17 +1821,18 @@ function describeStatus(): string {
   return `ok hub workers=${workers.size}`;
 }
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
   if (IS_WORKER) {
-    console.log(`[kong-worker] map=${SERVER_MAP} seats=${seatsFor(SERVER_MAP, "tdm")}`);
-    console.log(`[kong-worker] http://localhost:${PORT}/?map=${SERVER_MAP}`);
-    console.log(`[kong-worker] ws:      ws://localhost:${PORT}/ws`);
+    console.log(`[kong-worker] map=${SERVER_MAP} seats=${seatsFor(SERVER_MAP, "tdm")} host=${HOST}`);
+    console.log(`[kong-worker] http://${HOST}:${PORT}/?map=${SERVER_MAP}`);
+    console.log(`[kong-worker] ws:      ws://${HOST}:${PORT}/ws`);
   } else {
     console.log(`[kong-hub] mode: HUB — client picks the map (?map=), workers start lazily`);
     console.log(`[kong-hub] web root: ${ROOT}`);
-    console.log(`[kong-hub] http://localhost:${PORT}/`);
-    console.log(`[kong-hub] ws:      ws://localhost:${PORT}/ws?map=<${[...VALID_MAPS].join("|")}>`);
-    console.log(`[kong-hub] worker-ports: ${WORKER_ORDER.map((m) => `${m}:${workerPortFor(m)}`).join("  ")}`);
+    console.log(`[kong-hub] listen: ${HOST}:${PORT} (LAN play: --host=0.0.0.0)`);
+    console.log(`[kong-hub] http://${HOST === "0.0.0.0" ? "localhost" : HOST}:${PORT}/`);
+    console.log(`[kong-hub] ws:      ws://${HOST === "0.0.0.0" ? "localhost" : HOST}:${PORT}/ws?map=<${[...VALID_MAPS].join("|")}>`);
+    console.log(`[kong-hub] worker-ports: ${WORKER_ORDER.map((m) => `${m}:${workerPortFor(m)}`).join("  ")} (loopback-only)`);
   }
 });
 
