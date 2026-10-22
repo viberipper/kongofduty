@@ -13,19 +13,10 @@ server/node_modules/
 *.log
 
 # Local dev/QA tools (headless checks, asset repair, probes) — kept locally, not part of the repo
-# NARROW EXCEPTION (review M3): scripts/ wholesale used to ignore the three
-# Nuketown gates this repo's CI actually runs (check-geo, probe, probe-entry),
-# leaving them unreviewable while numeric probe claims cited them. The gates
-# below stay tracked; every other script stays local.
-scripts/*
-!scripts/nuketown/
-!scripts/smoke.mjs
-!scripts/smoke-entry.ts
-scripts/nuketown/*
-!scripts/nuketown/check-geo.mjs
-!scripts/nuketown/check-dust2-geo.mjs
-!scripts/nuketown/probe.mjs
-!scripts/nuketown/probe-entry.ts
+scripts/
+
+# Local CI workflow — kept locally, not part of the repo
+.github/
 
 # Repo-local Git identity (other GitHub login) — never commit this file
 .gitconfig.local
