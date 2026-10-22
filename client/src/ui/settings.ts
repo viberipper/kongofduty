@@ -109,6 +109,18 @@ const ROWS: Record<Exclude<Tab, "controls">, Row[]> = {
       opts: ON_OFF,
     },
     { group: "INTERFACE" },
+    {
+      key: "colorMode",
+      label: "Colour Vision",
+      desc: "Recolours team identity — nameplates, markers, minimap, scorebug and killfeed — for protanopia (red-weak), deuteranopia (green-weak) or tritanopia (blue-yellow).",
+      kind: "seg",
+      opts: [
+        { v: "default", label: "DEFAULT" },
+        { v: "protanopia", label: "PROTAN" },
+        { v: "deuteranopia", label: "DEUTAN" },
+        { v: "tritanopia", label: "TRITAN" },
+      ],
+    },
     { key: "damageNumbers", label: "Damage Numbers", desc: "Show the damage each hit deals, floating over the target.", kind: "seg", opts: ON_OFF },
     {
       key: "hudScale",

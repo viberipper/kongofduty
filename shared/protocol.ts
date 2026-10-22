@@ -225,6 +225,8 @@ export type PlayerSnap = {
   swap: number;
   /** Seconds the held frag has cooked (0 = no pin pulled). */
   cook: number;
+  /** GUN GAME ladder progress (shared/gungame.ts); 0 in every other mode. */
+  gun: number;
 };
 
 /** One live banana frag. Replicated every snapshot; interpolated like players. */
@@ -267,6 +269,8 @@ export type NetEvent =
        * swallowed confirmations outright during sustained fire.
        */
       seq?: number;
+      /** The round went through a wall first (shared/penetration.ts): a wallbang. */
+      wall?: boolean;
     }
   | { t: "kill"; src: string; dst: string; weapon: string; head: boolean; medal: string }
   | { t: "spawn"; id: string; x: number; y: number; z: number }
@@ -400,7 +404,7 @@ export type LobbyMember = {
 export type LobbyState = {
   t: "lobby";
   room: string;
-  mode: "tdm" | "ffa";
+  mode: "tdm" | "ffa" | "gun";
   /** The map this room runs. Rendered on the lobby card so everyone in the
    *  room can see they are about to load the same world. */
   map: string;
@@ -436,7 +440,7 @@ export type NameCheck = {
     exists: boolean;
     /** The room's real mode, when it exists — an invited guest's client must
      *  render the mode the HOST picked, not the one it would have picked. */
-    mode?: "tdm" | "ffa";
+    mode?: "tdm" | "ffa" | "gun";
     /**
      * THE MAP THIS ROOM RUNS — and the whole reason the map is on the wire.
      *
@@ -479,13 +483,25 @@ export type ClientMsg =
    * it is actually simulating on every snapshot — a client that guessed wrong
    * finds out on the first frame instead of after a match of ghost hits.
    */
-  | { t: "join"; name: string; team: Team | -1; room?: string; mode?: "tdm" | "ffa"; map?: string; lobby?: boolean; snapshotFormat?: "compact-v1"; loadout?: Loadout }
+  | { t: "join"; name: string; team: Team | -1; room?: string; mode?: "tdm" | "ffa" | "gun"; map?: string; lobby?: boolean; snapshotFormat?: "compact-v1"; loadout?: Loadout }
   /**
    * LOADOUT CHANGE. Sanitized server-side (shared/loadout.ts sanitizeLoadout);
    * in a live match it applies at this player's NEXT spawn (CoD rule), before
    * the match goes live it re-equips at once.
    */
   | { t: "loadout"; loadout: Loadout }
+  /**
+   * HOST, PRE-GAME ONLY: change the lobby's mode (same room, at once) or its
+   * map (the room moves: every seat is sent `relocate`). Anyone else, or a
+   * room that is counting down or live, is ignored.
+   */
+  | { t: "lobbyset"; mode?: "tdm" | "ffa" | "gun"; map?: string }
+  /**
+   * HOST, PRE-GAME ONLY, and only with every seat taken and someone on the
+   * bench: re-deal every seat but the host's at random — who plays, who
+   * watches, and the teams.
+   */
+  | { t: "shuffle" }
   | { t: "in"; cmd: InputCmd }
   /**
    * UDP FAST LANE (server/udp-relay.ts). `aux` is the relay attaching to a seat
@@ -523,4 +539,10 @@ export type ServerMsg =
   /** shared/matchphase.ts StartMsg — the match-start handshake. */
   | { t: "start"; startAt: number }
   /** A spectator has just been given a playable seat and a fresh spawn. */
-  | { t: "promoted"; slot: number; waitForRound?: boolean };
+  | { t: "promoted"; slot: number; waitForRound?: boolean }
+  /**
+   * THE LOBBY IS MOVING TO ANOTHER MAP (the host's pick). One process is one
+   * map, so the room re-opens under the same code on `map`'s server: the host
+   * (`host: true`) re-creates it, everyone else follows it there.
+   */
+  | { t: "relocate"; map: string; room: string; mode: "tdm" | "ffa" | "gun"; host: boolean };

@@ -21,8 +21,10 @@
  *   BUZZKILL        you ended an enemy's streak of 3+
  *   KILLSTREAK 3/5/7/10   the sim's streak rungs (UAV at 3, artillery at 5)
  *
- * WALLBANG is not here because nothing can earn it: the sim's hitscan stops on
- * the first collider (shared/sim.ts traceWorld) — there is no penetration.
+ * WALLBANG is not here because it pays through the score pops, not the medal
+ * row: the sim's round runs on through thin soft walls (shared/penetration.ts
+ * bulletPath, `wall` on the hit event) and client/src/ui/score-pops.ts adds
+ * +50 for it.
  *
  * DOM-free and allocation-light: game.ts calls it on the kill path.
  */

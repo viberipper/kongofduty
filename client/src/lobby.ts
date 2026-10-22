@@ -43,7 +43,7 @@
 import type { LobbyMember, LobbyState, NameCheck, ServerMsg } from "@shared/protocol";
 import { MAX_PLAYABLE, MAX_SPECTATORS, type MatchPhase } from "@shared/matchphase";
 import { MAP_IDS, activeMap, isMapId, readMapPref, withMapQuery } from "@shared/maps";
-import { modeInfo } from "@shared/modes";
+import { asModeId, modeInfo, modesFor, type ModeId } from "@shared/modes";
 import { goToMap, mapCardUrl, mapLabel, type Intent } from "./ui/flow";
 import { uiSfx, wireSfx } from "./ui/sfx";
 import { renderKeyline } from "./ui/keys";
@@ -77,7 +77,7 @@ export type GateResult = {
    * door, the room's real mode (namecheck) on an invite. Absent on the yard
    * and bot doors, which own their modes.
    */
-  mode?: "tdm" | "ffa";
+  mode?: ModeId;
   /**
    * The map this seat is walking into — the host's pick on the host door, the
    * room's real map (name check) on an invite. Always equal to the map this
@@ -129,7 +129,13 @@ export type GateOpts = {
   newCode?: () => string;
   /** Host door: the map + mode picked in the menu (the page is already on the map). */
   map?: string;
-  mode?: "tdm" | "ffa";
+  mode?: ModeId;
+  /**
+   * Invite door, following a lobby its host moved to this map: the room may not
+   * be open here YET (the host's page is still loading). Wait for it instead of
+   * calling the code dead; if the host never arrives, open it ourselves.
+   */
+  waitForHost?: boolean;
   /** "TEAM DEATHMATCH 5v5 · SHIPMENT" — the eyebrow line under the door's title. */
   headline?: string;
   /**
@@ -154,6 +160,8 @@ export type LobbyHooks = {
   onSettings?: () => void;
   /** The match ended and the room dropped back to its pre-game lobby. */
   onReturn?: () => void;
+  /** The host changed the lobby's mode (the room's mode, from the roster). */
+  onMode?: (mode: ModeId) => void;
   sfx?: (key: string) => void;
 };
 
@@ -384,6 +392,10 @@ type Ui = {
   hostnote: HTMLElement;
   settings: HTMLButtonElement;
   leave: HTMLButtonElement;
+  setup: HTMLElement;
+  modeSeg: HTMLElement;
+  mapRow: HTMLElement;
+  shuffle: HTMLButtonElement;
 };
 
 let ui: Ui | null = null;
@@ -526,7 +538,21 @@ function buildUi(): Ui {
   copy.dataset.sfx = "off";
   inviteRow.append(link, copy);
   inviteBox.append(codeRow, el("span", "nana-label", "INVITE LINK — ANYONE WITH IT JOINS THIS LOBBY"), inviteRow);
+  // HOST SETUP: mode and map change from right here (lobbyset), no new lobby.
+  const setup = el("div", "nana-box nana-setup hidden");
+  const modeSeg = el("div", "seg seg--wide seg--sm");
+  modeSeg.setAttribute("role", "radiogroup");
+  modeSeg.setAttribute("aria-label", "Mode");
+  const mapRow = el("div", "nana-maps");
+  mapRow.setAttribute("role", "radiogroup");
+  mapRow.setAttribute("aria-label", "Map");
+  setup.append(el("span", "nana-label", "MODE"), modeSeg, el("span", "nana-label", "MAP — EVERYONE MOVES WITH THE LOBBY"), mapRow);
   const acts = el("div", "nana-actions");
+  const shuffle = el("button", "btn btn--sm nana-shuffle hidden", "SHUFFLE SEATS & TEAMS");
+  shuffle.id = "nana-shuffle";
+  shuffle.type = "button";
+  shuffle.dataset.sfx = "confirm";
+  shuffle.title = "Re-deal every seat but yours: who plays, who watches, and the teams";
   const start = el("button", "btn btn--primary nana-cta hidden", "START MATCH");
   start.id = "nana-start";
   start.type = "button";
@@ -544,8 +570,8 @@ function buildUi(): Ui {
   const settings = el("button", "btn", "SETTINGS");
   settings.id = "nana-settings";
   settings.type = "button";
-  acts.append(start, wait, hostnote, settings, leave);
-  right.append(mapCard, rules, inviteBox, acts);
+  acts.append(start, shuffle, wait, hostnote, settings, leave);
+  right.append(mapCard, rules, setup, inviteBox, acts);
   grid.append(left, right);
 
   const foot = el("footer", "nana-foot");
@@ -596,6 +622,10 @@ function buildUi(): Ui {
     hostnote,
     settings,
     leave,
+    setup,
+    modeSeg,
+    mapRow,
+    shuffle,
   };
 }
 
@@ -720,6 +750,8 @@ function applyGateMap(want: string, intent: Intent | null): boolean {
 
 /** What the refusal card's primary button will do — see showFull. */
 let fullAction: "retry" | "create" | "watch" = "retry";
+/** How long a lobby's guests wait for its host to re-open it on the new map. */
+const HOST_WAIT_MS = 40_000;
 /** Set by OPEN IT ANYWAY; consumed by the submit it authorises. */
 let forceCreate = false;
 
@@ -851,7 +883,7 @@ async function runGate(opts: GateOpts): Promise<void> {
   // Consumed by THIS attempt, whatever it decides. A permission that outlived
   // the press that granted it would silently disarm the LOBBY NOT FOUND card for
   // the rest of the session.
-  const create = forceCreate;
+  let create = forceCreate;
   forceCreate = false;
   pendingEnter = null;
   d.gateErr.classList.add("hidden");
@@ -872,6 +904,20 @@ async function runGate(opts: GateOpts): Promise<void> {
       room = opts.newCode();
       res = await checkCallsign(opts.wsUrl, typed, room);
     }
+  }
+  // FOLLOWING THE HOST TO A NEW MAP: their page is loading too. Poll until the
+  // room re-opens here; past the deadline, open it ourselves under the same
+  // code and mode rather than strand the player on LOBBY NOT FOUND.
+  if (opts.waitForHost && res.ok && res.room && !res.room.exists) {
+    setStatus("WAITING FOR THE HOST TO OPEN THE LOBBY…");
+    const until = performance.now() + HOST_WAIT_MS;
+    while (performance.now() < until && res.ok && res.room && !res.room.exists) {
+      await new Promise((r) => setTimeout(r, 1500));
+      if (!gateOpts || gateOpts !== opts) return;
+      res = await checkCallsign(opts.wsUrl, typed, room);
+      setStatus("WAITING FOR THE HOST TO OPEN THE LOBBY…");
+    }
+    if (res.ok && res.room && !res.room.exists) create = true;
   }
   gateBusy(false);
   if (!res.ok) {
@@ -1217,6 +1263,7 @@ function onServerMessage(ev: MessageEvent): void {
     // has reset it to pre-game after the endcard: same code, same link, the
     // host can START again. Re-raise the roster screen over the yard.
     const returned = msg.phase === "pregame" && diag.phase !== "pregame";
+    if (state && state.mode !== msg.mode) hooks?.onMode?.(asModeId(msg.mode));
     state = msg;
     diag.phase = msg.phase;
     if (returned) {
@@ -1250,6 +1297,20 @@ function onServerMessage(ev: MessageEvent): void {
     show(d.lobby, false);
     diag.screen = "none";
     hooks?.onStart(msg.startAt);
+  } else if (msg.t === "relocate") {
+    // THE HOST MOVED THE LOBBY TO ANOTHER MAP. This page has to become that
+    // map (one page load is one map), so it reloads: the host re-opens the room
+    // under the same code, everyone else follows a beat later and waits at the
+    // door until it is open (runGate, waitForHost).
+    if (!isMapId(msg.map)) return;
+    const d = dom();
+    d.hostnote.textContent = `MOVING THE LOBBY TO ${mapLabel(msg.map).toUpperCase()}…`;
+    show(d.hostnote, true);
+    const mode = asModeId(msg.mode);
+    const intent: Intent = msg.host
+      ? { kind: "host", map: msg.map, mode, room: msg.room }
+      : { kind: "invite", map: msg.map, room: msg.room, mode, wait: true };
+    window.setTimeout(() => goToMap(msg.map, intent, activeMap().id), msg.host ? 0 : 600);
   } else if (msg.t === "promoted") {
     applySpectator(false);
     youreIn(msg.slot, msg.waitForRound);
@@ -1363,6 +1424,53 @@ function wireButtons(): void {
     hooks?.onLeave();
   });
   d.settings.addEventListener("click", () => hooks?.onSettings?.());
+  d.shuffle.addEventListener("click", () => {
+    const ws = bound?.net;
+    if (ws?.readyState === 1) ws.send(JSON.stringify({ t: "shuffle" }));
+  });
+}
+
+/** HOST: ask the server for a new mode or map (lobbyset). */
+function lobbySet(change: { mode?: ModeId; map?: string }): void {
+  const ws = bound?.net;
+  if (!ws || ws.readyState !== 1 || state?.phase !== "pregame") return;
+  hooks?.sfx?.("ui");
+  ws.send(JSON.stringify({ t: "lobbyset", ...change }));
+}
+
+/** The host's mode + map pickers; everyone else just reads the map card. */
+function paintSetup(s: LobbyState, iAmHost: boolean): void {
+  const d = dom();
+  show(d.setup, iAmHost && s.phase === "pregame");
+  if (!iAmHost) return;
+  const mode = asModeId(s.mode);
+  d.modeSeg.replaceChildren();
+  for (const m of modesFor(s.map)) {
+    const b = el("button", m.mode === mode ? "is-on" : "", m.label);
+    b.type = "button";
+    b.dataset.sfx = "off";
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", String(m.mode === mode));
+    b.title = `${m.label} · ${m.size}`;
+    b.addEventListener("click", () => m.mode !== mode && lobbySet({ mode: m.mode }));
+    d.modeSeg.append(b);
+  }
+  d.mapRow.replaceChildren();
+  for (const id of MAP_IDS) {
+    const b = el("button", `nana-map${id === s.map ? " is-on" : ""}`);
+    b.type = "button";
+    b.dataset.sfx = "off";
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", String(id === s.map));
+    b.style.backgroundImage = mapCardUrl(id);
+    b.append(el("b", undefined, esc(mapLabel(id))));
+    b.addEventListener("click", () => {
+      if (id === s.map) return;
+      b.classList.add("is-busy");
+      lobbySet({ map: id });
+    });
+    d.mapRow.append(b);
+  }
 }
 
 /**
@@ -1451,7 +1559,7 @@ function paint(): void {
   // EVERY WORD FROM THE SOURCE OF TRUTH: the map name from MAP_OPTIONS, the
   // mode / size / rules from shared/modes.ts against the room's real map and
   // mode — never this page's guess.
-  const mode = s.mode === "ffa" ? "ffa" : "tdm";
+  const mode = asModeId(s.mode);
   const info = modeInfo(s.map, mode);
   const mapName = mapLabel(s.map);
   const teams: (0 | 1 | -1)[] = s.players.map((m) => {
@@ -1517,6 +1625,9 @@ function paint(): void {
   const iAmHost = s.host === s.you;
   const queue = s.spectators.findIndex((m) => m.id === s.you);
   const iAmSpec = queue >= 0;
+  paintSetup(s, iAmHost);
+  // SHUFFLE only means something with every seat taken and someone waiting.
+  show(d.shuffle, iAmHost && s.phase === "pregame" && s.players.length >= s.maxPlayable && s.spectators.length > 0);
   show(d.start, iAmHost);
   show(d.wait, !iAmHost);
   const hostName = s.players.find((m) => m.host)?.name ?? s.spectators.find((m) => m.host)?.name ?? "—";

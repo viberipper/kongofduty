@@ -55,7 +55,7 @@
  * authority can never disagree about a ceiling.
  */
 
-import { circleHitsOBB, type OBB } from "./map";
+import { circleHitsOBB, vaulting, type OBB } from "./map";
 import { gridQueryCircle, type SolidGrid } from "./solidgrid";
 
 /** How far under the underside a stopped head is parked (well inside resolveCircle's 5 cm grace). */
@@ -68,12 +68,6 @@ const NEAR: number[] = [];
  * the body's circle (x, z, r) overlapping that solid's footprint — or Infinity.
  * `feet` and `vy` are the body's current values, for resolveCircle's band and
  * mantle exemption, which this mirrors verbatim.
- *
- * `airborne` is the same jump-vault gate resolveCircle runs: a railVault panel
- * only mantles while the body is airborne after a jump AND not sliding.
- * Defaults true (legacy: every climbable mantles); shared/sim.ts passes
- * !onGround && slide <= 0, so a slide gone airborne off a deck/stair lip
- * stays steel in both places, verbatim.
  *
  * `contact`: count only a head that would actually be IN the band
  * (`head1 >= bot + 0.05`) — the "may I stand up here?" question, which must
@@ -92,7 +86,6 @@ export function ceilingCrossed(
   head0: number,
   head1: number,
   contact = false,
-  airborne = true,
 ): number {
   if (!(head1 > head0)) return Infinity;
   // circleHitsOBB tests the footprint grown by r along the box's own axes,
@@ -108,13 +101,9 @@ export function ceilingCrossed(
     // (or, for `contact`, inside the band) after it.
     if (head0 >= bot + 0.05 || (contact ? head1 < bot + 0.05 : head1 <= bot - CEIL_EPS)) continue;
     const top = o.y + o.sy * 0.5;
-    // JUMP-VAULT MIRROR (Nuketown rails): resolveCircle only mantles a
-    // railVault panel while the body is airborne after a jump and not
-    // sliding (!onGround && slide <= 0 there) — a solid it would hold as
-    // steel is a ceiling here, never a pass-through. Every other mantle is
-    // untouched.
     if (feet > top - 0.02) continue;
-    if (o.climb && top - feet < 1.05 && feet + 0.2 < top && vy >= -0.5 && (!o.railVault || airborne)) continue;
+    if (o.climb && top - feet < 1.05 && feet + 0.2 < top && vy >= -0.5) continue;
+    if (vaulting(o, feet, vy)) continue;
     const hit = circleHitsOBB(x, z, r, o);
     if (hit.hit && hit.pen > 0) best = bot;
   }

@@ -13,6 +13,7 @@ import { PRIMARY_IDS, WEAPON_CARDS, readLoadout, saveLoadout, type Loadout, type
 import { uiSfx, wireSfx } from "./sfx";
 import { padGlyph, padPromptsActive } from "./gamepad";
 import { WEAPON_BY_ID, reloadTime, shotsToKill, ttkMs } from "@shared/weapons";
+import { gunPreview, releaseGunPreview } from "./gun-preview";
 
 const BAR_ORDER: [keyof WeaponBars, string][] = [
   ["damage", "DAMAGE"],
@@ -53,6 +54,7 @@ export function openLoadout(opts: { inMatch?: boolean; onClose?: () => void } = 
     (document.getElementById("app") ?? document.body).append(root);
     wireSfx(root);
     window.addEventListener("keydown", onKey, true);
+    root.addEventListener("wheel", onWheel, { passive: false });
   }
   render();
 }
@@ -61,6 +63,7 @@ export function closeLoadout(): void {
   if (!root) return;
   root.remove();
   root = null;
+  releaseGunPreview();
   window.removeEventListener("keydown", onKey, true);
   const cb = closeCb;
   closeCb = null;
@@ -78,11 +81,7 @@ function onKey(e: KeyboardEvent): void {
   }
   if (e.code === "ArrowDown" || e.code === "ArrowUp") {
     e.preventDefault();
-    const i = PRIMARY_IDS.indexOf(focusId as PrimaryId);
-    const next = PRIMARY_IDS[(Math.max(0, i) + (e.code === "ArrowDown" ? 1 : PRIMARY_IDS.length - 1)) % PRIMARY_IDS.length]!;
-    focusId = next;
-    uiSfx("hover");
-    render();
+    step(e.code === "ArrowDown" ? 1 : -1);
   } else if (e.code === "Enter" || e.code === "Space") {
     if (PRIMARY_IDS.includes(focusId as PrimaryId)) {
       e.preventDefault();
@@ -90,6 +89,35 @@ function onKey(e: KeyboardEvent): void {
     }
   }
   e.stopPropagation();
+}
+
+/** Move the focus one primary up (-1) or down (+1), wrapping. */
+function step(dir: 1 | -1): void {
+  const i = PRIMARY_IDS.indexOf(focusId as PrimaryId);
+  focusId = PRIMARY_IDS[(Math.max(0, i) + (dir > 0 ? 1 : PRIMARY_IDS.length - 1)) % PRIMARY_IDS.length]!;
+  uiSfx("hover");
+  render();
+}
+
+/**
+ * THE SCROLL WHEEL PICKS THE GUN, the way it swaps weapons in a match:
+ * one notch moves the focus one primary and equips it. A scroll over the
+ * detail pane's own overflow still scrolls it.
+ */
+let wheelAt = 0;
+function onWheel(e: WheelEvent): void {
+  if (!root || Math.abs(e.deltaY) < 1) return;
+  const pane = (e.target as HTMLElement | null)?.closest?.(".lo-detail") as HTMLElement | null;
+  if (pane && pane.scrollHeight > pane.clientHeight + 1) return;
+  e.preventDefault();
+  const now = performance.now();
+  if (now - wheelAt < 140) return;
+  wheelAt = now;
+  const i = PRIMARY_IDS.indexOf(focusId as PrimaryId);
+  const next = PRIMARY_IDS[(Math.max(0, i) + (e.deltaY > 0 ? 1 : PRIMARY_IDS.length - 1)) % PRIMARY_IDS.length]!;
+  focusId = next;
+  if (draft.primary === next) render();
+  else equip(next);
 }
 
 function equip(id: PrimaryId): void {
@@ -129,7 +157,12 @@ function render(): void {
   detail.append(h("div", "lo-ghost", wdef?.short ?? c.name.split(" ")[0]!));
   detail.append(h("p", "eyebrow", c.cls));
   detail.append(h("h3", "lo-name", c.name));
-  detail.append(h("p", "lo-blurb", c.blurb));
+  // THE GUN ITSELF, turning on its own little stage beside the blurb (ui/gun-preview.ts).
+  const intro = h("div", "lo-intro");
+  intro.append(h("p", "lo-blurb", c.blurb));
+  const model = gunPreview(focusId);
+  if (model) intro.append(model);
+  detail.append(intro);
   const stats = h("div", "lo-stats");
   for (const [k, label] of BAR_ORDER) {
     const v = Math.max(0, Math.min(100, Math.round(c.bars[k])));
@@ -201,8 +234,8 @@ function render(): void {
   };
   // Pad prompts (B back, D-pad browse, A equip) when the pad was touched most
   // recently — render-time read, like the pause subs.
-  if (padPromptsActive()) hints.append(hint(padGlyph("B"), "BACK"), hint(padGlyph("D-PAD"), "BROWSE"), hint(padGlyph("A"), "EQUIP"));
-  else hints.append(hint("ESC", "BACK"), hint("↑↓", "BROWSE"), hint("ENTER", "EQUIP"));
+  if (padPromptsActive()) hints.append(hint(padGlyph("B"), "BACK"), hint(padGlyph("D-PAD"), "BROWSE"), hint(padGlyph("A"), "EQUIP"), hint("WHEEL", "SWITCH"));
+  else hints.append(hint("ESC", "BACK"), hint("↑↓", "BROWSE"), hint("ENTER", "EQUIP"), hint("WHEEL", "SWITCH"));
   const done = h("button", "btn btn--primary btn--sm", "DONE");
   done.type = "button";
   done.dataset.sfx = "back";
@@ -221,7 +254,8 @@ function card(id: LoadoutWeaponId, locked: boolean): HTMLElement {
   b.append(h("b", undefined, c.name), h("span", undefined, c.cls));
   if (on) b.append(h("i", "badge badge--accent", "EQUIPPED"));
   b.addEventListener("pointerenter", () => {
-    if (focusId === id) return;
+    // a re-render under a resting cursor is not a hover (the wheel just moved the focus)
+    if (focusId === id || performance.now() - wheelAt < 400) return;
     focusId = id;
     render();
   });

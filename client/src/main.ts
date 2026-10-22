@@ -33,8 +33,8 @@ import {
 } from "./lobby";
 import type { MatchPhase } from "@shared/matchphase";
 import { bootStage, hookBootErrors, resetBootProgress } from "./bootstage";
-import { LOBBY_RETURN_S, PUBLIC_MODE, PUBLIC_ROLLOVER_S, modeInfo, type ModeId } from "@shared/modes";
-import { onPrefs, prefs, reducedMotion } from "./ui/prefs";
+import { LOBBY_RETURN_S, PUBLIC_MODE, PUBLIC_ROLLOVER_S, asModeId, modeInfo, simMode, type ModeId } from "@shared/modes";
+import { TEAM_COLORS, onPrefs, prefs, reducedMotion } from "./ui/prefs";
 import { initMenu, menuBusy, menuSelection, setCallsignChip, setMenuSelection, type MenuPadAction } from "./ui/menu";
 import { openSettings, closeSettings, settingsOpen, type SettingsDeps } from "./ui/settings";
 import { closeLoadout, loadoutOpen, openLoadout } from "./ui/loadout";
@@ -159,6 +159,18 @@ function applyPrefs(): void {
     document.body.classList.toggle("no-dmgnums", !p.damageNumbers);
     document.documentElement.classList.toggle("reduce-motion", reducedMotion());
     document.documentElement.classList.toggle("full-motion", p.motion === "full");
+    // Colour-vision mode — the team pair every stylesheet reads (default = tokens.css)
+    const tc = TEAM_COLORS[p.colorMode];
+    const vars: [string, string][] = [
+      ["--c-ally", tc.ally],
+      ["--c-ally-lo", `rgba(${tc.miniAlly},0.18)`],
+      ["--c-enemy", tc.enemy],
+      ["--c-enemy-lo", `rgba(${tc.miniEnemy},0.18)`],
+    ];
+    for (const [k, v] of vars) {
+      if (p.colorMode === "default") document.documentElement.style.removeProperty(k);
+      else document.documentElement.style.setProperty(k, v);
+    }
     fpsOn(p.showFps);
     if (changed.includes("renderScale") || changed.includes("quality")) game.resize();
     if (changed.some((k) => (GFX as string[]).includes(k))) game.setGraphicsOptions();
@@ -263,7 +275,7 @@ function hideMenus(): void {
  * not asked again (`auto`): the card shows progress, and the field only
  * appears if the server refuses it.
  */
-function openGate(kind: GateKind, room: string, extra: { mode?: ModeId; auto?: boolean; headline?: string }, onEnter: (r: GateResult) => void): void {
+function openGate(kind: GateKind, room: string, extra: { mode?: ModeId; auto?: boolean; headline?: string; waitForHost?: boolean }, onEnter: (r: GateResult) => void): void {
   if (settingsOpen()) closeSettings();
   hideMenus();
   openCallsignGate({
@@ -274,6 +286,7 @@ function openGate(kind: GateKind, room: string, extra: { mode?: ModeId; auto?: b
     newCode: kind === "host" ? freshRoomCode : undefined,
     map: PAGE_MAP,
     mode: extra.mode,
+    waitForHost: extra.waitForHost,
     auto: extra.auto,
     headline: extra.headline,
     sfx,
@@ -297,10 +310,10 @@ function enterBots(mode: ModeId): void {
   });
 }
 
-/** PRIVATE MATCH: create a lobby on this page's map with the picked mode. */
-function enterHost(mode: ModeId): void {
+/** PRIVATE MATCH: create a lobby on this page's map with the picked mode (or re-open `room`, moved here by its host). */
+function enterHost(mode: ModeId, room?: string): void {
   state.kind = "host";
-  openGate("host", freshRoomCode(), { mode, auto: true, headline: headline(mode) }, (r) => {
+  openGate("host", room ?? freshRoomCode(), { mode, auto: true, headline: headline(mode) }, (r) => {
     state.name = r.name;
     state.room = r.room;
     state.mode = (r.mode ?? mode) as ModeId;
@@ -308,11 +321,11 @@ function enterHost(mode: ModeId): void {
   });
 }
 
-/** An invite link (?join=CODE), or an invite resumed after a map reload. */
-function enterInvite(room: string, auto: boolean): void {
+/** An invite link (?join=CODE), an invite resumed after a map reload, or a lobby following its host to another map (`wait`). */
+function enterInvite(room: string, auto: boolean, follow?: { mode?: ModeId; wait?: boolean }): void {
   state.kind = "invite";
   state.room = room;
-  openGate("invite", room, { auto }, (r) => {
+  openGate("invite", room, { auto, mode: follow?.mode, waitForHost: follow?.wait }, (r) => {
     state.name = r.name;
     state.room = r.room;
     state.mode = (r.mode ?? "tdm") as ModeId;
@@ -402,7 +415,8 @@ async function deploy(online: boolean, phase: MatchPhase | null = null, spectate
     if (online) bootStage("JOINING MATCH");
     await game.start({
       name: state.name,
-      mode: state.mode,
+      mode: simMode(state.mode),
+      gun: state.mode === "gun",
       room: state.room || undefined,
       host: online ? wsUrl() : "",
       sens: prefs().sens,
@@ -421,6 +435,10 @@ async function deploy(online: boolean, phase: MatchPhase | null = null, spectate
             hideEndcard();
           },
           onRefused: (msg) => console.warn("lobby refused:", msg),
+          // The host switched the lobby's mode: labels, pause card and endcard follow.
+          onMode: (mode) => {
+            state.mode = mode;
+          },
           onLeave: () => {
             if (settingsOpen()) closeSettings();
             toMenu();
@@ -529,13 +547,16 @@ function openPauseMenu(): void {
       la: $("s0lbl")?.textContent ?? "",
       lb: $("s1lbl")?.textContent ?? "",
       clock: $("clock")?.textContent ?? "",
-      ffa: state.mode === "ffa",
+      ffa: state.mode !== "tdm",
     },
     invite: state.online && state.room ? inviteLink(state.room, PAGE_MAP) : undefined,
     online: state.online,
     onResume: resume,
     onLoadout: () => openLoadout({ inMatch: true }),
-    onSettings: () => openSettings(settingsDeps),
+    // CLOSING SETTINGS RETURNS YOU TO THE GAME: DONE / ESC is a user
+    // gesture, so it can take the pointer back — otherwise the player landed
+    // on the pause menu and had to press RESUME as well.
+    onSettings: () => openSettings(settingsDeps, { onClose: () => { if (inMatch()) resume(); } }),
     onLeave: () => {
       uiSfx("back");
       toMenu();
@@ -595,6 +616,8 @@ function bindUi(): void {
   // LOADOUT → the game (weapons stream's Game.setLoadout: saved, sent to the
   // server, applied at the next spawn mid-match / at once before it starts).
   window.addEventListener("loadout", (e) => game.setLoadout((e as CustomEvent).detail));
+  // The private-match lobby's SETTINGS button (lobby.ts): change settings while you wait.
+  window.addEventListener("open-settings", () => openSettings(settingsDeps));
 }
 
 async function boot(): Promise<void> {
@@ -676,9 +699,9 @@ async function boot(): Promise<void> {
   const joinCode = params.get("join");
   if (intent) {
     if (intent.kind === "bots") enterBots(intent.mode);
-    else if (intent.kind === "host") enterHost(intent.mode);
+    else if (intent.kind === "host") enterHost(intent.mode, intent.room);
     else if (intent.kind === "yard") enterYard();
-    else enterInvite(intent.room, true);
+    else enterInvite(intent.room, true, { mode: intent.mode, wait: intent.wait });
   } else if (joinCode) {
     // AN INVITE LINK LANDS ON THE GATE (confirm the callsign, see the lobby
     // you are joining), then the host's lobby — or the live match.
@@ -686,7 +709,7 @@ async function boot(): Promise<void> {
   } else if (location.hash === "#play" || params.has("play")) {
     // THE DEEP LINK STAYS A DEEP LINK: qa harnesses boot the bot match here.
     state.kind = "bots";
-    state.mode = (params.get("mode") === "ffa" ? "ffa" : "tdm") as ModeId;
+    state.mode = asModeId(params.get("mode"));
     void deploy(false);
   }
 }

@@ -21,14 +21,16 @@
  * Also: the map card art + display name helpers (data-driven from
  * shared/maps MAP_OPTIONS; adding a map is one entry there).
  */
-import { MAP_OPTIONS, isMapId } from "@shared/maps";
+import { DEFAULT_MAP_ID, MAP_OPTIONS, isMapId } from "@shared/maps";
 import type { ModeId } from "@shared/modes";
 
 export type Intent =
   | { kind: "bots"; map: string; mode: ModeId }
-  | { kind: "host"; map: string; mode: ModeId }
+  /** `room`: re-open THIS code (a lobby the host moved to another map). */
+  | { kind: "host"; map: string; mode: ModeId; room?: string }
   | { kind: "yard"; map: string }
-  | { kind: "invite"; map: string; room: string };
+  /** `wait`: the room is moving here — wait for its host to re-open it rather than calling it dead. */
+  | { kind: "invite"; map: string; room: string; mode?: ModeId; wait?: boolean };
 
 const INTENT_KEY = "shipment.intent";
 /** Params that survive a map change (diagnostics and pins a tester set on purpose). */
@@ -114,10 +116,15 @@ export function mapBlurb(id: string): string {
   return MAP_OPTIONS.find((o) => o.key === id)?.blurb ?? "";
 }
 
-/** CSS url() for the map's 16:9 still. */
+/** CSS url() for the map's 16:9 still. Unknown ids fall back to the default
+ * map's still (no throw — callers paint optimistically, e.g. from a server
+ * snapshot that may name a map this build does not know). The id/card are
+ * quote-escaped so the url("...") context cannot be broken out of. */
 export function mapCardUrl(id: string): string {
-  const rel = MAP_OPTIONS.find((o) => o.key === id)?.card ?? `assets/ui/maps/${id}.jpg`;
-  return `url("${base()}${rel.replace(/^\//, "")}")`;
+  const safe = isMapId(id) ? id : DEFAULT_MAP_ID;
+  const rel = MAP_OPTIONS.find((o) => o.key === safe)?.card ?? `assets/ui/maps/${safe}.jpg`;
+  const esc = rel.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/^\//, "");
+  return `url("${base()}${esc}")`;
 }
 
 export function mapIds(): string[] {

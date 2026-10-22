@@ -40,7 +40,7 @@ export const G = { GLOW: 0, SPARK: 1, TRACER: 2, FLASH: 3, FLAME: 4, GLINT: 5 } 
 /** Smoke family shapes (lit, alpha). */
 export const S = { DUST: 0, GRIT: 1, MIST: 2, TRAIL: 3, DROP: 4 } as const;
 /** Decal family shapes (modulate 2x, lying on a surface). */
-export const D = { METAL: 0, STONE: 1, WOOD: 2, DIRT: 3, GLASS: 4 } as const;
+export const D = { METAL: 0, STONE: 1, WOOD: 2, DIRT: 3, GLASS: 4, BLOOD: 5 } as const;
 
 /** Shared uniforms (one object for all families; refreshed per render with the camera actually drawing). */
 export interface FxUniforms {
@@ -468,7 +468,7 @@ void main() {
     F = mix(1.0, 0.55, div);
     F = mix(F, 0.62, crumbs * 0.8);
     a = max(div, crumbs * 0.8);
-  } else {
+  } else if (shape == 4) {
     // GLASS: a frosted star of hairline cracks round a small dark hole
     float N = 9.0;
     float sec = 6.2831853 / N;
@@ -484,15 +484,32 @@ void main() {
     F = mix(F, 0.15, hole);
     a = max(max(line, ring), max(frost, hole));
   }
+  // every hole is grey (one multiplier on the surface); blood is the one TINTED
+  // decal: vC.rgb is its per-channel multiplier, so it reads red on any wall
+  vec3 T = vec3(F);
+  if (shape == 5) {
+    // BLOOD: a ragged splat with a darker wet core and a scatter of droplets
+    float blob = ss(0.6, 0.44, r + (wob - 0.5) * 0.55 + (fine - 0.5) * 0.16);
+    float core = ss(0.34, 0.16, r + (wob - 0.5) * 0.3);
+    vec2 gq = q * 6.0 + seed * 23.0;
+    vec2 cell = floor(gq);
+    float hr = h11(cell.x * 7.0 + cell.y * 13.0 + seed * 41.0);
+    float drop = step(0.72, hr) * ss(0.24, 0.12, length(fract(gq) - 0.5)) * ss(1.0, 0.5, r);
+    a = max(max(blob, drop), core);
+    T = mix(vC.rgb, vC.rgb * 0.5, core);
+  }
   float fade = (1.0 - ss(0.82, 1.0, k)) * vC.a * ss(0.0, 0.002, k);
-  float m = mix(1.0, F, a * fade);
-  m = mix(m, 1.0, vFog);
+  vec3 m = mix(vec3(1.0), T, a * fade);
+  m = mix(m, vec3(1.0), vFog);
   // MODULATE 2x (dst*src + src*dst = 2*src*dst): a single NaN here
   // contaminates the whole covered RT pixel to NaN -> bloom turns it into
   // a ~50px black box (and motion blur holds it ~1s).
-  if (!(m >= 0.0 && m <= 4.0)) m = 1.0;
-  if (abs(m - 1.0) < 0.004) discard;
-  gl_FragColor = vec4(vec3(m * 0.5), 1.0);
+  if (!(m.r >= 0.0 && m.r <= 4.0)) m.r = 1.0;
+  if (!(m.g >= 0.0 && m.g <= 4.0)) m.g = 1.0;
+  if (!(m.b >= 0.0 && m.b <= 4.0)) m.b = 1.0;
+  vec3 dm = abs(m - 1.0);
+  if (max(dm.r, max(dm.g, dm.b)) < 0.004) discard;
+  gl_FragColor = vec4(m * 0.5, 1.0);
 }`;
 
 const STRIDE = 24;

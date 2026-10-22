@@ -1,3 +1,6 @@
+/** What a foot lands on (client/src/foot-surface.ts) — each has its own step and landing voice. */
+export type FootSurface = "dirt" | "grass" | "hard" | "wood" | "sand" | "metal";
+
 /** Footstep reach is measured in metres, independent of the map's size. */
 export type FootstepStyle = { sprint?: boolean; crouch?: boolean; land?: boolean; ally?: boolean; local?: boolean; occluded?: boolean };
 

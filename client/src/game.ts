@@ -29,11 +29,13 @@ import { readLoadout, saveLoadout, sanitizeLoadout, type Loadout } from "@shared
 import { WeaponFeel } from "./weapons/feel";
 import { WeaponHudDriver, SCOPE_AT } from "./weapons/hud";
 import { traceWorld, groundHeight, worldToLocal } from "@shared/map";
+import { bulletPath } from "@shared/penetration";
 import { activeMap, withMapQuery } from "@shared/maps";
 import { ClientDiagnostics } from "./diagnostics";
 import { openUdp, udpApiFor, type UdpLane } from "./udp";
 import { FootstepCadence, footstepRange, type FootstepStyle } from "./footsteps";
 import { nuketownHardFloor } from "./nuketown-surface"; // nuketown: footstep surface
+import { captureBugReport } from "./bug-report";
 
 /**
  * THE ACTIVE MAP, read once. `activeMap()` resolves `?map=` on its first call
@@ -105,8 +107,9 @@ import { MatchFeel } from "./matchfeel";
 import { bootStage } from "./bootstage";
 // UI stream hooks: player settings (sens/ADS/FOV/invert/render scale) and the
 // one seat table every room and the offline match share.
-import { prefs, vfov } from "./ui/prefs";
-import { seatsFor, maxSeats } from "@shared/modes";
+import { prefs, teamColors, vfov } from "./ui/prefs";
+import { asModeId, seatsFor, maxSeats, simMode } from "@shared/modes";
+import { GUN_GOAL } from "@shared/gungame";
 import { medalLabel, killHow } from "./ui/labels";
 import { actionOf, keyboardCodes, wheelCodes, type Action } from "./ui/keybinds"; // feel stream: rebindable controls
 // gamepad stream: standard controller mapping, sticks, rumble, aim-assist math (ui/gamepad.ts).
@@ -168,6 +171,8 @@ type Snapshot = { t: number; players: PlayerSnap[]; nades?: NadeSnap[] };
 export type BootOpts = {
   name: string;
   mode: "tdm" | "ffa";
+  /** GUN GAME: FFA with the ladder (shared/gungame.ts) switched on. */
+  gun?: boolean;
   host: string;
   room?: string;
   sens: number;
@@ -489,6 +494,8 @@ export class Game {
    */
   netRound: RoundState | null = null;
   lastPredMark = 0;
+  /** GUN GAME (shared/gungame.ts): this room plays the ladder, on- or offline. */
+  gunGame = false;
 
   /** The round state, or null when this room is not round-based. */
   roundInfo(): RoundState | null {
@@ -718,6 +725,14 @@ export class Game {
     this.world = loadedWorld;
     // feel stream: Nuketown live events — clock tower = match clock, live POPULATION sign, the nuke at match end (client/src/nuketown-live.ts)
     if (MAP.id === "nuketown") await (await import("./nuketown-live")).attachNuketownLive(this);
+    // November-December set dressing (client/src/xmas.ts) — ?xmas=1 / ?xmas=0 force it.
+    {
+      const xq = new URLSearchParams(location.search).get("xmas");
+      const month = new Date().getMonth();
+      if (xq === "1" || (xq !== "0" && !this.testMode && (month === 10 || month === 11))) {
+        this.world.scene.add((await import("./xmas")).buildXmas(MAP));
+      }
+    }
     this.world.scene.add(this.camera);
     bootStage("OPERATOR RIG");
     this.bruiserTpl = rig;
@@ -1381,6 +1396,7 @@ export class Game {
 
   private async boot(opts: BootOpts): Promise<void> {
     this.opts = opts;
+    this.gunGame = !!opts.gun;
     this.audio.setVol(opts.vol);
     await this.audio.resume();
     this.audio.loopAmb();
@@ -1409,6 +1425,7 @@ export class Game {
     } else {
       this.session = new GameSession();
       this.session.mode = opts.mode;
+      this.session.gunGame = this.gunGame;
       this.session.remain = matchTimeFor(opts.mode);
       const me = this.session.addPlayer("local", opts.name, "bruiser", 0, readLoadout().primary, "", false);
       this.you = me.id;
@@ -1579,7 +1596,7 @@ export class Game {
           name: this.opts.name,
           team: -1,
           room: this.opts.room || undefined,
-          mode: this.opts.mode,
+          mode: this.gunGame ? "gun" : this.opts.mode,
           // Which world this client has ALREADY built its sim out of. Not a
           // request — shared/maps froze it before any of this ran — so the
           // server whitelists it, clamps it to what it can simulate, and tells
@@ -1709,7 +1726,14 @@ export class Game {
           // dials in with whatever mode their own menu last held; every mode
           // read in this file (HUD, nameplates, minimap, the endcard) goes
           // through opts.mode, so the server's word overwrites it once here.
-          if (msg.mode && this.opts && this.opts.mode !== msg.mode) this.opts.mode = msg.mode === "ffa" ? "ffa" : "tdm";
+          if (msg.mode && this.opts) {
+            const next = simMode(asModeId(msg.mode));
+            const nextGun = msg.mode === "gun";
+            if (this.opts.mode !== next || this.gunGame !== nextGun) {
+              this.opts.mode = next;
+              this.gunGame = nextGun;
+            }
+          }
           // THE MAP IS NOT THE MODE: a mode is a rule this client can adopt in
           // one assignment, a map is sixty (or two thousand) colliders, a nav
           // graph and a grenade fence that were all built before `boot()` ran.
@@ -1749,11 +1773,14 @@ export class Game {
           // authoritative). TDM ends on the clock or a team hitting SCORE_LIMIT;
           // FFA ends on the clock or any single player hitting FFA_KILL_LIMIT
           // (team scores never move in FFA, so SCORE_LIMIT must not apply).
-          const ffa = (msg.mode ?? this.opts?.mode) === "ffa";
-          const ffaBest = ffa
+          // GUN GAME ends on the clock or any single player finishing the ladder.
+          const gun = (msg.mode ?? (this.gunGame ? "gun" : this.opts?.mode)) === "gun";
+          const ffa = (msg.mode ?? this.opts?.mode) !== "tdm";
+          const best = ffa
             ? msg.players.reduce((m, p) => (p.kills > m ? p.kills : m), 0)
             : 0;
-          const limitHit = ffa ? ffaBest >= FFA_KILL_LIMIT : msg.score0 >= SCORE_LIMIT || msg.score1 >= SCORE_LIMIT;
+          const gunBest = gun ? msg.players.reduce((m, p) => Math.max(m, p.gun ?? 0), 0) : 0;
+          const limitHit = gun ? gunBest >= GUN_GOAL : ffa ? best >= FFA_KILL_LIMIT : msg.score0 >= SCORE_LIMIT || msg.score1 >= SCORE_LIMIT;
           if (msg.remain <= 0 || limitHit)
             this.finish(msg.score0, msg.score1);
           // A BENCHED SEAT HAS NOTHING TO RECONCILE. Reconciliation exists to
@@ -1891,6 +1918,12 @@ export class Game {
     const down = (e: KeyboardEvent) => {
       // feel stream: the final killcam is skippable with or without the pointer.
       if (this.fkc && !e.repeat && (e.code === "Enter" || e.code === "NumpadEnter" || actionOf(e.code) === "jump")) this.killcamSkip();
+      // F8 snapshots map / build / position / aim for a bug report (fixed, never rebindable).
+      if (e.code === "F8" && this.running) {
+        e.preventDefault();
+        if (!e.repeat) this.bugReport();
+        return;
+      }
       if (!this.running || !this.locked || (e.target instanceof HTMLElement && e.target.closest("input,textarea,[contenteditable=true]"))) return;
       const a = actionOf(e.code);
       // Keyboard Lock delivers reserved combinations in supported fullscreen browsers.
@@ -2322,6 +2355,24 @@ export class Game {
 
   me(): PlayerSnap | undefined {
     return this.players.get(this.you);
+  }
+
+  /** F8 — copy where you stand and look (plus map, mode, build) for a bug report. */
+  bugReport(): void {
+    const me = this.me();
+    const c = this.camera.position;
+    void captureBugReport({
+      map: MAP.id,
+      mode: this.opts?.mode ?? "tdm",
+      room: this.opts?.room ?? "",
+      online: !!this.net,
+      pos: me ? [me.x, me.y, me.z] : null,
+      eye: [c.x, c.y, c.z],
+      yaw: this.yaw,
+      pitch: this.pitch,
+      alive: !!me?.alive,
+      weapon: me?.weapon ?? "",
+    }).then((copied) => this.banner("BUG REPORT SAVED", 1.6, copied ? "COPIED TO CLIPBOARD · F8" : "SEE CONSOLE · F8"));
   }
 
   // -------------------------------------------------------------- banana frag
@@ -2868,7 +2919,8 @@ export class Game {
     // the FIRST body along the ray instead of the NEAREST, and it never checked
     // spawn protection — every shot into a just-respawned enemy drew a
     // hitmarker the server always discarded.
-    const wall = traceWorld(cmd.ox, cmd.oy, cmd.oz, sdx, sdy, sdz, 180);
+    // Through walls the same way the sim's hitscan goes (shared/penetration.ts).
+    const wall = bulletPath(cmd.ox, cmd.oy, cmd.oz, sdx, sdy, sdz, 180, WEAPON_BY_ID[cmd.weapon], MAP.id);
     const me = this.me();
     let best: PlayerSnap | null = null;
     let bestT = wall.t;
@@ -3117,7 +3169,7 @@ export class Game {
           rumbleHit(e.kill); // gamepad stream: hit confirmation (no-op without pad)
           this.dmgNumber(e);
           this.markEnemy(e.dst, 1100); // feel stream: who you are hitting stays marked a beat
-          if (e.dst !== this.you) this.scorePops.hit(e.dst, e.dmg, this.nowMs() / 1000); // feel stream R2: assists
+          if (e.dst !== this.you) this.scorePops.hit(e.dst, e.dmg, this.nowMs() / 1000, !!e.wall); // feel stream R2: assists
         }
         if (e.dst === this.you) {
           this.extras.hitOnMe(e.src, e.dmg, this.nowMs() / 1000); // feel stream: the killcam's death recap
@@ -4415,6 +4467,7 @@ export class Game {
       you: this.you,
       locked: this.locked,
       mode: this.opts?.mode ?? "tdm",
+      gun: this.gunGame,
       round,
       spectating: !!this.spectateCam,
     });
@@ -5187,8 +5240,9 @@ export class Game {
       }
       ctx.save();
       ctx.translate(sx(px), sz(pz));
+      const foe = teamColors().miniEnemy; // colour-vision mode (default "255,80,64")
       if (seen) {
-        ctx.fillStyle = "#ff5040";
+        ctx.fillStyle = foe === "255,80,64" ? "#ff5040" : `rgb(${foe})`;
         ctx.beginPath();
         ctx.arc(0, 0, 3.4, 0, Math.PI * 2);
         ctx.strokeStyle = "rgba(255,255,255,0.85)";
@@ -5202,11 +5256,11 @@ export class Game {
         // The fill is set (faintly) before the arc on purpose: the recorded
         // fillStyle at arc time is what qa/minimap identifies a confirmed blip
         // by, and a rumour must never inherit a confirmed blip's colour.
-        ctx.fillStyle = `rgba(255,80,64,${(0.07 * fade).toFixed(3)})`;
+        ctx.fillStyle = `rgba(${foe},${(0.07 * fade).toFixed(3)})`;
         ctx.beginPath();
         ctx.arc(0, 0, 4.2, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = `rgba(255,80,64,${(0.95 * fade).toFixed(3)})`;
+        ctx.strokeStyle = `rgba(${foe},${(0.95 * fade).toFixed(3)})`;
         ctx.lineWidth = 1.6;
         ctx.stroke();
       }
@@ -5223,7 +5277,8 @@ export class Game {
       ctx.rotate(Math.PI - p.yaw);
       // You are WHITE, the squad is friendly BLUE (UI stream: CoD colour rule) —
       // one shared colour made every blip read as "maybe me" at a glance.
-      ctx.fillStyle = isMe ? "#ffffff" : "#4aa8ff";
+      const pal = teamColors().miniAlly; // colour-vision mode (default "74,168,255")
+      ctx.fillStyle = isMe ? "#ffffff" : pal === "74,168,255" ? "#4aa8ff" : `rgb(${pal})`;
       const s = isMe ? 1.35 : 1;
       ctx.beginPath();
       ctx.moveTo(0, -5.5 * s);
@@ -5466,7 +5521,7 @@ export class Game {
         ? [...this.session.players.values()]
         : [];
     const rows = src
-      .map((p): EndRow => ({ name: p.name, kills: p.kills, deaths: p.deaths, team: p.team, you: p.id === this.you }))
+      .map((p): EndRow => ({ name: p.name, kills: p.kills, gun: p.gun ?? 0, deaths: p.deaths, team: p.team, you: p.id === this.you }))
       .sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
     const top = rows[0]?.kills ?? 0;
     for (const r of rows) r.win = ffa ? r.kills >= top && top > 0 : (r.team === 0 ? s0 >= s1 : s1 >= s0);
@@ -5478,6 +5533,8 @@ export class Game {
 export type EndRow = {
   name: string;
   kills: number;
+  /** GUN GAME ladder progress (0 elsewhere). */
+  gun?: number;
   deaths: number;
   team: Team;
   you: boolean;
@@ -5493,6 +5550,8 @@ export type HudState = {
   you: string;
   locked: boolean;
   mode: "tdm" | "ffa";
+  /** GUN GAME: FFA standings rank by ladder progress (PlayerSnap.gun), not kills. */
+  gun: boolean;
   /** Round-based TDM only (shared/protocol.ts RoundState); null elsewhere. */
   round: RoundState | null;
   /** This client is on the bench: its own body is a camera, not a player. */

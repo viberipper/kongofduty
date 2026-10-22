@@ -36,6 +36,8 @@ export type PadCurve = "standard" | "linear" | "precise";
 export type PadButtonLayout = "default" | "tactical";
 /** Gamepad: stick layout — DEFAULT (left move, right look) or SOUTHPAW (swapped). */
 export type PadStickLayout = "default" | "southpaw";
+/** Colour-vision mode — repaints the ally / enemy pair everywhere team identity shows. */
+export type ColorMode = "default" | "protanopia" | "deuteranopia" | "tritanopia";
 
 export interface Prefs {
   // GAMEPLAY
@@ -62,6 +64,8 @@ export interface Prefs {
   /** HUD size multiplier. */
   hudScale: number;
   motion: MotionPref;
+  /** Colour-vision mode for the team colours (TEAM_COLORS below). */
+  colorMode: ColorMode;
   // GRAPHICS · AAA (needs reload: renderer only; everything else is live)
   /** GPU backend preference. AUTO = WebGPU when available, else WebGL2. Takes effect after reload. */
   renderer: RendererPref;
@@ -135,6 +139,7 @@ export const DEFAULT_PREFS: Readonly<Prefs> = {
   showFps: false,
   hudScale: 1,
   motion: "system",
+  colorMode: "default",
   renderer: "webgl",
   quality: "high",
   // M1: HIGH == the old look — everything new is default-off (migrated saves
@@ -209,6 +214,7 @@ export function sanitizePrefs(x: unknown): Prefs {
     showFps: bool(o.showFps, d.showFps),
     hudScale: clamp(o.hudScale, RANGES.hudScale[0], RANGES.hudScale[1], d.hudScale),
     motion: pick(o.motion, ["system", "reduce", "full"] as const, d.motion),
+    colorMode: pick(o.colorMode, ["default", "protanopia", "deuteranopia", "tritanopia"] as const, d.colorMode),
     renderer: "webgl",
     quality: pick(o.quality, ["low", "medium", "high", "ultra", "cinematic"] as const, d.quality),
     bloom: bool(o.bloom, d.bloom),
@@ -292,6 +298,28 @@ export function onPrefs(fn: Listener): () => void {
   listeners.add(fn);
   fn(current, Object.keys(current) as (keyof Prefs)[]);
   return () => listeners.delete(fn);
+}
+
+// ---------------------------------------------------------------- team colours
+
+/**
+ * TEAM COLOURS PER COLOUR-VISION MODE. `ally` / `enemy` are the
+ * ui/tokens.css --c-ally / --c-enemy pair (nameplates, chevrons, scorebug,
+ * killfeed); `mini*` are the minimap's squad arrow and enemy blip, as r,g,b.
+ * Default is the shipped CoD blue / red, byte for byte. The others keep blue
+ * for your side wherever it survives the deficiency and move the enemy to a
+ * hue that does: amber for red-weak (protan) and orange for green-weak
+ * (deutan) eyes; for blue-yellow (tritan) eyes, teal vs magenta-red.
+ */
+export const TEAM_COLORS: Record<ColorMode, { ally: string; enemy: string; miniAlly: string; miniEnemy: string }> = {
+  default: { ally: "#3ea6ff", enemy: "#ff4a3d", miniAlly: "74,168,255", miniEnemy: "255,80,64" },
+  protanopia: { ally: "#3ea6ff", enemy: "#ffc21a", miniAlly: "74,168,255", miniEnemy: "255,194,26" },
+  deuteranopia: { ally: "#3ea6ff", enemy: "#ff8a1f", miniAlly: "74,168,255", miniEnemy: "255,138,31" },
+  tritanopia: { ally: "#21d4c8", enemy: "#ff3d8b", miniAlly: "33,212,200", miniEnemy: "255,61,139" },
+};
+
+export function teamColors(): (typeof TEAM_COLORS)[ColorMode] {
+  return TEAM_COLORS[current.colorMode];
 }
 
 // ---------------------------------------------------------------- game hooks

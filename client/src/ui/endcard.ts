@@ -49,14 +49,17 @@ const ord = (n: number): string => {
 };
 const kdOf = (k: number, d: number): string => (d === 0 ? k.toFixed(2) : (k / d).toFixed(2));
 
+/** What ranks a teamless board: GUN GAME's ladder, otherwise kills. */
+const ptsOf = (mode: ModeId, r: EndRow): number => (mode === "gun" ? (r.gun ?? 0) : r.kills);
+
 export function computeResult(p: Pick<EndParams, "mode" | "s0" | "s1" | "board">): { result: MatchResult; mine: number; theirs: number; place: number; of: number } {
   const me = p.board.find((r) => r.you);
-  if (p.mode === "ffa") {
-    const sorted = [...p.board].sort((a, b) => b.kills - a.kills);
-    const top = sorted[0]?.kills ?? 0;
-    const myK = me?.kills ?? 0;
-    const atTop = sorted.filter((r) => r.kills === top).length;
-    const place = 1 + p.board.filter((r) => r.kills > myK).length;
+  if (p.mode !== "tdm") {
+    const sorted = [...p.board].sort((a, b) => ptsOf(p.mode, b) - ptsOf(p.mode, a));
+    const top = sorted[0] ? ptsOf(p.mode, sorted[0]) : 0;
+    const myK = me ? ptsOf(p.mode, me) : 0;
+    const atTop = sorted.filter((r) => ptsOf(p.mode, r) === top).length;
+    const place = 1 + p.board.filter((r) => ptsOf(p.mode, r) > myK).length;
     const result: MatchResult = myK === top && (atTop > 1 || top === 0) ? "draw" : myK === top ? "victory" : "defeat";
     return { result, mine: myK, theirs: top, place, of: p.board.length };
   }
@@ -91,12 +94,14 @@ export function showEndcard(p: EndParams): MatchResult {
   // Score line: your side first, in your colour.
   const score = $("endscore");
   score.replaceChildren();
-  if (p.mode === "ffa") {
-    score.append(h("span", undefined, `${ord(r.place)}`), h("small", undefined, `OF ${r.of} · ${r.mine} KILLS`));
+  if (p.mode !== "tdm") {
+    score.append(h("span", undefined, `${ord(r.place)}`), h("small", undefined, p.mode === "gun" ? `OF ${r.of} · LADDER ${r.mine}/${info.limit}` : `OF ${r.of} · ${r.mine} KILLS`));
   } else {
     const mid = h("small", undefined, info.rounds ? "ROUNDS" : "VS");
     score.append(h("span", "ally", String(r.mine)), mid, h("span", "enemy", String(r.theirs)));
   }
+
+  paintPodium(p, info.mode === "gun" ? `/${info.limit}` : "");
 
   // Leaderboard.
   const board = $("endboard");
@@ -112,14 +117,14 @@ export function showEndcard(p: EndParams): MatchResult {
     row.append(h("span", "eb-rank", String(i + 1)), h("span", "eb-name", x.name), h("span", undefined, String(x.kills)), h("span", undefined, String(x.deaths)), h("span", undefined, kdOf(x.kills, x.deaths)));
     return row;
   };
-  const sorted = (rows: EndRow[]): EndRow[] => [...rows].sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
+  const sorted = (rows: EndRow[]): EndRow[] => [...rows].sort((a, b) => ptsOf(p.mode, b) - ptsOf(p.mode, a) || b.kills - a.kills || a.deaths - b.deaths);
   // EVERY PLAYER IS ON THE BOARD (feel stream). It used to cap at 12 FFA rows and
   // clip the panel, so 15-player dust2 FFA hid three people — usually including
   // the one reading it. A long board goes COMPACT (shorter rows) and, past what
   // even that fits, scrolls inside the panel; nobody is ever cut.
-  const biggest = p.mode === "ffa" ? p.board.length : Math.max(p.board.filter((x) => x.team === 0).length, p.board.filter((x) => x.team === 1).length);
-  board.classList.toggle("dense", biggest > (p.mode === "ffa" ? 10 : 8));
-  if (p.mode === "ffa") {
+  const biggest = p.mode !== "tdm" ? p.board.length : Math.max(p.board.filter((x) => x.team === 0).length, p.board.filter((x) => x.team === 1).length);
+  board.classList.toggle("dense", biggest > (p.mode !== "tdm" ? 10 : 8));
+  if (p.mode !== "tdm") {
     const block = h("div", "eb-block");
     block.append(head(), ...sorted(p.board).map(line));
     board.append(block);
@@ -209,6 +214,40 @@ export function showEndcard(p: EndParams): MatchResult {
   }
   uiSfx(r.result === "victory" ? "confirm" : "back");
   return r.result;
+}
+
+/**
+ * THE MVP PODIUM: the match's top three on stepped plinths, 2nd · 1st · 3rd,
+ * each in their own fur colour, the winner crowned MVP. Teamless modes rank
+ * the way the board does (GUN GAME by the ladder); team modes rank everyone
+ * on one list by kills, then fewest deaths — the MVP can come off the losing
+ * side, as in CoD.
+ */
+function paintPodium(p: EndParams, outOf: string): void {
+  const pod = $("ec-podium");
+  pod.replaceChildren();
+  const ranked = [...p.board]
+    .sort((a, b) => ptsOf(p.mode, b) - ptsOf(p.mode, a) || b.kills - a.kills || a.deaths - b.deaths)
+    .slice(0, 3);
+  pod.classList.toggle("hidden", !ranked.length || ptsOf(p.mode, ranked[0]!) <= 0);
+  const myTeam = p.board.find((x) => x.you)?.team ?? 0;
+  for (const place of [2, 1, 3]) {
+    const r = ranked[place - 1];
+    if (!r) continue;
+    const side = p.mode === "tdm" ? (r.team === myTeam ? " ally" : " enemy") : "";
+    const col = h("div", `pod pod-${place}${r.you ? " you" : ""}${side}`);
+    col.style.animationDelay = `${(3 - place) * 140 + 200}ms`;
+    const fur = h("i", "pod-fur");
+    fur.style.background = "#3b2218";   // the Kong fur colour
+    const name = h("b", "pod-name", r.name);
+    const stat =
+      p.mode === "gun" ? `LADDER ${r.gun ?? 0}${outOf} · ${r.kills} K` : `${r.kills} KILL${r.kills === 1 ? "" : "S"} · ${kdOf(r.kills, r.deaths)} K/D`;
+    const step = h("div", "pod-step");
+    step.append(h("span", "pod-rank", ord(place)));
+    if (place === 1) col.append(h("em", "pod-mvp", "MVP"));
+    col.append(fur, name, h("span", "pod-stat", stat), step);
+    pod.append(col);
+  }
 }
 
 function accolades(board: EndRow[]): { title: string; glyph: string; name: string; stat: string; you: boolean }[] {

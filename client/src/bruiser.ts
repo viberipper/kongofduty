@@ -8,6 +8,7 @@ import { activeMap } from "@shared/maps";
 import { attachAstronaut, type AstronautRig } from "./astronaut";
 import { fistCentroidLocal, leanToward, setBoneWorldQ, solveTwoBone, stripLauncher, swivelElbowIn, tpGun, tpGunProto, type TpGunProto } from "./tp-gun";
 import { WEAPON_BY_ID } from "@shared/weapons";
+import { prefs, teamColors } from "./ui/prefs";
 import { gridFor, gridQueryCircle } from "@shared/solidgrid";
 import { RADIUS } from "@shared/sim";
 import { loadNadeAsset } from "./fx";
@@ -260,11 +261,13 @@ const MARK_CHEV = 0.012;
 const MARK_TAG = 0.024;
 const MARK_FADE_MS = 300;
 
-let chevTexA: THREE.Texture | null = null;
-let chevTexE: THREE.Texture | null = null;
+/** One chevron per colour (the colour-vision mode can change the pair mid-match). */
+const chevTex = new Map<string, THREE.Texture>();
 
 function chevronTexture(ally: boolean): THREE.Texture {
-  const cached = ally ? chevTexA : chevTexE;
+  const tc = teamColors();
+  const col = ally ? tc.ally : tc.enemy;
+  const cached = chevTex.get(col);
   if (cached) return cached;
   const c = document.createElement("canvas");
   c.width = 64;
@@ -276,15 +279,14 @@ function chevronTexture(ally: boolean): THREE.Texture {
   ctx.lineTo(20, -14);
   ctx.lineTo(0, 18);
   ctx.closePath();
-  ctx.fillStyle = ally ? "#3ea6ff" : "#ff4a3d"; // UI stream: CoD relative colours (ui/tokens.css --c-ally / --c-enemy)
+  ctx.fillStyle = col; // UI stream: CoD relative colours (ui/tokens.css --c-ally / --c-enemy; per colour-vision mode)
   ctx.strokeStyle = "rgba(10,10,12,0.9)";
   ctx.lineWidth = 5;
   ctx.lineJoin = "round";
   ctx.stroke();
   ctx.fill();
   const t = new THREE.CanvasTexture(c);
-  if (ally) chevTexA = t;
-  else chevTexE = t;
+  chevTex.set(col, t);
   return t;
 }
 
@@ -313,7 +315,7 @@ function paintName(c: HTMLCanvasElement, name: string, ally = true): void {
   ctx.lineWidth = 5;
   ctx.strokeStyle = "rgba(6,8,10,0.75)";
   // UI stream: allies are blue, enemies red (ui/tokens.css --c-ally / --c-enemy) — feel stream: enemy names exist now
-  ctx.fillStyle = ally ? "#3ea6ff" : "#ff4a3d";
+  ctx.fillStyle = ally ? teamColors().ally : teamColors().enemy;
   const txt = (name || "").slice(0, 14).toUpperCase();
   ctx.strokeText(txt, 128, 30);
   ctx.fillText(txt, 128, 30);
@@ -1547,6 +1549,7 @@ export class BruiserActor {
 
   ally = false;
   private relationSet = false;
+  private relationMode = "";
   /** Per-actor material clones setRelation tints (see constructor). */
   private tintMats: { material: THREE.MeshStandardMaterial | THREE.MeshBasicMaterial; base: THREE.Color }[] = [];
   private nameTag!: THREE.Sprite;
@@ -1561,8 +1564,11 @@ export class BruiserActor {
    * no-ops unless the relation actually changed.
    */
   setRelation(ally: boolean): void {
-    if (this.relationSet && this.ally === ally) return;
+    // A colour-vision change repaints the chevron and tag too
+    const mode = prefs().colorMode;
+    if (this.relationSet && this.ally === ally && this.relationMode === mode) return;
     this.relationSet = true;
+    this.relationMode = mode;
     this.ally = ally;
     const cm = this.chevron.material as THREE.SpriteMaterial;
     cm.map = chevronTexture(ally);

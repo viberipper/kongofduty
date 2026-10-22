@@ -31,7 +31,7 @@ import { SamplePack, readPackPref, loudness, SYNTH_ONLY } from "./audio-packs";
 import { activeMap } from "@shared/maps";
 import { bootStage } from "./bootstage";
 import { PRIMARY_WEAPON_ID } from "@shared/weapons";
-import { footstepMix, STEP_VOICES, type FootstepStyle } from "./footsteps";
+import { footstepMix, STEP_VOICES, type FootSurface, type FootstepStyle } from "./footsteps";
 import { WeaponAudio, WeaponLibrary, type WeaponAudioStats } from "./weapons/audio-engine";
 import { upgradeMaster } from "./weapons/audio-master";
 import { GUN_IDS } from "./weapons/audio-bank";
@@ -830,6 +830,87 @@ export class AudioRig2 {
       return fadeTail(normalize(lowpass(y, 6200), 0.4), 0.02);
     };
     fam("step-metal", "steps", 0.98, 0, [stepMetal(), stepMetal(), stepMetal(), stepMetal()]);
+    // SURFACE STEPS (client/src/footsteps.ts footSurface): each surface keeps
+    // the same heel under a different contact. One envelope helper per layer.
+    const env = (x: Float32Array, atk: number, tau: number): Float32Array => {
+      const y = new Float32Array(x.length);
+      for (let i = 0; i < x.length; i++) {
+        const t = i / SR;
+        y[i] = x[i]! * ramp(t, atk) * Math.exp(-t / tau);
+      }
+      return y;
+    };
+    const heel = (n: number, f: number, sweep: number, tau: number, amp: number): Float32Array => {
+      const y = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const t = i / SR;
+        y[i] = Math.sin(2 * Math.PI * f * (1 + Math.exp(-t / sweep)) * t) * ramp(t, 0.003) * Math.exp(-t / tau) * amp;
+      }
+      return y;
+    };
+    // Grass: a soft, low heel and a slow leafy swish — the quietest surface.
+    const stepGrass = (): Float32Array => {
+      const n = Math.floor(0.2 * SR);
+      const y = heel(n, 52 + rng() * 12, 0.018, 0.034, 0.55);
+      mix(y, normalize(env(bandpass(noise(n, rng), 2400 + rng() * 1200, 0.55), 0.022, 0.06), 1), 0.3, 0.008);
+      return fadeTail(normalize(lowpass(y, 4300, 2), 0.32), 0.02);
+    };
+    // Hard ground (concrete, stone, asphalt): a crisp heel click, little body.
+    const stepHard = (): Float32Array => {
+      const n = Math.floor(0.13 * SR);
+      const y = heel(n, 120 + rng() * 30, 0.006, 0.014, 0.6);
+      mix(y, normalize(env(bandpass(noise(n, rng), 3400 + rng() * 900, 1.1), 0.001, 0.006), 1), 0.5);
+      mix(y, normalize(env(bandpass(noise(n, rng), 900 + rng() * 300, 0.8), 0.006, 0.03), 1), 0.18, 0.02);
+      return fadeTail(normalize(lowpass(y, 7000), 0.42), 0.015);
+    };
+    // Wood (decks, floors, crates): a hollow knock with two body resonances.
+    const stepWood = (): Float32Array => {
+      const n = Math.floor(0.2 * SR);
+      const y = heel(n, 88 + rng() * 18, 0.012, 0.03, 0.75);
+      for (const [pf, amp, tau] of [
+        [310, 0.32, 0.05],
+        [540, 0.18, 0.035],
+      ] as [number, number, number][]) {
+        const det = pf * (1 + (rng() - 0.5) * 0.08);
+        const r = new Float32Array(n);
+        for (let i = 0; i < n; i++) {
+          const t = i / SR;
+          r[i] = Math.sin(2 * Math.PI * det * t) * ramp(t, 0.002) * Math.exp(-t / tau);
+        }
+        mix(y, r, amp, 0.002);
+      }
+      mix(y, normalize(env(bandpass(noise(n, rng), 1800, 1), 0.002, 0.01), 1), 0.14);
+      return fadeTail(normalize(lowpass(y, 5200), 0.42), 0.02);
+    };
+    // Sand: a heel that sinks, under a spray of fine grains.
+    const stepSand = (): Float32Array => {
+      const n = Math.floor(0.2 * SR);
+      const y = heel(n, 58 + rng() * 10, 0.02, 0.03, 0.5);
+      const grains = new Float32Array(n);
+      for (let g = 0; g < 26; g++) {
+        const at = Math.floor((0.004 + rng() * rng() * 0.11) * SR);
+        const len = Math.floor((0.002 + rng() * 0.004) * SR);
+        const amp = 0.4 + rng() * 0.6;
+        for (let i = 0; i < len && at + i < n; i++) grains[at + i]! += (rng() * 2 - 1) * amp * (1 - i / len);
+      }
+      mix(y, normalize(bandpass(grains, 2600 + rng() * 800, 0.7), 1), 0.38);
+      return fadeTail(normalize(lowpass(y, 6000), 0.36), 0.02);
+    };
+    fam("step-grass", "steps", 0.85, 0, [stepGrass(), stepGrass(), stepGrass(), stepGrass()]);
+    fam("step-hard", "steps", 1, 0, [stepHard(), stepHard(), stepHard(), stepHard()]);
+    fam("step-wood", "steps", 1, 0, [stepWood(), stepWood(), stepWood(), stepWood()]);
+    fam("step-sand", "steps", 0.95, 0, [stepSand(), stepSand(), stepSand(), stepSand()]);
+    // Landings: the body thud, with that surface's contact on top, louder.
+    const landOn = (contact: () => Float32Array, f: number): Float32Array => {
+      const y = thud(f, 0.16, 0.25, 600);
+      mix(y, contact(), 0.7);
+      return fadeTail(normalize(y, 0.5), 0.02);
+    };
+    fam("land-grass", "steps", 0.45, 0.01, [landOn(stepGrass, 62), landOn(stepGrass, 58), landOn(stepGrass, 66)]);
+    fam("land-hard", "steps", 0.5, 0.01, [landOn(stepHard, 78), landOn(stepHard, 74), landOn(stepHard, 82)]);
+    fam("land-wood", "steps", 0.5, 0.01, [landOn(stepWood, 72), landOn(stepWood, 68), landOn(stepWood, 76)]);
+    fam("land-sand", "steps", 0.48, 0.01, [landOn(stepSand, 64), landOn(stepSand, 60), landOn(stepSand, 68)]);
+    fam("land-metal", "steps", 0.5, 0.01, [landOn(stepMetal, 82), landOn(stepMetal, 78), landOn(stepMetal, 86)]);
     const slide = (): Float32Array => {
       const n = Math.floor(0.32 * SR);
       let x = bandpass(noise(n, rng), 650, 0.7);
@@ -1692,7 +1773,7 @@ export class AudioRig2 {
       dist = Math.hypot(opts.x! - this.listenerX, (opts.y ?? 0) - this.listenerY, opts.z! - this.listenerZ);
       if (dist > CULL_M) return;
     }
-    const step = fam.bus === "steps" ? footstepMix(dist, { local: !positional, land: name === "land", ...opts.step }) : null;
+    const step = fam.bus === "steps" ? footstepMix(dist, { local: !positional, land: name.startsWith("land"), ...opts.step }) : null;
     if (this.activeTotal >= 24) return;
     if (step) {
       if (step.gain <= 0.002) return;
@@ -1865,8 +1946,13 @@ export class AudioRig2 {
   }
 
   /** Quiet own/friendly movement, short physical reach, and dry directional cues. */
-  footstep(opts: { x?: number; y?: number; z?: number; metal?: boolean; src?: string } & FootstepStyle): void {
-    const name = opts.land ? "land" : opts.metal ? "step-metal" : "step";
+  footstep(opts: { x?: number; y?: number; z?: number; metal?: boolean; surface?: FootSurface; src?: string } & FootstepStyle): void {
+    // The surface picks the family (dirt is the original "step" / "land");
+    // a bank without that surface falls back to the dirt voice.
+    const surface = opts.surface ?? (opts.metal ? "metal" : "dirt");
+    const base = opts.land ? "land" : "step";
+    const want = surface === "dirt" ? base : `${base}-${surface}`;
+    const name = this.families.has(want) ? want : opts.metal && !opts.land ? "step-metal" : base;
     const local = opts.x === undefined;
     const vol = local ? (opts.land ? 0.065 : opts.sprint ? 0.045 : 0.035) : (opts.land ? 0.18 : opts.sprint ? 0.17 : 0.12);
     this.play(name, {

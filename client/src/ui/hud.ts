@@ -15,6 +15,8 @@
 import { WEAPON_BY_ID } from "@shared/weapons";
 import { WEAPON_CARDS, type LoadoutWeaponId } from "@shared/loadout";
 import { modeInfo, type ModeId } from "@shared/modes";
+import { GUN_KILLS_PER_TIER, GUN_LADDER, gunFor } from "@shared/gungame";
+import type { PlayerSnap } from "@shared/protocol";
 import type { Game, HudState } from "../game";
 import { readHudFeed } from "../hud-api";
 import { attachSpectate, detachSpectate } from "../spectate";
@@ -103,27 +105,30 @@ export function paintHud(game: Game, s: HudState, mapId: string): void {
     }
   }
 
-  const mode = (s.mode === "ffa" ? "ffa" : "tdm") as ModeId;
+  const mode: ModeId = s.gun ? "gun" : s.mode === "ffa" ? "ffa" : "tdm";
   const info = modeInfo(mapId, mode);
+  const ffa = !info.teams;
+  // GUN GAME standings are ladder progress; everywhere else, kills.
+  const pts = (p: PlayerSnap): number => (mode === "gun" ? (p.gun ?? 0) : p.kills);
   if (s.locked) hudState.everLocked = true;
 
   // ---- scorebug -----------------------------------------------------------
-  cls("scorebug", "ffa", mode === "ffa");
+  cls("scorebug", "ffa", ffa);
   let a = 0;
   let b = 0;
   let la = "YOUR TEAM";
   let lb = "ENEMY";
-  if (mode === "ffa") {
-    const others = s.players.filter((p) => p.id !== s.you).sort((x, y) => y.kills - x.kills);
+  if (ffa) {
+    const others = s.players.filter((p) => p.id !== s.you).sort((x, y) => pts(y) - pts(x));
     if (bench) {
-      const board = [...s.players].sort((x, y) => y.kills - x.kills);
-      a = board[0]?.kills ?? 0;
-      b = board[1]?.kills ?? 0;
+      const board = [...s.players].sort((x, y) => pts(y) - pts(x));
+      a = board[0] ? pts(board[0]) : 0;
+      b = board[1] ? pts(board[1]) : 0;
       la = `1ST · ${board[0]?.name ?? "—"}`;
       lb = `2ND · ${board[1]?.name ?? "—"}`;
     } else {
-      a = s.me.kills;
-      b = others[0]?.kills ?? 0;
+      a = pts(s.me);
+      b = others[0] ? pts(others[0]) : 0;
       la = "YOU";
       lb = others[0] ? `LEADER · ${others[0].name}` : "LEADER";
     }
@@ -135,19 +140,26 @@ export function paintHud(game: Game, s: HudState, mapId: string): void {
   // WINNING / LOSING / TIED — the word CoD puts beside the clock.
   const st = a > b ? "win" : a < b ? "lose" : "tie";
   // FFA: your PLACE (CoD prints 1ST / 2ND…); teams: WINNING / LOSING / TIED.
-  const place = 1 + s.players.filter((p) => p.id !== s.you && p.kills > s.me.kills).length;
+  const place = 1 + s.players.filter((p) => p.id !== s.you && pts(p) > pts(s.me)).length;
   const ord = (n: number): string => n + (["TH", "ST", "ND", "RD"][n % 100 >= 11 && n % 100 <= 13 ? 0 : Math.min(n % 10, 4) % 4] ?? "TH");
-  text("sb-state", bench && mode === "ffa" ? "" : mode === "ffa" ? ord(place) : st === "win" ? "WINNING" : st === "lose" ? "LOSING" : "TIED");
-  cls("sb-state", "win", mode === "ffa" ? place === 1 : st === "win");
-  cls("sb-state", "lose", mode !== "ffa" && st === "lose");
-  cls("sb-state", "tie", mode === "ffa" ? place > 1 : st === "tie");
+  text("sb-state", bench && ffa ? "" : ffa ? ord(place) : st === "win" ? "WINNING" : st === "lose" ? "LOSING" : "TIED");
+  cls("sb-state", "win", ffa ? place === 1 : st === "win");
+  cls("sb-state", "lose", !ffa && st === "lose");
+  cls("sb-state", "tie", ffa ? place > 1 : st === "tie");
   text("s0", String(a));
   text("s1", String(b));
   text("s0lbl", la.toUpperCase());
   text("s1lbl", lb.toUpperCase());
   style("s0bar", "width", `${Math.min(100, (a / info.limit) * 100).toFixed(1)}%`);
   style("s1bar", "width", `${Math.min(100, (b / info.limit) * 100).toFixed(1)}%`);
-  text("sb-mode", info.rounds && s.round ? `ROUND ${s.round.n}/${s.round.total}` : `${info.short} · ${info.limit}`);
+  text(
+    "sb-mode",
+    info.rounds && s.round
+      ? `ROUND ${s.round.n}/${s.round.total}`
+      : mode === "gun" && !bench
+        ? `GUN ${Math.min(GUN_LADDER.length, 1 + Math.floor(pts(s.me) / GUN_KILLS_PER_TIER))}/${GUN_LADDER.length} · ${WEAPON_BY_ID[gunFor(pts(s.me))]?.short ?? ""}`
+        : `${info.short} · ${info.limit}`,
+  );
   text("clock", mmss(s.remain));
   cls("clock", "low", s.remain <= 30 && s.remain > 0);
   paintRoundStrip(s);
@@ -244,13 +256,15 @@ function paintScoreboard(sb: HTMLElement, s: HudState, info: ReturnType<typeof m
   const now = performance.now();
   if (now - sbAt < 250 && sb.childElementCount) return;
   sbAt = now;
-  const cols = `<tr><th></th><th>PLAYER</th><th>KILLS</th><th>DEATHS</th><th>K/D</th><th>STREAK</th><th>PING</th></tr>`;
+  const gun = info.mode === "gun";
+  const cols = `<tr><th></th><th>PLAYER</th><th>KILLS</th><th>DEATHS</th><th>K/D</th><th>${gun ? "LADDER" : "STREAK"}</th><th>PING</th></tr>`;
   const kd = (k: number, d: number): string => (d === 0 ? k.toFixed(2) : (k / d).toFixed(2));
   const row = (p: HudState["players"][number], i: number): string =>
-    `<tr class="${p.id === s.you ? "you" : ""}${p.alive ? "" : " dead"}"><td>${i + 1}</td><td>${esc(p.name)}</td><td>${p.kills}</td><td>${p.deaths}</td><td>${kd(p.kills, p.deaths)}</td><td>${p.streak ?? 0}</td><td class="${(p.ping ?? 0) > 150 ? "ping-bad" : ""}">${p.ping || "—"}</td></tr>`;
-  const sort = (arr: HudState["players"]): HudState["players"] => [...arr].sort((x, y) => y.kills - x.kills || x.deaths - y.deaths);
+    `<tr class="${p.id === s.you ? "you" : ""}${p.alive ? "" : " dead"}"><td>${i + 1}</td><td>${esc(p.name)}</td><td>${p.kills}</td><td>${p.deaths}</td><td>${kd(p.kills, p.deaths)}</td><td>${gun ? `${p.gun ?? 0}/${info.limit}` : (p.streak ?? 0)}</td><td class="${(p.ping ?? 0) > 150 ? "ping-bad" : ""}">${p.ping || "—"}</td></tr>`;
+  const sort = (arr: HudState["players"]): HudState["players"] =>
+    [...arr].sort((x, y) => (gun ? (y.gun ?? 0) - (x.gun ?? 0) : 0) || y.kills - x.kills || x.deaths - y.deaths);
   let html = `<header class="sbd-head"><b>${info.label} · ${esc(mapLabel(mapId))}</b><span>${info.goal}</span></header>`;
-  if (s.mode === "ffa") {
+  if (!info.teams) {
     html += `<div class="sbd-team"><table>${cols}${sort(s.players).map(row).join("")}</table></div>`;
   } else {
     const mine = s.me.team === 1 ? 1 : 0;

@@ -378,7 +378,7 @@ function need<T>(v: T | undefined | null, what: string): T {
  * every access (new MapDef identity, audit reset, hides JSON drift). Caching
  * by raw reference here restores identity: same raw object in → same MapDef
  * out, audit counted once. The solids are ALSO cloned below before any
- * climb/railVault flag is touched, so the cached MAP_DATA JSON is never
+ * climb/vault flag is touched, so the cached MAP_DATA JSON is never
  * mutated in place — and the geometry hash is compared on every hit, so an
  * in-place same-length mutation of the raw (flag flip, visual retag) rebuilds
  * instead of returning the stale def.
@@ -390,7 +390,7 @@ function need<T>(v: T | undefined | null, what: string): T {
  * poisoned def forever. The cache is therefore per-raw (WeakMap, no leak:
  * entries die with their JSON object) AND verified both ways on every hit:
  * raw length + raw geometry hash must match, and the CACHED DEF's own hash —
- * taken at build time (promotion legitimately retags climb/railVault, so the
+ * taken at build time (promotion legitimately retags climb/vault, so the
  * def hash differs from the raw hash by design; what is compared is def-now
  * vs def-at-build) — must still match too. A def mutated after return
  * rebuilds from raw instead of masquerading as the cached world. (Freezing
@@ -543,7 +543,7 @@ export function buildNuketown(raw: unknown): MapDef {
     if (!(sx! > 0 && sz! > 0)) throw new Error(`nuketown map data: nadeFenceRect ${i} has non-positive size`);
     return { x: r.x, z: r.z, sx: sx!, sz: sz!, yaw: r.yaw ?? 0 };
   });
-  // Clone: promotion writes climb/railVault below and must not leak into MAP_DATA.
+  // Clone: promotion writes climb/vault below and must not leak into MAP_DATA.
   const solids: OBB[] = rawSolids.map((o) => ({ ...o }));
   const A = NUKETOWN_AUDIT;
   A.built = true;
@@ -622,18 +622,14 @@ export function buildNuketown(raw: unknown): MapDef {
     // are authored as plain steel, so resolveCircle holds a body on the deck
     // against them at any gait — the deck might as well be walled. The jump
     // apex (JUMP_V^2/2·GRAVITY = 5.55^2/40.8 ≈ 0.76 m) can never clear 0.95 m
-    // ballistically, so the vault is a JUMP-mantle: marking the panels
-    // climbable lets the shared mantle rule (top < 1.05 m above the feet,
-    // feet + 0.2 m below the top) step the body onto the rail and off the far
-    // side — but ONLY while airborne after a jump (the jump-vault gate in
-    // resolveCircle/groundHeight/ceilingCrossed: !onGround && slide <= 0, so a
-    // slide gone airborne off a lip stays steel too). A grounded body
-    // walking, sprinting, sliding or crouching into the rail reads it as hard
-    // steel and is never snapped up, exactly like a wall. This runs in code,
-    // not in the generated JSON, so both shipped copies (client/static,
+    // ballistically, so the vault is a JUMP-vault (shared/map.ts VAULT_REACH):
+    // marking the panels `vault` lets a rising jump pass over the rail while
+    // a grounded body walking, sprinting, sliding or crouching into it reads
+    // hard steel and is never snapped up, exactly like a wall. This runs in
+    // code, not in the generated JSON, so both shipped copies (client/static,
     // server/assets) vault without a rebuild of the Blender pipeline — and
     // the flag is what every consumer already keys off (resolveCircle,
-    // groundHeight, ceilingCrossed, botBlocked, botWallPush, plus the bot's
+    // ceilingCrossed, botBlocked, botWallPush, plus the bot's
     // rail-vault jump), so client prediction and the authority agree by
     // construction. Idempotent: rebuilding from the same raw re-sets the same
     // flags and re-counts the same set.
@@ -659,8 +655,7 @@ export function buildNuketown(raw: unknown): MapDef {
         len >= DECK_RAIL_MIN_LEN &&
         len <= DECK_RAIL_MAX_LEN;
       if (h >= DECK_PANEL_MIN_H && h <= DECK_PANEL_MAX_H && onDeck && panelShape) {
-        o.climb = true;
-        o.railVault = true;
+        o.vault = true;
         A.railings += 1;
         promoted.push(i);
       } else {
@@ -670,7 +665,7 @@ export function buildNuketown(raw: unknown): MapDef {
         // vault. Forced, not just left alone, so a regen that marks one
         // climbable in the JSON cannot silently reopen the bypass.
         o.climb = false;
-        o.railVault = false;
+        o.vault = false;
       }
     }
     // Thin-collider audit: strict < 0.10 m like dust2 (no 1e-6 slack — a
@@ -698,7 +693,7 @@ export function buildNuketown(raw: unknown): MapDef {
   // roof-volumes, glass) never match all five at once.
   let steelForced = 0;
   for (const s of solids) {
-    if (!s.climb || s.railVault) continue;
+    if (!s.climb || s.vault) continue;
     const h = s.sy;
     if (h <= DECK_PANEL_MAX_H || h > 3.6) continue;
     const thick = Math.min(s.sx, s.sz);
@@ -720,7 +715,7 @@ export function buildNuketown(raw: unknown): MapDef {
     }
     if (!nearRail) continue;
     s.climb = false;
-    s.railVault = false;
+    s.vault = false;
     steelForced += 1;
   }
   if (steelForced) A.warnings.push(`forced ${steelForced} tall-wall retag(s) back to steel`);
@@ -734,7 +729,7 @@ export function buildNuketown(raw: unknown): MapDef {
   //     against the sim constants above).
   // Both are OVER-THROWS by design (safe): they check only the perch→rail
   // step, never whether the perch is itself reachable from the lawn; they
-  // ignore intervening walls (no 3D occlusion); they skip other railVault
+  // ignore intervening walls (no 3D occlusion); they skip other vault
   // panels (adjacent deck rails overlap each other and must not self-throw).
   // MULTI-HOP chains (perch→perch→rail) are NOT modeled: each hop would need
   // its own audit, and the survey below shows no first hop exists, so there
@@ -798,7 +793,7 @@ export function buildNuketown(raw: unknown): MapDef {
     for (let j = 0; j < solids.length; j++) {
       if (j === i) continue;
       const c = solids[j]!;
-      if (!c.climb || c.railVault) continue;
+      if (!c.climb || c.vault) continue;
       const ct = c.y + c.sy / 2;
       const cb = c.y - c.sy / 2;
       // Staging steps UP onto the rail: perches above the rail top cannot
@@ -851,7 +846,7 @@ export function buildNuketown(raw: unknown): MapDef {
     for (let j = 0; j < solids.length; j++) {
       if (j === i) continue;
       const c = solids[j]!;
-      if (!c.climb || c.railVault) continue;
+      if (!c.climb || c.vault) continue;
       const ct = c.y + c.sy / 2;
       if (ct <= railTop || ct > railTop + RAIL_EGRESS_LIFT) continue;
       if (footprintsOverlap(r, c, RAIL_EGRESS_REACH / 2)) {

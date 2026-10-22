@@ -6,7 +6,9 @@ const fields = ['id','seq','name','op','team','x','y','z','vx','vy','vz','yaw','
   'hp','armor','weapon','ads','sprint','crouch','slide','reload','firing','alive',
   'protect','kills','deaths','streak','ping','ammo','reserve','nades','nadeUp',
   // weapons stream (appended): holstered weapon + its ammo, raise timer, frag cook
-  'alt','altAmmo','altRes','swap','cook'] as const satisfies readonly (keyof PlayerSnap)[];
+  'alt','altAmmo','altRes','swap','cook',
+  // gun game (appended): ladder progress
+  'gun'] as const satisfies readonly (keyof PlayerSnap)[];
 type Complete = Exclude<keyof PlayerSnap, typeof fields[number]> extends never ? true : never;
 const complete: Complete = true;
 void complete;

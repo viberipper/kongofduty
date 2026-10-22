@@ -27,6 +27,7 @@ import {
   FFA_KILL_LIMIT,
   TDM_MATCH_TIME,
   FFA_MATCH_TIME,
+  matchTimeFor,
   ROUND_MAPS,
   ROUND_TIME,
   ROUNDS_TO_WIN,
@@ -34,7 +35,20 @@ import {
   SCORE_LIMIT,
 } from "./protocol";
 
-export type ModeId = "tdm" | "ffa";
+import { GUN_GOAL, GUN_KILLS_PER_TIER, GUN_LADDER } from "./gungame";
+
+/** `gun` is GUN GAME: an FFA room whose guns come off the ladder (shared/gungame.ts). */
+export type ModeId = "tdm" | "ffa" | "gun";
+
+/** The sim's own mode for a menu mode: GUN GAME plays as FFA with the ladder switched on. */
+export function simMode(mode: ModeId): "tdm" | "ffa" {
+  return mode === "tdm" ? "tdm" : "ffa";
+}
+
+/** Whatever the transport says, as a ModeId (unknown -> TDM). */
+export function asModeId(x: unknown): ModeId {
+  return x === "ffa" || x === "gun" ? x : "tdm";
+}
 
 /** Playable seats (humans + bot fill) per mode on one map. TDM seats split evenly. */
 export interface MapSeats {
@@ -62,7 +76,7 @@ export const DEFAULT_SEATS: MapSeats = { tdm: 12, ffa: 12 };
 
 export function seatsFor(map: string, mode: ModeId): number {
   const s = MAP_SEATS[map] ?? DEFAULT_SEATS;
-  return mode === "ffa" ? s.ffa : s.tdm;
+  return mode === "tdm" ? s.tdm : s.ffa;
 }
 
 /** The most bodies any mode on this map can field — renderer pre-warm budgets. */
@@ -80,9 +94,9 @@ export function roundBased(map: string, mode: ModeId): boolean {
 export interface ModeInfo {
   map: string;
   mode: ModeId;
-  /** "TEAM DEATHMATCH" | "FREE-FOR-ALL" | "ELIMINATION" */
+  /** "TEAM DEATHMATCH" | "FREE-FOR-ALL" | "ELIMINATION" | "GUN GAME" */
   label: string;
-  /** Short tag for tight spaces: "TDM" | "FFA" | "ELIM" */
+  /** Short tag for tight spaces: "TDM" | "FFA" | "ELIM" | "GUN" */
   short: string;
   /** "5v5", "6v6", or "10 PLAYERS" */
   size: string;
@@ -107,6 +121,24 @@ const mmss = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floor(s
 export function modeInfo(map: string, mode: ModeId): ModeInfo {
   const seats = seatsFor(map, mode);
   const rounds = roundBased(map, mode);
+  if (mode === "gun") {
+    return {
+      map,
+      mode,
+      label: "GUN GAME",
+      short: "GUN",
+      size: `${seats} PLAYERS`,
+      seats,
+      teamSize: 1,
+      teams: false,
+      rounds: false,
+      rules: `Every kill hands you the next gun: ${GUN_LADDER.map((g) => g.toUpperCase()).join(" → ")}, ${GUN_KILLS_PER_TIER} kills each. Finish the ladder to win. A knife kill knocks your victim back one.`,
+      goal: `FINISH THE LADDER · ${GUN_GOAL} KILLS · ${mmss(matchTimeFor("ffa"))}`,
+      limit: GUN_GOAL,
+      clock: matchTimeFor("ffa"),
+      unit: "KILLS",
+    };
+  }
   if (mode === "ffa") {
     return {
       map,
@@ -168,9 +200,9 @@ export function modeHeadline(map: string, mode: ModeId): string {
   return `${m.label} · ${m.size}`;
 }
 
-/** The modes offered on a map, in menu order. Every map runs both today. */
+/** The modes offered on a map, in menu order. Every map runs all three today. */
 export function modesFor(map: string): ModeInfo[] {
-  return (["tdm", "ffa"] as const).map((m) => modeInfo(map, m));
+  return (["tdm", "ffa", "gun"] as const).map((m) => modeInfo(map, m));
 }
 
 /**

@@ -16,31 +16,32 @@ export type OBB = {
   sz: number;
   yaw: number;
   climb?: boolean;
-  visual?: string;
   /**
-   * Nuketown balcony rail vaults only: a deck rail panel the geometry gate in
-   * shared/maps/nuketown.ts promoted to climbable. JUMP-VAULT, not walk-mantle:
-   * resolveCircle, groundHeight and ceilingCrossed only mantle it while the
-   * body is airborne after a jump and not sliding (!onGround && slide <= 0:
-   * a slide gone airborne off a deck/stair lip stays steel) — a grounded
-   * body walking, sprinting, sliding or crouching into it reads hard steel
-   * and is never snapped up. climb stays true so floor/nav/ceiling-height queries keep
-   * seeing the panel; botBlocked treats it as HARD STEEL for live steering
-   * (never mantle-stepped — a wandering bot must feel the 3 m drop),
-   * botLinkClear REJECTS any edge whose segment crosses a railVault footprint
-   * (deck legs survive only where they touch no rail steel; stairs carry the
-   * deck, never a vault), the import-time assertion in sim.ts fails the build
-   * if one slips through, and botWallPush keeps the standoff even on the
-   * crossLow rung — so no live bot ever walks a routed vault. Bots vault by
-   * jumping (botRailVaultJump sets cmd.jump when the wish runs into rail
-   * steel at deck height); players vault by pressing jump.
+   * A waist-high rail you can JUMP over but never walk through (Nuketown's
+   * balcony railings): bodies pass it only while their feet are within
+   * VAULT_REACH of its top, which a standing body never is and a jump is.
    */
-  railVault?: boolean;
+  vault?: boolean;
+  visual?: string;
   open?: boolean;
   color?: string;
   /** Statement prop: the visual is an authored mesh, not a procedural build. */
   glb?: string;
 };
+
+/** How close (m) the feet must come to a `vault` rail's top to clear it: a jump, never a step. */
+export const VAULT_REACH = 0.6;
+
+/**
+ * Is this body (feet at `feet`, vertical speed `vy`) passing over a `vault`
+ * rail? Yes while it is still RISING from a jump, or once its feet are within
+ * VAULT_REACH of the top; a body standing or walking is neither.
+ */
+export function vaulting(o: OBB, feet: number, vy: number): boolean {
+  if (!o.vault) return false;
+  const top = o.y + o.sy * 0.5;
+  return (vy > 0.5 || top - feet < VAULT_REACH) && top - feet < 1.05;
+}
 
 /** OBB yaw convention (worldToLocal/localToWorld below): local +x maps to world
  *  (cos y, sin y) and local +z to world (-sin y, cos y). three.js `rotation.y`
@@ -295,14 +296,18 @@ export function buildSolids(): OBB[] {
   // 1.72 at the nose, not 1.58: the sculpted grille runs out to local z 1.70,
   // and raising the box top moved the face-sample rows just far enough to catch
   // it (VIS>COL 0.123 m on the +z face).
-  // climb:false. At a 1.58 m top the mantle rule (top - y < 1.05) can never
-  // fire from the ground, so the flag only ever raised groundHeight over the
-  // truck — which told the clearance scan that the bed was standable floor and
-  // then blocked it with the cab/load boxes: 18 of the map's 27 phantom-block
-  // cells were standing room nobody can reach, on top of a truck.
-  solids.push(truckBox(-1.7, 1.72, 0.88, 1.58, false)); // chassis, fenders, bed sides, low bed cargo
-  solids.push(truckBox(-0.42, 0.7, 0.74, 2.04, false, 1.58)); // cab shell
-  solids.push(truckBox(-1.78, -0.42, 0.42, 2.38, false, 1.58, 0.4)); // stamped crate stack only
+  // climb:true — THE TRUCK IS A JUMP SPOT. The 1.58 m bed is
+  // out of a walking mantle's reach (top - y < 1.05) but inside a JUMP's: the
+  // apex is 0.755 m, so a body that jumps into the tailgate rises through the
+  // mantle band and lands on the bed, and from the bed the cab roof (+0.46 m)
+  // and the stamped crate stack (+0.80 m) are ordinary steps up. They were
+  // climb:false, so the crates on the bed read as a perch nobody could reach.
+  // Bots still treat the truck as a wall (botBlocked's mantle test is from the
+  // ground), and no spawn point or nav seed lies inside its footprint, so
+  // neither moves (measured: groundHeight at all 31 is unchanged).
+  solids.push(truckBox(-1.7, 1.72, 0.88, 1.58, true)); // chassis, fenders, bed sides, low bed cargo
+  solids.push(truckBox(-0.42, 0.7, 0.74, 2.04, true, 1.58)); // cab shell
+  solids.push(truckBox(-1.78, -0.42, 0.42, 2.38, true, 1.58, 0.4)); // stamped crate stack only
 
   // Forklift: chassis/overhead-guard envelope (the old 1.4 m box left the guard
   // roof and mast standing 0.53 m outside it) + a low box for the forks.
@@ -742,21 +747,6 @@ export function groundHeight(
   solids: OBB[] = ACTIVE_SOLIDS,
   fromY = Infinity,
   floorY: number = ACTIVE_FLOOR_Y,
-  /**
-   * JUMP-VAULT GATE (Nuketown rails only — every other map has no railVault
-   * box, so this is a dead branch there). A railVault top counts as floor only
-   * while the body is vaulting (airborne after a jump, slide <= 0) or is
-   * already standing on/above it (fromY at/above the top): a grounded body
-   * approaching from the deck below must NOT be snapped up — resolveCircle
-   * already held it as steel, and a snap here would walk it over like a
-   * stair. A slide gone airborne off a lip (slide > 0) stays steel too, in
-   * both places. Defaults true (legacy: spawn, clearance scans and every
-   * pre-existing caller keep seeing every climb top, exactly as before);
-   * the live snap in shared/sim.ts integrate() and its ceiling mirror pass
-   * !onGround && slide <= 0, nav ground (botGroundY / botBlocked default y)
-   * passes false. No other caller threads the flag.
-   */
-  vaulting = true,
 ): number {
   let h = floorY;
   const lim = fromY + 1.05;
@@ -768,7 +758,6 @@ export function groundHeight(
       if (!o.climb) continue;
       const top = o.y + o.sy * 0.5;
       if (top > lim) continue;
-      if (o.railVault && !vaulting && (!Number.isFinite(fromY) || fromY < top - 0.02)) continue;
       const loc = worldToLocal(o, x, z);
       if (Math.abs(loc.x) <= o.sx * 0.5 + GH_TOL && Math.abs(loc.z) <= o.sz * 0.5 + GH_TOL) {
         h = Math.max(h, top);
@@ -780,7 +769,6 @@ export function groundHeight(
     if (!o.climb) continue;
     const top = o.y + o.sy * 0.5;
     if (top > lim) continue;
-    if (o.railVault && !vaulting && (!Number.isFinite(fromY) || fromY < top - 0.02)) continue;
     const loc = worldToLocal(o, x, z);
     if (Math.abs(loc.x) <= o.sx * 0.5 + GH_TOL && Math.abs(loc.z) <= o.sz * 0.5 + GH_TOL) {
       h = Math.max(h, top);

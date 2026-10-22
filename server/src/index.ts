@@ -83,7 +83,7 @@ const MAX_CONN_PER_IP = 20;
  * for jitter/TCP-burst catch-up without killing legit play. */
 const MSG_WINDOW_MS = 1000;
 const MSG_MAX_PER_WINDOW = 120;
-/** ping ≤ 4/s per socket; lobbyq ≤ 2/s per socket (H3 fan-out). */
+/** ping ≤ 4/s per socket; lobbyq/lobbyset/shuffle ≤ 2/s per socket (H3 fan-out). */
 const PING_MIN_GAP_MS = 250;
 const LOBBYQ_MIN_GAP_MS = 500;
 /** Pre-auth upgrade socket idle timeout (H4 Slowloris). */
@@ -177,7 +177,7 @@ import type { ClientMsg, InputCmd, LobbyMember, NameCheck, NetEvent, PredictionS
 import { BOT_NAMES, matchTimeFor, MAX_INPUT_QUEUE } from "../../shared/protocol";
 import { packPlayers } from "../../shared/snapshot-wire";
 import { sanitizeLoadout, type Loadout } from "../../shared/loadout";
-import { seatsFor, type ModeId } from "../../shared/modes";
+import { seatsFor, simMode, type ModeId } from "../../shared/modes";
 
 // Seats per room: seatsFor(map, mode) — shipment 5v5/10 FFA, dust2/ares/
 // nuketown 6v6/12 (shared/modes.ts MAP_SEATS). No global cap anymore: the
@@ -591,9 +591,10 @@ type Seat = {
   closed: boolean;
   /** H3 sliding-window message timestamps (ms). */
   msgTimes: number[];
-  /** H3 per-type last-seen for ping/lobbyq fan-out gates. */
+  /** H3 per-type last-seen for ping/lobbyq/lobbyset+shuffle fan-out gates. */
   lastPing: number;
   lastLobbyQ: number;
+  lastLobbySet: number;
   /** M3 checkname/join attempts window. */
   /** H1 repeated oversize/invalid-frame violations. */
   violations: number;
@@ -649,8 +650,9 @@ class Room {
     this.kind = kind;
     this.seatCount = seatsFor(SERVER_MAP, mode);
     this.session = new GameSession();
-    this.session.mode = mode;
-    this.session.remain = matchTimeFor(mode);
+    this.session.mode = simMode(mode);
+    this.session.gunGame = mode === "gun";
+    this.session.remain = matchTimeFor(simMode(mode));
     if (kind === "yard") {
       for (let i = 0; i < this.seatCount; i++) this.addBot((i % 2) as Team);
       this.session.nextMatch();
@@ -666,7 +668,7 @@ class Room {
   }
 
   get mode(): ModeId {
-    return this.session.mode === "ffa" ? "ffa" : "tdm";
+    return this.session.gunGame ? "gun" : this.session.mode === "ffa" ? "ffa" : "tdm";
   }
 
   playableHumans(): Seat[] {
@@ -768,6 +770,7 @@ class Room {
       msgTimes: [],
       lastPing: 0,
       lastLobbyQ: 0,
+      lastLobbySet: 0,
       violations: 0,
       lastSeq: -1,
       moveBank: 0,
@@ -846,7 +849,7 @@ class Room {
     }
     // Clear everything (empty after lobby return from the last match) and rebuild.
     for (const id of [...this.session.players.keys()]) this.session.remove(id);
-    const ffa = this.mode === "ffa";
+    const ffa = this.mode !== "tdm";
     const half = this.seatCount / 2;
     const c: [number, number] = [0, 0];
     const humans = this.playableHumans().sort((a, b) => a.joinedAt - b.joinedAt);
@@ -877,6 +880,77 @@ class Room {
     const startAt = Date.now() + COUNTDOWN_MS;
     this.startAtWall = startAt;
     for (const s of this.seats.values()) this.send(s, { t: "start", startAt });
+    this.broadcastLobby();
+  }
+
+  /**
+   * HOST, PRE-GAME ONLY: change the lobby's mode (same room, at once) or its
+   * map (the room moves: every seat is sent `relocate`). Anyone else, or a
+   * room that is counting down or live, is ignored.
+   */
+  lobbySet(fromSeat: Seat, mode: unknown, map: unknown): void {
+    if (this.kind !== "private" || this.phase !== "pregame" || this.host !== fromSeat.id) return;
+    if (typeof map === "string" && map !== SERVER_MAP) {
+      if (!VALID_MAPS.has(map)) return;
+      const roomMode = this.mode;
+      for (const s of this.seats.values()) {
+        this.send(s, { t: "relocate", map, room: this.id, mode: roomMode, host: s.id === this.host });
+      }
+      return;
+    }
+    if (mode !== "tdm" && mode !== "ffa" && mode !== "gun") return;
+    if (mode === this.mode) return;
+    this.session.setMode(simMode(mode), mode === "gun");
+    if (!this.session.roundBased) this.session.remain = matchTimeFor(simMode(mode));
+    this.seatCount = seatsFor(SERVER_MAP, mode);
+    this.broadcastLobby();
+  }
+
+  /**
+   * HOST, PRE-GAME ONLY, and only with every seat taken and someone on the
+   * bench: re-deal every seat but the host's at random — who plays, who
+   * watches, and the teams.
+   */
+  shuffle(fromSeat: Seat): void {
+    if (this.kind !== "private" || this.phase !== "pregame" || this.host !== fromSeat.id) return;
+    if (this.playableHumans().length < this.seatCount || this.spectators().length === 0) return;
+    const others = [...this.seats.values()].filter((s) => s.id !== this.host);
+    // Fisher-Yates over the non-host seats, then re-deal: first seatCount are
+    // playable (host keeps theirs), the rest watch.
+    for (let i = others.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [others[i], others[j]] = [others[j]!, others[i]!];
+    }
+    const hostSeat = this.seats.get(this.host ?? "");
+    const playable: Seat[] = hostSeat && !hostSeat.spectator ? [hostSeat] : [];
+    const bench: Seat[] = hostSeat && hostSeat.spectator ? [hostSeat] : [];
+    for (const s of others) (playable.length < this.seatCount ? playable : bench).push(s);
+    for (const s of playable) {
+      if (s.spectator) {
+        s.spectator = false;
+        s.slot = this.nextSlot();
+        s.team = this.pickTeam();
+        s.moveBank = 0;
+        s.queue.length = 0;
+        this.send(s, { t: "promoted", slot: s.slot });
+      }
+    }
+    for (const s of bench) {
+      if (!s.spectator) {
+        s.spectator = true;
+        s.slot = 0;
+      }
+    }
+    // Re-deal the teams of the playable seats (host keeps theirs).
+    const teams = playable.filter((s) => s.id !== this.host);
+    for (let i = teams.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [teams[i], teams[j]] = [teams[j]!, teams[i]!];
+    }
+    const half = Math.ceil(teams.length / 2);
+    teams.forEach((s, i) => {
+      s.team = (i < half ? 0 : 1) as Team;
+    });
     this.broadcastLobby();
   }
 
@@ -989,6 +1063,24 @@ class Room {
       case "startmatch":
         this.startMatch(seat);
         return;
+      case "lobbyset": {
+        // H3: a map change relocates every seat, a mode change re-arms the
+        // room — same per-socket gate as lobbyq so a compromised host cannot
+        // fire relocate-reload storms through the 120/s global window.
+        const now = Date.now();
+        if (now - seat.lastLobbySet < LOBBYQ_MIN_GAP_MS) return;
+        seat.lastLobbySet = now;
+        this.lobbySet(seat, m.mode, m.map);
+        return;
+      }
+      case "shuffle": {
+        // H3: re-deal + broadcasts fan out like lobbyset — same gate.
+        const now = Date.now();
+        if (now - seat.lastLobbySet < LOBBYQ_MIN_GAP_MS) return;
+        seat.lastLobbySet = now;
+        this.shuffle(seat);
+        return;
+      }
       case "lobbyq": {
         // H3: each lobbyq fans out to the whole room — gate per-socket.
         const now = Date.now();
@@ -1842,7 +1934,7 @@ function onSocket(ws: WsConn, ip: string): void {
       const r = rooms.get(asked);
       if (!r) {
         // NoSuchRoom case: created on join of this code.
-        const md: ModeId = m.mode === "ffa" ? "ffa" : "tdm";
+        const md: ModeId = m.mode === "gun" ? "gun" : m.mode === "ffa" ? "ffa" : "tdm";
         ws.send(
           JSON.stringify({
             t: "namecheck",
@@ -1871,7 +1963,7 @@ function onSocket(ws: WsConn, ip: string): void {
 
     if (m.t === "join") {
       if (room && seat) return;
-      const mode: ModeId = m.mode === "ffa" ? "ffa" : "tdm";
+      const mode: ModeId = m.mode === "gun" ? "gun" : m.mode === "ffa" ? "ffa" : "tdm";
       const code = cleanRoomCode(m.room);
       const target = code ? getOrCreateRoom(code, mode) : yardRoom();
       if (!target) {

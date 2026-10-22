@@ -8,7 +8,7 @@
  * selection persists (localStorage) so a returning player's last setup is
  * already highlighted.
  */
-import { modeInfo, modesFor, PUBLIC_MODE, type ModeId } from "@shared/modes";
+import { asModeId, modeInfo, modesFor, PUBLIC_MODE, type ModeId } from "@shared/modes";
 import { isMapId } from "@shared/maps";
 import { mapBlurb, mapCardUrl, mapIds, mapLabel } from "./flow";
 import { wireSfx } from "./sfx";
@@ -65,7 +65,7 @@ export function initMenu(pageMap: string, cb: (s: MenuSelection) => void): void 
   }
   sel = {
     map: isMapId(saved.map) ? saved.map : pageMap,
-    mode: saved.mode === "ffa" || saved.mode === "tdm" ? saved.mode : "tdm",
+    mode: asModeId(saved.mode),
   };
   const menu = $("menu");
   if (menu) wireSfx(menu);
@@ -147,7 +147,9 @@ function paint(): void {
       b.type = "button";
       b.setAttribute("role", "radio");
       b.setAttribute("aria-checked", String(m.mode === sel.mode));
-      b.append(document.createTextNode(m.label), h("small", undefined, m.size));
+      // Three modes share the row: the size lives in the summary line below.
+      b.append(document.createTextNode(m.label));
+      b.title = `${m.label} · ${m.size}`;
       b.addEventListener("click", () => setMenuSelection({ mode: m.mode }));
       seg.append(b);
     }

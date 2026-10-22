@@ -2,6 +2,7 @@ import { clamp, lerp, len2, norm2, angWrap } from "./math";
 import {
   groundHeight,
   circleHitsOBB,
+  vaulting,
   worldToLocal,
   localToWorld,
   traceWorld,
@@ -22,6 +23,8 @@ import {
   type WeaponDef,
 } from "./weapons";
 import { DEFAULT_LOADOUT, sanitizeLoadout, type Loadout } from "./loadout";
+import { GUN_GOAL, gunFor } from "./gungame";
+import { bulletPath, keepAt } from "./penetration";
 import { COUNTDOWN_MS, inputLocked, type MatchPhase } from "./matchphase";
 import {
   TICK_DT,
@@ -1193,6 +1196,9 @@ export type SimPlayer = {
   alt: string;
   altAmmo: number;
   altRes: number;
+  /** GUN GAME (shared/gungame.ts): ladder progress, and the gun it puts in hand ("" elsewhere). */
+  gun: number;
+  gunWeapon: string;
   /** The kit this body spawns with, and the one it switches to at next spawn. */
   loadout: Loadout;
   nextLoadout: Loadout | null;
@@ -1368,6 +1374,8 @@ export class GameSession {
   time = 0;
   tick = 0;
   mode: Mode = "tdm";
+  /** GUN GAME: an FFA room whose guns come off the ladder (shared/gungame.ts), set before anyone joins. */
+  gunGame = false;
   score0 = 0;
   score1 = 0;
   remain = TDM_MATCH_TIME;
@@ -1628,6 +1636,8 @@ export class GameSession {
       alt: loadout.secondary,
       altAmmo: 0,
       altRes: 0,
+      gun: 0,
+      gunWeapon: this.gunGame ? gunFor(0) : "",
       loadout,
       nextLoadout: null,
       heat: 0,
@@ -1719,6 +1729,21 @@ export class GameSession {
   }
 
   /**
+   * THE LOBBY CHANGED MODE before the match. Every body is re-armed for it:
+   * the ladder's gun in GUN GAME, its own loadout otherwise.
+   */
+  setMode(mode: "tdm" | "ffa", gunGame: boolean): void {
+    this.mode = mode;
+    this.gunGame = mode === "ffa" && gunGame;
+    if (this.time === 0 && !this.roundBased) this.remain = matchTimeFor(mode);
+    for (const p of this.players.values()) {
+      p.gun = 0;
+      p.gunWeapon = this.gunGame ? gunFor(0) : "";
+      if (p.alive && p.cook <= 0) equip(p);
+    }
+  }
+
+  /**
    * A player picked a new loadout. Sanitized here, whatever the caller already
    * did. In a live match it is parked until this body's next spawn (CoD rule:
    * no mid-life gun swap from a menu). Before the match goes live — the lobby,
@@ -1775,6 +1800,8 @@ export class GameSession {
       p.deaths = 0;
       p.streak = 0;
       p.score = 0;
+      p.gun = 0;
+      if (p.gunWeapon) p.gunWeapon = gunFor(0);
       p.uav = 0;
       p.hp = 100;
       p.dead = 0;
@@ -2539,8 +2566,10 @@ export class GameSession {
     at: number | false,
   ): void {
     const maxT = w.fire === "melee" ? w.reach : 180;
-    const world = traceWorld(ox, oy, oz, dx, dy, dz, maxT);
-    let bestT = world.t;
+    // PENETRATION (shared/penetration.ts): the round runs on through thin
+    // soft walls, so bodies behind them are in reach at reduced damage.
+    const path = bulletPath(ox, oy, oz, dx, dy, dz, maxT, w, MAP.id);
+    let bestT = path.t;
     let victim: SimPlayer | null = null;
     let hitPose: HitPose | null = null;
     let head = false;
@@ -2576,7 +2605,8 @@ export class GameSession {
     const chest = !head && hy > top - (zone.slide > 0 ? 0.55 : 0.85);
     // THREE ZONES (CoD): head x headMul, upper body (chest, shoulders, arms) x1,
     // lower body and legs x lowerMul — over the gun's range STEP, rounded.
-    const dmg = bulletDamage(w, dist, head ? "head" : chest ? "upper" : "lower");
+    const keep = keepAt(path, dist);
+    const dmg = Math.max(1, Math.round(bulletDamage(w, dist, head ? "head" : chest ? "upper" : "lower") * keep));
     victim.hp -= dmg;
     victim.lastHit = src.id;
     victim.lastHitAt = this.time;
@@ -2599,6 +2629,7 @@ export class GameSession {
       // that command's seq — the shooter's client dedupes its predicted
       // hitmarker against exactly this number.
       seq: src.seq,
+      ...(keep < 1 ? { wall: true } : {}),
     });
     if (kill) this.kill(src, victim, w.id, head);
   }
@@ -2681,6 +2712,13 @@ export class GameSession {
     else if (src.streak === 7) medal = "RELENTLESS";
     else if (src.streak >= 10) medal = "UNSTOPPABLE";
     this.events.push({ t: "kill", src: src.id, dst: dst.id, weapon, head, medal });
+    // GUN GAME: the kill moves the killer up the ladder; a knife kill also
+    // knocks the victim back one (humiliation). A frag in your own face is not
+    // progress.
+    if (this.gunGame && src.id !== dst.id) {
+      if (weapon === "knife") this.setGun(dst, dst.gun - 1);
+      this.setGun(src, src.gun + 1);
+    }
 
     if (src.streak === 3) {
       this.uavUntil[src.team] = this.time + 10;
@@ -2695,11 +2733,30 @@ export class GameSession {
     const limitHit =
       this.mode !== "ffa"
         ? !this.roundBased && (this.score0 >= SCORE_LIMIT || this.score1 >= SCORE_LIMIT)
-        : src.kills >= FFA_KILL_LIMIT;
+        : this.gunGame
+          ? src.gun >= GUN_GOAL
+          : src.kills >= FFA_KILL_LIMIT;
     if (limitHit) {
       this.over = true;
       this.events.push({ t: "match", state: "end", score0: this.score0, score1: this.score1 });
     }
+  }
+
+  /**
+   * GUN GAME: set ladder progress. A body whose rung changes while alive gets
+   * the new gun in hand at once — raised, full, nothing carried over; a dead
+   * one picks it up at its next spawn (equip).
+   */
+  setGun(p: SimPlayer, level: number): void {
+    p.gun = clamp(level, 0, GUN_GOAL);
+    const next = gunFor(p.gun);
+    if (next === p.gunWeapon) return;
+    p.gunWeapon = next;
+    if (!p.alive || p.cook > 0) return;
+    equip(p);
+    p.swap = WEAPON_BY_ID[next]?.swap ?? 0;
+    p.fireCd = 0;
+    p.ads = 0;
   }
 
   artillery(x: number, z: number, src: SimPlayer): void {
@@ -2930,6 +2987,7 @@ export class GameSession {
         altRes: p.altRes,
         swap: q2(p.swap),
         cook: q2(p.cook),
+        gun: p.gun,
       });
     }
     return out;
@@ -3097,6 +3155,8 @@ function equip(p: SimPlayer): void {
   }
   p.weapon = p.loadout.primary;
   p.alt = p.loadout.secondary ?? SECONDARY_WEAPON_ID;
+  // GUN GAME: one gun, the ladder's — nothing holstered to swap to.
+  if (p.gunWeapon) p.weapon = p.alt = p.gunWeapon;
   p.swap = 0;
   p.reload = 0;
   p.heat = 0;
@@ -3571,6 +3631,7 @@ export function movePlayer(p: SimPlayer, cmd: InputCmd, dt: number): void {
       p.vy = JUMP_V;
       p.onGround = false;
       p.slide = 0;
+      if (moving) vaultHop(p, wishX, wishZ);
     }
   } else {
     p.vy -= GRAVITY * dt;
@@ -3587,6 +3648,33 @@ export function movePlayer(p: SimPlayer, cmd: InputCmd, dt: number): void {
   }
 
   integrate(p, dt, ph0);
+}
+
+/** Horizontal speed a jump INTO a `vault` rail carries over it (m/s): air control alone is far too weak. */
+const VAULT_HOP = 3.2;
+
+/**
+ * VAULTING. A jump pushed into a waist-high `vault` rail within a
+ * quarter metre leaves with at least VAULT_HOP along the push, so a standing
+ * hop from against a balcony rail clears it the way a running one does.
+ * Shared by the server and the client's replay, like everything in moveBody.
+ */
+function vaultHop(p: SimPlayer, wx: number, wz: number): void {
+  const ax = p.x + wx * 0.25;
+  const az = p.z + wz * 0.25;
+  const cand = gridQueryCircle(solidGrid(), ax, az, RC_PAD, RC_NEAR);
+  for (let i = 0; i < cand.length; i++) {
+    const o = SOLIDS[cand[i]!]!;
+    if (!o.vault) continue;
+    const rise = o.y + o.sy * 0.5 - p.y;
+    if (rise <= 0 || rise > 1.05 || !circleHitsOBB(ax, az, RADIUS, o).hit) continue;
+    const along = p.vx * wx + p.vz * wz;
+    if (along < VAULT_HOP) {
+      p.vx += wx * (VAULT_HOP - along);
+      p.vz += wz * (VAULT_HOP - along);
+    }
+    return;
+  }
 }
 
 function integrate(p: SimPlayer, dt: number, ph0: number): void {
@@ -3608,14 +3696,10 @@ function integrate(p: SimPlayer, dt: number, ph0: number): void {
     p.y += p.vy * sdt;
     // CEILINGS (shared/ceiling.ts): a head that rises into an overhead solid stops under it, never a lateral push.
     if (p.vy > 0) stopAtCeiling(p, y0 + ph, ph, false);
-    // JUMP-VAULT SNAP GATE: railVault tops only count as floor while the body
-    // is airborne after a jump and not sliding (!onGround && slide <= 0) — a
-    // slide that goes airborne off a deck/stair lip (onGround false, slide > 0
-    // persisting) must never be snapped Deck→RailTop. A grounded walker held
-    // as steel by resolveCircle above must never be snapped Deck→RailTop.
-    // Standing ON a rail top stays put: groundHeight still counts a top
-    // at/above fromY, so a grounded body balanced on the rail keeps its floor.
-    const gh = groundHeight(p.x, p.z, SOLIDS, fromY, FLOOR_Y, !p.onGround && p.slide <= 0);
+    // `vault` rails are not climb, so groundHeight never lifts to a rail top:
+    // a grounded walker held as steel by resolveCircle above can never be
+    // snapped Deck→RailTop like a stair.
+    const gh = groundHeight(p.x, p.z, SOLIDS, fromY, FLOOR_Y);
     if (p.y <= gh) {
       p.y = gh;
       if (p.vy < 0) p.vy = 0;
@@ -3703,7 +3787,7 @@ function integrate(p: SimPlayer, dt: number, ph0: number): void {
       // body onto a different floor than the substeps above sampled — re-sample
       // instead of standing one stale tick on the void's y. Only runs on the
       // teleported path; unclamped bodies keep the exact code above.
-      const gh = groundHeight(p.x, p.z, SOLIDS, walkFromY(p.y), FLOOR_Y, !p.onGround && p.slide <= 0);
+      const gh = groundHeight(p.x, p.z, SOLIDS, walkFromY(p.y), FLOOR_Y);
       if (p.y <= gh) {
         p.y = gh;
         if (p.vy < 0) p.vy = 0;
@@ -3726,11 +3810,7 @@ function integrate(p: SimPlayer, dt: number, ph0: number): void {
  * under the lowest underside it crossed — Infinity when it crossed none.
  */
 function ceilingFeetY(p: SimPlayer, head0: number, ph: number, contact = false): number {
-  // Jump-vault mirror: a railVault panel resolveCircle would hold as steel
-  // (grounded body, or a slide gone airborne off a lip) is a ceiling here;
-  // one it would mantle (airborne after a jump, slide <= 0) is never a
-  // ceiling — the two agree by construction.
-  const bot = ceilingCrossed(SOLIDS, solidGrid(), p.x, p.z, RADIUS, p.y, p.vy, head0, p.y + ph, contact, !p.onGround && p.slide <= 0);
+  const bot = ceilingCrossed(SOLIDS, solidGrid(), p.x, p.z, RADIUS, p.y, p.vy, head0, p.y + ph, contact);
   return bot === Infinity ? Infinity : Math.max(bot - CEIL_EPS, head0) - ph;
 }
 
@@ -3743,13 +3823,7 @@ function ceilingFeetY(p: SimPlayer, head0: number, ph: number, contact = false):
  */
 function stopAtCeiling(p: SimPlayer, head0: number, ph: number, fit: boolean): void {
   const y = ceilingFeetY(p, head0, ph);
-  // Jump-vault mirror: the floor under the feet reads railVault tops exactly
-  // when the live snap does (airborne after a jump, unslid) — the same
-  // boolean integrate threads, verbatim. A grounded head-in-rail is
-  // impossible on shipped maps (the rail underside sits ~at deck level), so
-  // this only matters as agreement by construction, not as gameplay.
-  const vaulting = !p.onGround && p.slide <= 0;
-  if (y === Infinity || (fit && y < groundHeight(p.x, p.z, SOLIDS, walkFromY(p.y), FLOOR_Y, vaulting))) return;
+  if (y === Infinity || (fit && y < groundHeight(p.x, p.z, SOLIDS, walkFromY(p.y)))) return;
   p.y = y;
   if (p.vy > 0) p.vy = 0;
 }
@@ -3763,11 +3837,7 @@ function stopAtCeiling(p: SimPlayer, head0: number, ph: number, fit: boolean): v
  */
 function roomToStand(p: SimPlayer, ph0: number): boolean {
   const y = ceilingFeetY(p, p.y + ph0, STAND_H, true);
-  // Same verbatim-mirror boolean as stopAtCeiling above (LOW-3): the floor
-  // the stand-up check refuses to sink through must read railVault tops
-  // exactly when the live snap does.
-  const vaulting = !p.onGround && p.slide <= 0;
-  return y === Infinity || y >= groundHeight(p.x, p.z, SOLIDS, walkFromY(p.y), FLOOR_Y, vaulting);
+  return y === Infinity || y >= groundHeight(p.x, p.z, SOLIDS, walkFromY(p.y));
 }
 
 /**
@@ -3809,24 +3879,11 @@ function resolveCircle(p: SimPlayer): void {
       if (p.y + ph < bot + 0.05 || p.y > top - 0.02) continue;
       const hit = circleHitsOBB(p.x, p.z, RADIUS, o);
       if (hit.hit && hit.pen > 0) {
-        // JUMP-VAULT GATE (Nuketown rails only — other maps never set
-        // railVault, so the added clause is a dead branch there). A railVault
-        // panel mantles ONLY while the body is airborne after a jump AND not
-        // sliding (!onGround && slide <= 0: movePlayer cleared onGround the
-        // same tick cmd.jump fired, and it stays clear until a groundHeight
-        // snap lands the body again; a slide that goes airborne off a deck or
-        // stair lip keeps slide > 0 while onGround reads false, and must stay
-        // steel like every other grounded approach). A grounded body —
-        // walking, sprinting, sliding or crouching into the rail with
-        // vy ~= 0 — reads it as hard steel, exactly like a wall:
-        // no pass-through, so the groundHeight snap below can never lift a
-        // walker Deck→RailTop like a stair. Sliding is grounded too (a slide
-        // never jumps), and the vy >= -0.5 re-steel for fast falls is kept for
-        // every mantle including rails. Client prediction and the authority
-        // both run this function, so they agree by construction.
-        if (o.climb && top - p.y < 1.05 && p.y + 0.2 < top && p.vy >= -0.5 && (!o.railVault || (!p.onGround && p.slide <= 0))) {
+        if (o.climb && top - p.y < 1.05 && p.y + 0.2 < top && p.vy >= -0.5) {
           continue;
         }
+        // a jump clears a waist-high rail (shared/map.ts `vault`); a walk never does
+        if (vaulting(o, p.y, p.vy)) continue;
         p.x += hit.nx * hit.pen;
         p.z += hit.nz * hit.pen;
         const vn = p.vx * hit.nx + p.vz * hit.nz;
@@ -4491,7 +4548,7 @@ const BOT_BANDS = [0, 0.62, 0.34, 0.16];
  * `lowSolid` asks the OTHER question: is it legal here for a body that would
  * rather not wade through a dumpster? See LOW PROPS ARE NOT DOORWAYS, below.
  */
-function botBlocked(x: number, z: number, r: number, lowSolid = false, fromY = Infinity, y = groundHeight(x, z, SOLIDS, fromY, FLOOR_Y, false), allowRailVault = false): boolean {
+function botBlocked(x: number, z: number, r: number, lowSolid = false, fromY = Infinity, y = groundHeight(x, z, SOLIDS, fromY), allowRailVault = false): boolean {
   // Nothing here moves, so one gathered list covers the whole sweep. The
   // per-solid bounding-circle test below is kept: it is exact where the grid is
   // only conservative, and it costs two multiplies.
@@ -4510,12 +4567,12 @@ function botBlocked(x: number, z: number, r: number, lowSolid = false, fromY = I
     // (1.22→0.62→0.34→0.16→crossLow) plus pre-standoff separation must never
     // narrow it away. Only the link builder opts back in (allowRailVault),
     // and only for deck-level edges — lawn→deck legs stay steel. Other maps
-    // never set railVault, so this branch is dead code off Nuketown.
+    // never set vault, so this branch is dead code off Nuketown.
     //
     // JUMP-VAULT NAV AGREEMENT (LOW-2): this branch sits ABOVE the y-skip on
     // purpose, with its own height gate. nav ground (botGroundY below, and
-    // this function's own default y) reads deck under a rail footprint
-    // (vaulting=false); the legacy nav ground (vaulting=true) instead lifted
+    // this function's own default y) reads deck under a rail footprint;
+    // the legacy nav ground instead lifted
     // the sample to the rail top ~4.0, and the old order then skipped the
     // steel test on that lifted y (y > top - 0.02) and reported clear inside
     // body width — while live steering holds the same panel as steel. Steel
@@ -4524,7 +4581,7 @@ function botBlocked(x: number, z: number, r: number, lowSolid = false, fromY = I
     // rail reads blocked), and the shipped backstops (graph reject at 5018 +
     // live botWallPush standoff) already held — this only removes the
     // by-construction disagreement.
-    if (o.railVault && NAV_Y && !allowRailVault) {
+    if (o.vault && NAV_Y && !allowRailVault) {
       if (y + STAND_H < bot + 0.05 || y > top - 0.02) continue;
       const hitRail = circleHitsOBB(x, z, r, o);
       if (hitRail.hit && hitRail.pen > 0) return true;
@@ -4550,17 +4607,17 @@ function botBlocked(x: number, z: number, r: number, lowSolid = false, fromY = I
 
 /** The floor a standing bot would be on at (x,z), stepping from `fromY`.
  *
- * JUMP-VAULT NAV AGREEMENT (LOW-2): nav ground never vaults (vaulting=false)
+ * JUMP-VAULT NAV AGREEMENT (LOW-2): nav ground never vaults
  * — a deck-level walker must read deck under a rail footprint, not the rail
- * top. The legacy default (vaulting=true: every climb top counts, kept for
- * spawn/clearance scans and non-nav callers) lifted the sample to railTop
+ * top. The legacy default instead lifted
+ * the sample to railTop
  * ~4.0, and the old botBlocked order then skipped the steel test on that
  * lifted y and reported clear inside body width. Standing ON a rail still
- * counts (groundHeight keeps a top at/above fromY even with vaulting=false),
- * and other maps have no railVault box, so the flag is a dead branch there.
+ * counts (groundHeight keeps a top at/above fromY),
+ * and other maps have no vault box, so the flag is a dead branch there.
  */
 function botGroundY(x: number, z: number, fromY = Infinity): number {
-  return groundHeight(x, z, SOLIDS, fromY, FLOOR_Y, false);
+  return groundHeight(x, z, SOLIDS, fromY);
 }
 
 /** Instruments only (nuketown rail sweeps): the walker-height query, verbatim. */
@@ -4882,14 +4939,14 @@ export function spawnPoolFor(mode: "ffa" | "tdm", team: 0 | 1): Spawn[] {
 const BOT_LINK_MAX = MAP.navLattice.linkMax;
 
 /**
- * How many railVault panels this map has (Nuketown: 11, everywhere else: 0).
+ * How many vault panels this map has (Nuketown: 11, everywhere else: 0).
  * Lets the rail-crossing reject below compile to a single dead branch off
  * Nuketown — no scan, no behaviour change, bit-identical graphs elsewhere.
  */
-const RAIL_VAULT_N = SOLIDS.reduce((n, o) => n + (o.railVault ? 1 : 0), 0);
+const RAIL_VAULT_N = SOLIDS.reduce((n, o) => n + (o.vault ? 1 : 0), 0);
 
 /**
- * Segment vs every railVault footprint: does the line a→b run THROUGH
+ * Segment vs every vault footprint: does the line a→b run THROUGH
  * deck-rail steel at a height a body could occupy?
  *
  * HEIGHT GATE (review HIGH-1): the edge's vertical span is tested against the
@@ -4930,7 +4987,7 @@ function segHitsRailVault(
 ): boolean {
   for (let k = 0; k < SOLIDS.length; k++) {
     const o = SOLIDS[k]!;
-    if (!o.railVault) continue;
+    if (!o.vault) continue;
     const top = o.y + o.sy / 2;
     const bot = o.y - o.sy / 2;
     if (Math.max(yA, yB) + STAND_H < bot + 0.05 || Math.min(yA, yB) > top - 0.02) continue;
@@ -4997,7 +5054,7 @@ function botLinkClear(a: BotNavPt, b: BotNavPt): boolean {
   // pins seeds + pad + range, so a flat-validated set cannot slip in silent
   // (review MEDIUM-1).
   const LINK_R = NAV_Y ? BOT_CLEAR_R + (MAP.navLinkPad ?? 0.15) : BOT_CLEAR_R;
-  // Nuketown rails: botLinkClear re-allows the railVault mantle ONLY for
+  // Nuketown rails: botLinkClear re-allows the vault-rail mantle ONLY for
   // edges whose BOTH ends are on the deck (y >= DECK_RAIL_ALLOW_Y, derived
   // from the same DECK_RAIL_DECKS/DECK_RAIL_TOL the geometry gate promotes on:
   // min deck 3.05 − 0.3 = 2.75, so decks 3.05/3.09 m pass while top stair
@@ -5005,7 +5062,7 @@ function botLinkClear(a: BotNavPt, b: BotNavPt): boolean {
   // literal: if the gate's decks ever move, this follows them. Every other
   // edge — lawn→deck, ground→deck, any leg with a low end — stays hard steel,
   // so no routed edge vaults the balcony from the outside. Other maps never
-  // set railVault, so the value of this flag is dead code off Nuketown.
+  // set vault, so the value of this flag is dead code off Nuketown.
   const allowRail = NAV_Y && Math.min(a.y, b.y) >= DECK_RAIL_ALLOW_Y;
   const dx = b.x - a.x;
   const dz = b.z - a.z;
@@ -5046,7 +5103,7 @@ function botLinkClear(a: BotNavPt, b: BotNavPt): boolean {
   // deck→deck edge whose straight line runs THROUGH a rail panel reads clear
   // and the router emits it — while live steering (botBlocked default false +
   // botWallPush, which keeps the rail a face on EVERY rung) stalls at the
-  // steel it was routed over. Any segment crossing a railVault footprint is
+  // steel it was routed over. Any segment crossing a vault footprint is
   // therefore rejected from the routable set here: it stays steel to the
   // graph exactly as it is steel to the body, so routed and live agree by
   // construction. Deck-interior legs that merely run ALONGSIDE a rail stay
@@ -5414,7 +5471,7 @@ if (BOT_NAV.length > MAP.navLattice.maxNodes) {
 const BOT_ADJ = buildBotAdj(BOT_NAV.length, botLinkWeight);
 
 /**
- * BUILD PIN (review HIGH-1, security #3): no ROUTED edge may cross a railVault
+ * BUILD PIN (review HIGH-1, security #3): no ROUTED edge may cross a vault
  * footprint. botLinkClear's post-filter above already rejects such edges, so
  * this loop should never fire — it exists so a future edit that re-opens a
  * rail edge fails the build loudly instead of shipping bots a hop they stall
@@ -5433,7 +5490,7 @@ if (NAV_Y && RAIL_VAULT_N > 0) {
       const b = BOT_NAV[j]!;
       if (segHitsRailVault(a.x, a.z, b.x, b.z, a.y, b.y, LINK_R)) {
         throw new Error(
-          `BOT_ADJ edge ${i}<->${j} crosses a railVault panel: the router would emit an un-walkable hop (deck routes via stairs, never via a vault)`,
+          `BOT_ADJ edge ${i}<->${j} crosses a vault panel: the router would emit an un-walkable hop (deck routes via stairs, never via a vault)`,
         );
       }
     }
@@ -5742,7 +5799,7 @@ function botWallPush(p: SimPlayer, band = 0, crossLow = false): void {
     const mantle = !!o.climb && top - p.y < 1.05 && p.y + 0.2 < top;
     // NAV_Y (stacked-floor maps): a mantle-height climbable is a floor (stair
     // tread, window sill, porch roof), never a face to keep away from.
-    // Nuketown deck rails (OBB.railVault) are the exception on EVERY rung:
+    // Nuketown deck rails (OBB.vault) are the exception on EVERY rung:
     // they stay a face even on the crossLow bottom rung (which otherwise drops
     // all mantles) and even on the funnel-narrowed ladder a routed
     // deck-to-deck leg starts on — plus separation runs BEFORE this sweep, so
@@ -5751,8 +5808,8 @@ function botWallPush(p: SimPlayer, band = 0, crossLow = false): void {
     // read this, so the jump-vault works exactly as before (gated on
     // airborne there, on the wish running into rail steel here). Thin-epsilon and
     // rail thickness are asserted in the nuketown gate, not here; A.maxY is
-    // reset per build; only this function reads railVault.
-    if (mantle && ((crossLow && !o.railVault) || (NAV_Y && !o.railVault))) continue;
+    // reset per build; only this function reads vault.
+    if (mantle && ((crossLow && !o.vault) || (NAV_Y && !o.vault))) continue;
     const off = band > 0 ? band : mantle ? BOT_TUNING.standoffLow : BOT_TUNING.standoff;
     const pad = RADIUS + Math.max(off, BOT_TUNING.sprintNear);
     const dx = p.x - o.x;
@@ -6518,7 +6575,7 @@ function botSteer(s: GameSession, p: SimPlayer, m: BotMind, gx: number, gz: numb
 }
 
 /**
- * RAIL-VAULT JUMP (Nuketown only). Live steering holds every railVault panel
+ * RAIL-VAULT JUMP (Nuketown only). Live steering holds every vault panel
  * as hard steel (botBlocked default + botWallPush on every rung), and the
  * router never emits a vault edge — so a bot whose wish runs into rail steel
  * at deck height would lean on it until the watchdog fires. When the navigator
@@ -6529,7 +6586,7 @@ function botSteer(s: GameSession, p: SimPlayer, m: BotMind, gx: number, gz: numb
  *
  * Gated to: Nuketown (NAV_Y && RAIL_VAULT_N > 0 — dead branch elsewhere),
  * grounded, deck-height, unprotected, with a real wish whose 0.9 m probe
- * crosses a railVault footprint at body width (the same segHitsRailVault test
+ * crosses a vault footprint at body width (the same segHitsRailVault test
  * the router uses). Crouch/slide never vault (both stay grounded), lawn legs
  * pass under the height gate, and a body balanced ON a rail top probes along
  * it (the height gate skips its own panel), so there is no hop loop.

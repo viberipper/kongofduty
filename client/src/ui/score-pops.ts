@@ -33,6 +33,7 @@ const MEDAL_PTS: Partial<Record<MedalId, number>> = {
 const KILL = 100;
 const HEAD = 50;
 const ASSIST = 25;
+const WALLBANG = 50;
 const CHAIN_S = 2.5;
 const HOLD_S = 2.1;
 const FADE_S = 0.35;
@@ -50,7 +51,7 @@ export class ScorePops {
   private shownTotal = "";
   private op = "";
   /** Damage you dealt per victim since their last death: [{at, dmg}]. */
-  private dealt = new Map<string, { at: number; dmg: number }[]>();
+  private dealt = new Map<string, { at: number; dmg: number; wall?: boolean }[]>();
 
   private mount(): boolean {
     if (this.root?.isConnected) return true;
@@ -68,10 +69,10 @@ export class ScorePops {
   }
 
   /** A hit of yours (assist bookkeeping). */
-  hit(dst: string, dmg: number, nowS: number): void {
+  hit(dst: string, dmg: number, nowS: number, wall = false): void {
     let a = this.dealt.get(dst);
     if (!a) this.dealt.set(dst, (a = []));
-    a.push({ at: nowS, dmg });
+    a.push({ at: nowS, dmg, wall });
     if (a.length > 24) a.splice(0, a.length - 24);
   }
 
@@ -79,6 +80,9 @@ export class ScorePops {
   kill(src: string, dst: string, you: string, head: boolean, weapon: string, medals: Medal[], nowMs: number): void {
     const now = nowMs / 1000;
     const hurt = (this.dealt.get(dst) ?? []).filter((h) => now - h.at < 8).reduce((s, h) => s + h.dmg, 0);
+    // The finishing round went through a wall (shared/penetration.ts).
+    const last = this.dealt.get(dst)?.at(-1);
+    const wallbang = !!last?.wall && now - last.at < 1;
     this.dealt.delete(dst);
     if (dst === you) {
       this.dealt.clear();
@@ -88,6 +92,7 @@ export class ScorePops {
       const add: Line[] = [{ pts: KILL, label: "KILL", at: now }];
       const gun = weapon !== "nade" && weapon !== "strike" && weapon !== "knife" && weapon !== "melee";
       if (head && gun) add.push({ pts: HEAD, label: "HEADSHOT", at: now });
+      if (wallbang && gun) add.push({ pts: WALLBANG, label: "WALLBANG", at: now });
       for (const m of medals) {
         const p = MEDAL_PTS[m.id];
         if (p) add.push({ pts: p, label: m.title, at: now });

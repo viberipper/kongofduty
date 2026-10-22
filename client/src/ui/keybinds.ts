@@ -15,7 +15,8 @@
  * modifiers are the same key as the left-hand ones (SHIFT is SHIFT).
  *
  * Fixed, never rebindable: ESC (pause — the browser's pointer-lock release),
- * and ENTER / a click as extra killcam skips. DOM-free: game.ts imports this.
+ * F8 (bug-report snapshot, client/src/bug-report.ts), and ENTER / a click as
+ * extra killcam skips. DOM-free: game.ts imports this.
  */
 
 export type Action =
@@ -80,7 +81,7 @@ export const DEFAULT_BINDS: Readonly<Binds> = {
 export const BINDS_KEY = "shipment.binds";
 
 /** Keys that are never bindable (the pause menu owns ESC). */
-const RESERVED = new Set(["Escape", "MetaLeft", "MetaRight", "OSLeft", "OSRight", "ContextMenu"]);
+const RESERVED = new Set(["Escape", "F8", "MetaLeft", "MetaRight", "OSLeft", "OSRight", "ContextMenu"]);
 
 /** SHIFT is SHIFT: the right-hand modifiers resolve to the left-hand binding. */
 export function normCode(code: string): string {

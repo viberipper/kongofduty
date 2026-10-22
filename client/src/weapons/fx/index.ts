@@ -18,7 +18,8 @@
  *             chips + powder, wood splinters, dirt/sand kick-up, glass shards;
  *             a bullet-hole decal lying on the OBB face the ray entered,
  *             modulating the wall's own lighting, pooled and capped (ring).
- *             Flesh: a short dark-red mist + a few droplets, no decal.
+ *             Flesh: a short dark-red mist + a few droplets, and a blood
+ *             splatter decal on the wall behind the body (or the floor).
  *   BRASS     rifle / pistol cases from the viewmodel's port (eject.ts adapter)
  *             and from 3P shooters within 15 m; gravity, spin, a bounce or two,
  *             lying flat, then shrinking out. The bolt gun ejects on the bolt.
@@ -92,6 +93,9 @@ const POP = (c: RGB): RGB => {
 };
 
 /** Collider tags whose visual skin is too far off the OBB for a flat hole (measured, qa probe). */
+/** Blood splatter: how far behind a hit body a wall still catches the splash (m), and how long it stays (s). */
+const SPLAT_REACH = 2.4;
+const SPLAT_LIFE = 14;
 const NO_DECAL = new Set(["car", "barrel", "forklift", "tire-stack"]);
 /** Collider tags whose visual face sits BEHIND the OBB face by a known amount (m): the hole is set back onto it. */
 const INSET: Record<string, number> = { dprop: 0.08 };
@@ -506,7 +510,7 @@ export class WeaponFx {
 
   /**
    * A round into a body (the `hit` event): a short dark-red mist blown out
-   * along the round's path, a little blowback, a few droplets. No decal.
+   * along the round's path, a little blowback, a few droplets, a splatter.
    */
   flesh(x: number, y: number, z: number, dx: number, dy: number, dz: number, head: boolean, kill: boolean): void {
     _d.set(dx, dy, dz);
@@ -535,6 +539,50 @@ export class WeaponFx {
     _a.set(-_d.x, 0.4, -_d.z).normalize();
     this.grit(x, y, z, _a, (head ? 9 : 6) * k, 1.5, 3.8, 0.75, 0.25, 0.45, 0.014, [0.42, 0.03, 0.025], S.DROP, 0);
     this.pull = 0;
+    this.splat(x, y, z, dx, dy, dz, k);
+  }
+
+  /**
+   * BLOOD SPLATTER: the round carries on through the body, so a splash
+   * lands on whatever stands behind it within SPLAT_REACH — else it drips onto
+   * the floor under the hit. A tinted decal from the same pooled ring as the
+   * bullet holes (no new draw call), fading after SPLAT_LIFE seconds.
+   */
+  private splat(x: number, y: number, z: number, dx: number, dy: number, dz: number, k: number): void {
+    const L = Math.hypot(dx, dy, dz);
+    if (L < 1e-6) return;
+    dx /= L; dy /= L; dz /= L;
+    // a blast sprays UP from the victim (no shooter line): that one only drips
+    let tr = dy > 0.3 ? { t: Infinity, hit: null } : traceWorld(x + dx * 0.25, y + dy * 0.25, z + dz * 0.25, dx, dy, dz, SPLAT_REACH);
+    let hx: number, hy: number, hz: number;
+    if (tr.t < SPLAT_REACH) {
+      const t = tr.t + 0.25;
+      hx = x + dx * t; hy = y + dy * t; hz = z + dz * t;
+    } else {
+      tr = traceWorld(x, y, z, 0, -1, 0, 4);
+      if (tr.t >= 4) return;
+      hx = x; hy = y - tr.t; hz = z;
+      dx = 0; dy = -1; dz = 0;
+    }
+    const hit = tr.hit;
+    if (NO_DECAL.has(hit?.visual ?? "")) return;
+    let edge = Infinity;
+    if (hit) {
+      faceOf(hit, hx, hy, hz, 0, FACE);
+      _n.set(FACE[0]!, FACE[1]!, FACE[2]!);
+      edge = FACE[6]!;
+    } else _n.set(0, 1, 0);
+    if (_n.x * dx + _n.y * dy + _n.z * dz > 0) _n.set(-dx, -dy, -dz);
+    let size = rnd(0.34, 0.52) * k;
+    if (size * 0.5 > edge) size = edge * 2;
+    if (size < 0.08) return;
+    const inset = INSET[hit?.visual ?? ""] ?? 0;
+    const p = this.decal.p;
+    p.delay = 0; p.x = hx - _n.x * inset; p.y = hy - _n.y * inset; p.z = hz - _n.z * inset; p.vx = _n.x; p.vy = _n.y; p.vz = _n.z;
+    p.life = SPLAT_LIFE; p.s0 = p.s1 = size; p.r = 0.6; p.g = 0.07; p.b = 0.06; p.a = 1;
+    p.shape = D.BLOOD; p.mode = M.PLANE; p.rot = Math.random() * TAU;
+    p.e0 = 0.05; p.e2 = 0.004;
+    this.decal.emit();
   }
 
   /**
