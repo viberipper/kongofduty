@@ -159,26 +159,16 @@ export type LobbyHooks = {
 // ---------------------------------------------------------------------------
 
 /**
- * Same-origin ws in production; the dev client on :5173 talks to the net server
- * on :8787. (Vite also proxies /ws, but naming the port explicitly is what the
- * rest of the client already does and it keeps the two paths identical.)
+ * The deployed client uses our Hetzner game server by default. The dev client
+ * on :5173 talks to the local net server on :8787.
  */
 export function defaultWs(): string {
-  const proto = location.protocol === "https:" ? "wss" : "ws";
   if (location.port === "5173") return withMapQuery(`ws://${location.hostname}:8787/ws`, activeMap().id);
-  // ROOT-MOUNTED (Vite base "/"): page and socket share the origin root, so
-  // the socket lives at /ws next to the page. (History: the game used to be
-  // served under /kong/ — locally and at cnvs.dev/kong/ — where an
-  // origin-relative "/ws" dialled somebody else's site. Old /kong/* invite
-  // links still land: the server 301s them to root, query preserved.)
-  // BASE_URL, not location.pathname: the path the player landed on varies
-  // (?join= routes), the served base does not.
-  const base = import.meta.env.BASE_URL || "/";
   // `?map=<id>`: the server is a hub of one process per map (server/hub.ts)
   // and this is how the socket lands on the process simulating the map THIS
   // page locked. Without it a dust2 page was handed a Shipment room — drawn
   // dust2, resolved against containers: walk-through walls, invisible floors.
-  return withMapQuery(`${proto}://${location.host}${base.endsWith("/") ? base : base + "/"}ws`, activeMap().id);
+  return withMapQuery("wss://kong.netsplit.in/ws", activeMap().id);
 }
 
 /**

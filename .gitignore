@@ -22,3 +22,8 @@ scripts/
 .DS_Store
 Thumbs.db
 .opencode/
+
+.agents/
+cloudflare/
+.wrangler/
+skills-lock.json
