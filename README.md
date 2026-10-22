@@ -9,6 +9,8 @@ Local copy of the browser game at https://cnvs.dev/kong/ — **including a custo
 - **Better graphics (AAA pass):** post chain `RenderPass` → `ContactAO` → `Bloom` → `CINEMATIC` grade (tone map, vignette, chromatic aberration, film grain, color grade, sharpen, DOF-lite) → `FXAA`, with quality presets LOW–CINEMATIC plus individual switches in SETTINGS → GRAPHICS.
 - **Controller / gamepad support:** standard Xbox/PlayStation mapping with sticks, rumble, and aim assist; layouts DEFAULT / TACTICAL / SOUTHPAW, sensitivity / deadzone / vibration options, button table, and menu navigation in SETTINGS → CONTROLS.
 - **Many bug fixes**, e.g. around ADS, HUD, and gameplay details.
+- **Lobby settings:** private-match lobby has a SETTINGS button (host, guests, spectators) that opens the settings modal over the lobby.
+- **Nuketown balcony vault:** deck rail panels block like steel — Jump required to vault them, no automatic walk-over.
 
 ## Quick start
 
