@@ -42,7 +42,19 @@ export const MAX_PLAYERS = 16;
 export const SCORE_LIMIT = 25;
 /** FFA ends the moment any single player reaches this many kills. */
 export const FFA_KILL_LIMIT = 25;
-export const MATCH_TIME = 300;
+/** Team deathmatch match clock, seconds: 8 min. */
+export const TDM_MATCH_TIME = 8 * 60;
+/** Free-for-all match clock, seconds: 10 min. */
+export const FFA_MATCH_TIME = 10 * 60;
+/**
+ * Legacy alias for the team match clock, kept for backwards compat.
+ * @deprecated Use TDM_MATCH_TIME / FFA_MATCH_TIME / matchTimeFor(mode) instead.
+ */
+export const MATCH_TIME = TDM_MATCH_TIME;
+/** Match clock for a mode: FFA gets the 10 min clock, everything else 8 min. */
+export function matchTimeFor(mode: string): number {
+  return mode === "ffa" ? FFA_MATCH_TIME : TDM_MATCH_TIME;
+}
 /**
  * ROUND-BASED TDM (dust2 only). A team match on a map listed here plays
  * ROUNDS_TOTAL one-life rounds instead of a 25-kill race: a round ends when a
@@ -111,6 +123,10 @@ export type Team = 0 | 1;
 export const MAX_INPUT_QUEUE = 32;
 
 export type InputCmd = {
+  // SEQ CONTRACT: monotonically increasing per seat. The server drops any
+  // command with seq <= the seat's last accepted seq on BOTH the single-input
+  // path (`in`) and the bundle path (`inb`), so replays/duplicates never
+  // integrate twice.
   seq: number;
   dt: number;
   ax: number;
@@ -348,6 +364,17 @@ export type PredictionState = {
   armed: boolean;
   /** Seconds the held frag has cooked, exact (PlayerSnap.cook is quantised). */
   cook: number;
+  /**
+   * Earned-time banks, exact (review HIGH-1/HIGH-2): the ghost funds both per
+   * predicted command exactly like the authority funds per tick, so a snapshot
+   * taken after an idle second does not reset the replay to an empty account.
+   * cmdBank meters the gun clocks (server credits creditCommandTime out of
+   * SimPlayer.cmdBank); moveBank meters travel (the server drains at most
+   * MAX_CMDS_PER_TICK per tick out of seat.moveBank). Absent on pre-bank
+   * servers — the client preserves its own ghost's values then (see ghostFrom).
+   */
+  cmdBank: number;
+  moveBank: number;
 };
 
 /**

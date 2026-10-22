@@ -13,6 +13,11 @@
     "play": "node server/dist/server.mjs --root=client/dist --port=8765",
     "server": "node server/dist/server.mjs --root=client/dist --port=8765",
     "start": "node server/dist/server.mjs --root=client/dist --port=8765",
-    "test:protocol": "node server/test-client.mjs"
+    "test:protocol": "node server/test-client.mjs",
+    "check:nuketown": "node scripts/nuketown/check-geo.mjs",
+    "check:dust2": "node scripts/nuketown/check-dust2-geo.mjs",
+    "check:p0": "node scripts/check-p0.mjs",
+    "check:probe": "node scripts/nuketown/probe.mjs",
+    "check:smoke": "node scripts/smoke.mjs"
   }
 }

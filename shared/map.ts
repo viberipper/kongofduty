@@ -17,6 +17,25 @@ export type OBB = {
   yaw: number;
   climb?: boolean;
   visual?: string;
+  /**
+   * Nuketown balcony rail vaults only: a deck rail panel the geometry gate in
+   * shared/maps/nuketown.ts promoted to climbable. JUMP-VAULT, not walk-mantle:
+   * resolveCircle, groundHeight and ceilingCrossed only mantle it while the
+   * body is airborne after a jump and not sliding (!onGround && slide <= 0:
+   * a slide gone airborne off a deck/stair lip stays steel) — a grounded
+   * body walking, sprinting, sliding or crouching into it reads hard steel
+   * and is never snapped up. climb stays true so floor/nav/ceiling-height queries keep
+   * seeing the panel; botBlocked treats it as HARD STEEL for live steering
+   * (never mantle-stepped — a wandering bot must feel the 3 m drop),
+   * botLinkClear REJECTS any edge whose segment crosses a railVault footprint
+   * (deck legs survive only where they touch no rail steel; stairs carry the
+   * deck, never a vault), the import-time assertion in sim.ts fails the build
+   * if one slips through, and botWallPush keeps the standoff even on the
+   * crossLow rung — so no live bot ever walks a routed vault. Bots vault by
+   * jumping (botRailVaultJump sets cmd.jump when the wish runs into rail
+   * steel at deck height); players vault by pressing jump.
+   */
+  railVault?: boolean;
   open?: boolean;
   color?: string;
   /** Statement prop: the visual is an authored mesh, not a procedural build. */
@@ -723,6 +742,21 @@ export function groundHeight(
   solids: OBB[] = ACTIVE_SOLIDS,
   fromY = Infinity,
   floorY: number = ACTIVE_FLOOR_Y,
+  /**
+   * JUMP-VAULT GATE (Nuketown rails only — every other map has no railVault
+   * box, so this is a dead branch there). A railVault top counts as floor only
+   * while the body is vaulting (airborne after a jump, slide <= 0) or is
+   * already standing on/above it (fromY at/above the top): a grounded body
+   * approaching from the deck below must NOT be snapped up — resolveCircle
+   * already held it as steel, and a snap here would walk it over like a
+   * stair. A slide gone airborne off a lip (slide > 0) stays steel too, in
+   * both places. Defaults true (legacy: spawn, clearance scans and every
+   * pre-existing caller keep seeing every climb top, exactly as before);
+   * the live snap in shared/sim.ts integrate() and its ceiling mirror pass
+   * !onGround && slide <= 0, nav ground (botGroundY / botBlocked default y)
+   * passes false. No other caller threads the flag.
+   */
+  vaulting = true,
 ): number {
   let h = floorY;
   const lim = fromY + 1.05;
@@ -734,6 +768,7 @@ export function groundHeight(
       if (!o.climb) continue;
       const top = o.y + o.sy * 0.5;
       if (top > lim) continue;
+      if (o.railVault && !vaulting && (!Number.isFinite(fromY) || fromY < top - 0.02)) continue;
       const loc = worldToLocal(o, x, z);
       if (Math.abs(loc.x) <= o.sx * 0.5 + GH_TOL && Math.abs(loc.z) <= o.sz * 0.5 + GH_TOL) {
         h = Math.max(h, top);
@@ -745,6 +780,7 @@ export function groundHeight(
     if (!o.climb) continue;
     const top = o.y + o.sy * 0.5;
     if (top > lim) continue;
+    if (o.railVault && !vaulting && (!Number.isFinite(fromY) || fromY < top - 0.02)) continue;
     const loc = worldToLocal(o, x, z);
     if (Math.abs(loc.x) <= o.sx * 0.5 + GH_TOL && Math.abs(loc.z) <= o.sz * 0.5 + GH_TOL) {
       h = Math.max(h, top);

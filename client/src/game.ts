@@ -70,8 +70,10 @@ import { angWrap } from "@shared/math";
 import {
   TICK_DT,
   INTERP_MS,
-  MATCH_TIME,
+  TDM_MATCH_TIME,
   SCORE_LIMIT,
+  FFA_KILL_LIMIT,
+  matchTimeFor,
   RESPITE,
   BOT_NAMES,
   type RoundState,
@@ -479,7 +481,7 @@ export class Game {
   /** Score and match clock as of the newest snapshot — the online HUD's source. */
   netScore0 = 0;
   netScore1 = 0;
-  netRemain = MATCH_TIME;
+  netRemain = TDM_MATCH_TIME;
   /**
    * ROUND-BASED TDM (shared/protocol.ts RoundState): the round block off the
    * newest snapshot, null on every other room. Offline the local session is
@@ -1407,6 +1409,7 @@ export class Game {
     } else {
       this.session = new GameSession();
       this.session.mode = opts.mode;
+      this.session.remain = matchTimeFor(opts.mode);
       const me = this.session.addPlayer("local", opts.name, "bruiser", 0, readLoadout().primary, "", false);
       this.you = me.id;
       this.yaw = me.yaw;
@@ -1742,7 +1745,16 @@ export class Game {
           this.applyRoster(msg.players);
           this.lastEv.push(...msg.ev);
           this.handleEvents(msg.ev);
-          if (msg.remain <= 0 || msg.score0 >= SCORE_LIMIT || msg.score1 >= SCORE_LIMIT)
+          // End-of-match trigger (client-side endcard fallback; the server is
+          // authoritative). TDM ends on the clock or a team hitting SCORE_LIMIT;
+          // FFA ends on the clock or any single player hitting FFA_KILL_LIMIT
+          // (team scores never move in FFA, so SCORE_LIMIT must not apply).
+          const ffa = (msg.mode ?? this.opts?.mode) === "ffa";
+          const ffaBest = ffa
+            ? msg.players.reduce((m, p) => (p.kills > m ? p.kills : m), 0)
+            : 0;
+          const limitHit = ffa ? ffaBest >= FFA_KILL_LIMIT : msg.score0 >= SCORE_LIMIT || msg.score1 >= SCORE_LIMIT;
+          if (msg.remain <= 0 || limitHit)
             this.finish(msg.score0, msg.score1);
           // A BENCHED SEAT HAS NOTHING TO RECONCILE. Reconciliation exists to
           // replay the commands the server has not acknowledged yet; a spectator
@@ -1767,7 +1779,7 @@ export class Game {
             this.ghost = this.ghostFrom(me, msg.prediction);
             for (const s of this.predMarked) if (s <= me.seq) this.predMarked.delete(s);
             for (const cmd of this.pending) {
-              if (cmd.seq > me.seq) predictMovement(this.ghost as never, cmd, TICK_DT);
+              if (cmd.seq > me.seq) predictMovement(this.ghost as never, cmd, TICK_DT, this.matchLive());
             }
             while (this.pending.length && this.pending[0]!.seq <= me.seq) this.pending.shift();
             if (previousPosition && !document.hidden) this.diagnostics!.correctionMeters.add(Math.hypot(
@@ -2883,7 +2895,7 @@ export class Game {
       if (!p) return false;
       this.ghost = this.ghostFrom(p);
     }
-    return predictMovement(this.ghost as never, cmd, TICK_DT);
+    return predictMovement(this.ghost as never, cmd, TICK_DT, this.matchLive());
   }
 
   syncFromSession(): void {
@@ -3410,6 +3422,8 @@ export class Game {
           slideVz?: number;
           fireCd?: number;
           sprintOut?: number;
+          cmdBank?: number;
+          moveBank?: number;
         })
       : null;
     return {
@@ -3431,6 +3445,17 @@ export class Game {
       shotAgo: 9,
       armed: true,
       ...state,
+      // EARNED-TIME BANKS (review HIGH-1/HIGH-2): the spread above seeds both
+      // from the ack when the server sends them, but a pre-bank server (or a
+      // first snapshot with no prediction yet) sends neither — and `{...p}`
+      // never carries them at all (PlayerSnap has no bank fields), so without
+      // this the reconcile rebuilt the account from 0 + dt on every snapshot
+      // while the authority kept banking on the wall clock. Preserve the old
+      // ghost's accounts as the fallback, exactly like fireCd/sprintOut above:
+      // after an idle second the ghost replays out of ~0.5 s banked, like the
+      // server drains, instead of 1-2 ticks.
+      cmdBank: state?.cmdBank ?? g?.cmdBank ?? 0,
+      moveBank: state?.moveBank ?? g?.moveBank ?? 0,
     } as PlayerSnap;
   }
 

@@ -45,7 +45,7 @@ import { buildDust2, DUST2_NAME } from "./dust2";
 import { buildNuketown, NUKETOWN_NAME } from "./nuketown"; // nuketown: JSON-backed like dust2
 
 export type { MapDef, Rect, FenceRect, MinimapRect, NavLattice } from "./types";
-export { DUST2_AUDIT, DUST2_IS_STUB, buildDust2 } from "./dust2";
+export { DUST2_AUDIT, DUST2_IS_STUB, buildDust2, dust2GeoHash } from "./dust2";
 export { NUKETOWN_AUDIT, buildNuketown } from "./nuketown";
 
 export const MAP_IDS = ["shipment", "dust2", "ares", "nuketown"] as const;

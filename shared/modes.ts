@@ -25,7 +25,8 @@ import {
   DUST2_FFA_SEATS,
   DUST2_TDM_SEATS,
   FFA_KILL_LIMIT,
-  MATCH_TIME,
+  TDM_MATCH_TIME,
+  FFA_MATCH_TIME,
   ROUND_MAPS,
   ROUND_TIME,
   ROUNDS_TO_WIN,
@@ -117,10 +118,10 @@ export function modeInfo(map: string, mode: ModeId): ModeInfo {
       teamSize: 1,
       teams: false,
       rounds: false,
-      rules: `Every operator for themselves. First to ${FFA_KILL_LIMIT} kills, or the most kills when ${mmss(MATCH_TIME)} runs out.`,
-      goal: `FIRST TO ${FFA_KILL_LIMIT} KILLS · ${mmss(MATCH_TIME)}`,
+      rules: `Every operator for themselves. First to ${FFA_KILL_LIMIT} kills, or the most kills when ${mmss(FFA_MATCH_TIME)} runs out.`,
+      goal: `FIRST TO ${FFA_KILL_LIMIT} KILLS · ${mmss(FFA_MATCH_TIME)}`,
       limit: FFA_KILL_LIMIT,
-      clock: MATCH_TIME,
+      clock: FFA_MATCH_TIME,
       unit: "KILLS",
     };
   }
@@ -153,10 +154,10 @@ export function modeInfo(map: string, mode: ModeId): ModeInfo {
     teamSize,
     teams: true,
     rounds: false,
-    rules: `Two teams, instant respawns. First team to ${SCORE_LIMIT} kills, or the most kills when ${mmss(MATCH_TIME)} runs out.`,
-    goal: `FIRST TO ${SCORE_LIMIT} KILLS · ${mmss(MATCH_TIME)}`,
+    rules: `Two teams, instant respawns. First team to ${SCORE_LIMIT} kills, or the most kills when ${mmss(TDM_MATCH_TIME)} runs out.`,
+    goal: `FIRST TO ${SCORE_LIMIT} KILLS · ${mmss(TDM_MATCH_TIME)}`,
     limit: SCORE_LIMIT,
-    clock: MATCH_TIME,
+    clock: TDM_MATCH_TIME,
     unit: "KILLS",
   };
 }

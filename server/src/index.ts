@@ -90,6 +90,16 @@ const LOBBYQ_MIN_GAP_MS = 500;
 const UPGRADE_TIMEOUT_MS = 5000;
 /** WS payload cap (H1): protocol messages are < 4 KB; 64 KB has 16x headroom. */
 const WS_MAX_PAYLOAD = 64 * 1024;
+/** Per-tick input drain cap (H1 speed-hack backstop): at most this many queued
+ *  commands are integrated per seat per 64 Hz tick. Honest 64 Hz play drains 1;
+ *  the headroom to 2 lets a TCP stall catch up out of the movement bank without
+ *  ever letting a 960 cmds/s flood (120 msgs/s x 8/bundle) integrate 15x travel.
+ *  Leftover stays queued for the next ticks (queue cap 32 still shifts oldest). */
+const MAX_CMDS_PER_TICK = 2;
+/** Movement-time bank ceiling, seconds — mirrors CMD_BANK (sim): half a second
+ *  of real time, so a stall banks catch-up travel and a flood cannot mint it. */
+const MOVE_BANK_MAX = 0.5;
+const MOVE_TICK = 1 / 64;
 /** checkname/join rate limit per socket: 10 per 10 s (M3 enumeration). */
 const JOIN_WINDOW_MS = 10_000;
 const JOIN_MAX_PER_WINDOW = 10;
@@ -164,7 +174,7 @@ await import("../../shared/maps");
 import { GameSession, type SimPlayer } from "../../shared/sim";
 import { MAX_SPECTATORS, COUNTDOWN_MS } from "../../shared/matchphase";
 import type { ClientMsg, InputCmd, LobbyMember, NameCheck, NetEvent, PredictionState, ServerMsg, Snapshot, Team, MatchPhase } from "../../shared/protocol";
-import { BOT_NAMES, MATCH_TIME, MAX_INPUT_QUEUE } from "../../shared/protocol";
+import { BOT_NAMES, matchTimeFor, MAX_INPUT_QUEUE } from "../../shared/protocol";
 import { packPlayers } from "../../shared/snapshot-wire";
 import { sanitizeLoadout, type Loadout } from "../../shared/loadout";
 import { seatsFor, type ModeId } from "../../shared/modes";
@@ -466,13 +476,19 @@ function cleanName(raw: unknown): string {
   // L2+M2: normalize compatibility forms and strip bidi/zero-width controls.
   // This reduces invisible formatting tricks; it does not fold homoglyphs.
   // Controls collapse to space.
-  // NOTE: <>&"' are kept on the wire — every client sink escapes via esc()
-  // (lobby.ts, hud.ts, roundstrip.ts, game.ts escHtml). Server-side
-  // HTML-escaping here would double-escape; clients MUST keep using esc().
+  // STORED-XSS DEFENCE IN DEPTH (review LOW): <>&"' used to ride the wire raw
+  // with escaping as the CLIENT's contract (lobby.ts, hud.ts, roundstrip.ts
+  // esc(), game.ts escHtml) — every shipped sink escapes, but one missed sink
+  // (or any third-party client) turned a callsign into whole-yard stored XSS.
+  // Angle brackets are never legitimate in a callsign, so they are stripped
+  // HERE, at ingress: the wire can no longer carry a tag even to a client
+  // that forgets esc(). `&` and quotes still ride (double-escaping them here
+  // would corrupt every correct sink), so clients MUST keep using esc().
   const n = String(raw ?? "")
     .normalize("NFKC")
     .replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, "")
     .replace(/[\x00-\x1f\x7f]/g, " ")
+    .replace(/<|>/g, "")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 14)
@@ -581,6 +597,19 @@ type Seat = {
   /** M3 checkname/join attempts window. */
   /** H1 repeated oversize/invalid-frame violations. */
   violations: number;
+  /** H1 seq-monotonic dedupe: highest input seq accepted from this seat.
+   *  The protocol documents dedupe on seq; without it a replayed bundle
+   *  integrates twice. Initialised to -1 so seq 0 (first command) passes. */
+  lastSeq: number;
+  /** H1 movement-time bank, seconds: topped up on the wall clock (1/64 per
+   *  server tick, capped at MOVE_BANK_MAX) and spent TICK_DT per drained
+   *  command. Parallel to SimPlayer.cmdBank (which meters only the gun
+   *  clocks), so a 960 cmds/s flood cannot mint travel — sustained drain is
+   *  at most 1.0 s of travel per wall-second; an idle seat that banked the
+   *  full 0.5 s ceiling integrates up to ~1.5 s over its first flood second
+   *  (banked burst + that second's income), then 1.0 s/s. Honest TCP-stall
+   *  bursts still catch up out of what the stall banked. */
+  moveBank: number;
 };
 
 function memberOf(s: Seat): LobbyMember {
@@ -621,8 +650,8 @@ class Room {
     this.seatCount = seatsFor(SERVER_MAP, mode);
     this.session = new GameSession();
     this.session.mode = mode;
+    this.session.remain = matchTimeFor(mode);
     if (kind === "yard") {
-      this.session.remain = MATCH_TIME;
       for (let i = 0; i < this.seatCount; i++) this.addBot((i % 2) as Team);
       this.session.nextMatch();
     } else {
@@ -740,6 +769,8 @@ class Room {
       lastPing: 0,
       lastLobbyQ: 0,
       violations: 0,
+      lastSeq: -1,
+      moveBank: 0,
     };
     if (!seat.spectator) {
       seat.slot = this.nextSlot();
@@ -798,6 +829,8 @@ class Room {
 
   promote(s: Seat): void {
     s.spectator = false;
+    s.moveBank = 0;
+    s.queue.length = 0;
     s.slot = this.nextSlot();
     s.team = this.pickTeam();
     this.ensureBody(s);
@@ -825,6 +858,8 @@ class Room {
         team = (c[0] < half ? 0 : 1) as Team;
       }
       s.team = team;
+      s.moveBank = 0;
+      s.queue.length = 0;
       const body = this.session.addPlayer(s.id, s.name, "bruiser", team, s.loadout.primary, "", false);
       body.netFed = true;
       body.ping = s.ping;
@@ -895,15 +930,23 @@ class Room {
         // The sim applies the pre-live gate while still accepting aim/sequence.
         const cmd = sanitizeCmd(m.cmd, this.session.time);
         if (!cmd) return;
+        // H1 seq-monotonic dedupe: drop replays/out-of-order (protocol claims
+        // dedupe on seq; the server did not enforce it — a replayed bundle
+        // integrated twice).
+        if (cmd.seq <= seat.lastSeq) return;
+        seat.lastSeq = cmd.seq;
         seat.queue.push(cmd);
         while (seat.queue.length > MAX_INPUT_QUEUE) seat.queue.shift();
         return;
       }
       case "inb": {
-        if (seat.spectator || !Array.isArray(m.c)) return;
+        if (seat.spectator || !this.seatBody(seat) || !Array.isArray(m.c)) return;
         for (const raw of m.c.slice(-8)) {
           const cmd = sanitizeCmd(raw, this.session.time);
-          if (cmd) seat.queue.push(cmd);
+          if (!cmd) continue;
+          if (cmd.seq <= seat.lastSeq) continue;
+          seat.lastSeq = cmd.seq;
+          seat.queue.push(cmd);
         }
         while (seat.queue.length > MAX_INPUT_QUEUE) seat.queue.shift();
         return;
@@ -932,6 +975,7 @@ class Room {
           .normalize("NFKC")
           .replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, "")
           .replace(/[\x00-\x1f\x7f]/g, " ")
+          .replace(/<|>/g, "")
           .trim()
           .slice(0, 80);
         if (!text) return;
@@ -979,6 +1023,20 @@ class Room {
       if (Date.now() - this.overAt >= wait) {
         this.overAt = 0;
         this.session.nextMatch();
+        // MATCH-ROLLOVER BANK RESET (review LOW): nextMatch() respawns every
+        // body (which zeroes each sim-side cmdBank), but the seat-side
+        // moveBank banked ~0.5 s of travel during the 18-19 s rollover wait —
+        // the same idle-full burst the death reset (stepInputs) closes. Zero it
+        // here so the fresh match opens unfunded, like startMatch() does.
+        for (const s of this.seats.values()) {
+          s.moveBank = 0;
+          // ROLLOVER QUEUE DRAIN (review LOW-2): the bank alone is half the
+          // reset — a leftover queue (up to MAX_INPUT_QUEUE stale intermission
+          // intents) would still integrate at up to MAX_CMDS_PER_TICK per tick
+          // against the fresh spawns. startMatch()/promote() already drain
+          // both; the rollover path now matches them.
+          s.queue.length = 0;
+        }
         if (this.kind === "private") {
           this.session.phase = "pregame";
           this.session.liveAt = 0;
@@ -1007,6 +1065,10 @@ class Room {
         continue;
       }
       if (!p.alive) {
+        // Seat-level bank must not survive the corpse: without a reset a dead
+        // seat banks 0.5 s while waiting and respawns with a full burst (same
+        // class as cmdBank, which the sim resets on spawn).
+        s.moveBank = 0;
         // applyInput still acks dead moves (p.seq = cmd.seq):
         while (s.queue.length) {
           const cmd = s.queue.shift()!;
@@ -1014,18 +1076,43 @@ class Room {
         }
         continue;
       }
-      // Trigger clock: bank on wall clock, consume per command.
+      // Trigger clock: bank on wall clock, consume per command. Movement is
+      // metered on the same wall clock (s.moveBank): each drained command
+      // spends MOVE_TICK of banked real time, and the per-tick drain is capped
+      // at MAX_CMDS_PER_TICK — so a 960 cmds/s flood (120 msgs/s x 8/bundle,
+      // the MSG_MAX x inb-slice product) can never sustain more than 1.0 s of
+      // travel per wall-second (up to ~1.5 s on the first flood second from a
+      // full 0.5 s bank, then 1.0 s/s), and honest TCP-stall bursts still catch
+      // up out of what the stall banked. cmdBank (sim) meters the gun clocks on
+      // the same arrival pattern; moveBank meters the travel.
       this.session.bankCommandTime(p, 1 / 64);
+      s.moveBank = Math.min(MOVE_BANK_MAX, s.moveBank + 1 / 64);
       p.netFed = true;
-      while (s.queue.length) {
+      let drained = 0;
+      while (s.queue.length && drained < MAX_CMDS_PER_TICK) {
+        if (s.moveBank < MOVE_TICK - 1e-9) break;
         const cmd = s.queue.shift()!;
+        s.moveBank -= MOVE_TICK;
         this.session.applyInput(p, cmd, true);
         this.session.creditCommandTime(p, cmd.dt);
+        drained += 1;
       }
     }
   }
 
   broadcastSnaps(): void {
+    // NO INTEREST MANAGEMENT (security INFO, documented): every snapshot
+    // carries every body to every seat, so a sniffer (or a radar overlay
+    // reading the client's own snapshots) sees the whole yard. That is
+    // inherent to the current wire protocol, not a leak to close in a hardening
+    // pass: culling by PVS would change bot-inclusive replays, the packed
+    // snapshot wire order, and every probe that asserts on full rosters.
+    // Player names/chat ride the same snapshots raw; every shipped sink escapes
+    // (lobby.ts, hud.ts, roundstrip.ts esc(), game.ts escHtml for the killfeed),
+    // and cleanName additionally strips `<>` at ingress so no tag survives onto
+    // the wire even for a third-party client that forgets esc() — defence in
+    // depth (server-side reject on control characters) stays a
+    // third-party-client concern and is out of scope here.
     const ev: NetEvent[] = this.session.drainEvents();
     const playersRaw: PlayerSnap[] = this.session.snap();
     const nades = this.session.nadeSnap();
@@ -1070,9 +1157,9 @@ class Room {
     }
   }
 
-  predictionFor(seat: Seat): PredictionState | undefined {
-    if (seat.spectator) return undefined;
-    const p = this.session.players.get(seat.id);
+  predictionFor(s: Seat): PredictionState | undefined {
+    if (s.spectator) return undefined;
+    const p = this.session.players.get(s.id);
     if (!p || p.bot) return undefined;
     return {
       x: p.x,
@@ -1097,6 +1184,13 @@ class Room {
       shotAgo: p.shotAgo,
       armed: p.armed,
       cook: p.cook,
+      // Earned-time banks, exact (review HIGH-1/HIGH-2): the ghost seeds both
+      // from here and preserves them across reconciles (ghostFrom), so an idle
+      // second banks identically on both sides instead of resetting the replay
+      // to 0 + dt. Travel comes from the SEAT's live bank — the authority's
+      // meter — not the body's (SimPlayer.moveBank is the ghost-side copy).
+      cmdBank: p.cmdBank,
+      moveBank: s.moveBank,
     };
   }
 
@@ -1211,10 +1305,23 @@ const wss = new WebSocketServer({ noServer: true, maxPayload: WS_MAX_PAYLOAD });
 const ipConns = new Map<string, number>();
 let totalConns = 0;
 function clientIp(req: http.IncomingMessage): string {
-  // Use Cloudflare's visitor-IP header on the public path; X-Forwarded-For
-  // can contain an attacker-supplied first entry, so do not use it for quotas.
+  // Use Cloudflare's visitor-IP header ONLY when the socket arrived via the
+  // loopback hub→worker proxy (which stamps it: proxyUpgrade writes a single
+  // CF-Connecting-IP for the validated hub-side IP). A directly-connected
+  // socket can forge any CF-Connecting-IP and shed its budget/throttle onto a
+  // victim, so off-loopback it is ignored. X-Forwarded-For can contain an
+  // attacker-supplied first entry, so it is never used for quotas.
+  // LOOPBACK IS 127.0.0.0/8 (review LOW), not just 127.0.0.1: the whole /8 is
+  // loopback by RFC 1122 and a local stack may source any of it. Mapped
+  // (::ffff:127.x) and ::1 included. ACCEPTABLE RESIDUAL (security INFO): a
+  // forged header requires local execution — and a local attacker is already
+  // past every quota this header feeds. If the hub ever listens off-loopback,
+  // a remote socket is never loopback here, so the header stays ignored.
+  const remote = req.socket.remoteAddress ?? "";
+  const loopback =
+    remote === "::1" || remote === "127.0.0.1" || remote.startsWith("127.") || remote.startsWith("::ffff:127.");
   const cfIp = req.headers["cf-connecting-ip"];
-  if (typeof cfIp === "string" && net.isIP(cfIp.trim())) return cfIp.trim();
+  if (loopback && typeof cfIp === "string" && net.isIP(cfIp.trim())) return cfIp.trim();
   return (req.socket.remoteAddress ?? "unknown").slice(0, 64);
 }
 
@@ -1647,6 +1754,9 @@ function onSocket(ws: WsConn, ip: string): void {
             }
           })();
     if (text.length > WS_MAX_PAYLOAD) {
+      // SECOND LAYER RETURNS UNCONDITIONALLY (security LOW): ws maxPayload
+      // pre-empts this in practice, but a first offence (violations 1-2) must
+      // not fall through to JSON.parse/rate-limit below — count it and stop.
       if (seat) {
         seat.violations++;
         if (seat.violations >= 3) {
@@ -1655,16 +1765,15 @@ function onSocket(ws: WsConn, ip: string): void {
           } catch {
             /* ignore */
           }
-          return;
-        }
-      } else {
-        try {
-          ws.close(1009, "too large");
-        } catch {
-          /* ignore */
         }
         return;
       }
+      try {
+        ws.close(1009, "too large");
+      } catch {
+        /* ignore */
+      }
+      return;
     }
     let msg: unknown;
     try {

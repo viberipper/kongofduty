@@ -34,7 +34,7 @@
  */
 import * as THREE from "three";
 import type { Game } from "./game";
-import { MATCH_TIME } from "@shared/protocol";
+import { TDM_MATCH_TIME, FFA_MATCH_TIME, matchTimeFor } from "@shared/protocol";
 import { NukeFx } from "./nuke-fx";
 import { reducedMotion, prefs } from "./ui/prefs";
 import { isSoftwareGL } from "./textures";
@@ -136,7 +136,11 @@ export class NuketownLive {
   private remain(): number {
     const g = this.game;
     const r = g.session ? g.session.remain : g.netRemain;
-    return Number.isFinite(r) ? Math.max(0, Math.min(MATCH_TIME, r)) : MATCH_TIME;
+    // Ceiling is the longest match clock in the game (FFA 10 min); clamp by
+    // the current mode so the 8 min TDM clock reads full at match start.
+    const mode = g.opts?.mode;
+    const cap = mode ? matchTimeFor(mode) : Math.max(TDM_MATCH_TIME, FFA_MATCH_TIME);
+    return Number.isFinite(r) ? Math.max(0, Math.min(cap, r)) : cap;
   }
 
   /**

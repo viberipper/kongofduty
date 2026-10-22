@@ -9,6 +9,7 @@ import {
   type Spawn,
 } from "./map";
 import { activeMap } from "./maps";
+import { DECK_RAIL_ALLOW_Y } from "./deckrail";
 import { gridQueryCircle, gridQueryRect, indexSolids, type SolidGrid } from "./solidgrid";
 import { CEIL_EPS, ceilingCrossed } from "./ceiling"; // map stream: overhead contact is vertical
 import {
@@ -32,7 +33,8 @@ import {
   RESPITE,
   SCORE_LIMIT,
   FFA_KILL_LIMIT,
-  MATCH_TIME,
+  TDM_MATCH_TIME,
+  matchTimeFor,
   ROUNDS_TOTAL,
   ROUNDS_TO_WIN,
   ROUND_TIME,
@@ -82,6 +84,65 @@ import {
  * had dead centre). The real ceiling on lag compensation is REWIND_MS, which
  * hitscan() applies afterwards against the server's own clock.
  */
+/* ─────────────────── THE MOVEMENT MODEL (single source of truth) ─────────────
+ * Imported from shared/movement.ts (leaf, no imports): shared/maps/*.ts pins
+ * its build envelopes against the same bindings (and `activeMap()` below
+ * builds Nuketown during this module's own evaluation), so the consts cannot
+ * live here — a sim<->maps value import is a module cycle that breaks the
+ * esbuild server bundle (`await init_sim()` inside the `__esm` closure).
+ * Re-exported below so existing `from ".../sim"` importers keep working.
+ */
+import {
+  ACCEL,
+  ADS_MUL,
+  AIR_ACCEL,
+  BOT_CLEAR_R,
+  CROUCH_EYE,
+  CROUCH_H,
+  CROUCH_SPD,
+  EYE,
+  FRICTION,
+  GRAVITY,
+  JUMP_V,
+  MANTLE,
+  RADIUS,
+  RUN,
+  SLIDE_EYE,
+  SLIDE_FRIC,
+  SLIDE_H,
+  SLIDE_TIME,
+  SPRINT,
+  STAND_H,
+  TAC,
+  TAC_FUEL,
+  WALK,
+} from "./movement";
+export {
+  ACCEL,
+  ADS_MUL,
+  AIR_ACCEL,
+  BOT_CLEAR_R,
+  CROUCH_EYE,
+  CROUCH_H,
+  CROUCH_SPD,
+  EYE,
+  FRICTION,
+  GRAVITY,
+  JUMP_V,
+  MANTLE,
+  RADIUS,
+  RUN,
+  SLIDE_EYE,
+  SLIDE_FRIC,
+  SLIDE_H,
+  SLIDE_TIME,
+  SPRINT,
+  STAND_H,
+  TAC,
+  TAC_FUEL,
+  WALK,
+};
+
 /* ───────────────────────────── THE ACTIVE MAP ───────────────────────────────
  * Resolved ONCE here, in this module's body, which is the earliest moment any
  * code in the game runs (every client entry point imports this file, directly or
@@ -106,6 +167,26 @@ const WAYPOINTS = MAP.navSeeds;
  * tunnels up out of the map.
  */
 const FLOOR_Y = MAP.floorY;
+/** Nuketown-only movement rules (OOB exfil clamp): other maps never read this.
+ * Module-init const — one-map-per-process by design (see shared/maps/index.ts
+ * PLAN A). A harness that builds Nuketown via buildNuketown inside a process
+ * whose active map is Shipment gets NO clamp from that def; the clamp belongs
+ * to the Nuketown process (`?map=nuketown` / `--map=nuketown`), where the
+ * import-time edge audit below has also run.
+ *
+ * PER-MAP OOB POLICY (security LOW-1, documented not unified): only Nuketown
+ * bodies are hard-clamped into MAP.bounds here. dust2/shipment/ares stand on
+ * their DATA walls alone — the frag fence (extruded floorY→nadeFenceTop,
+ * itself throw-pinned at build), the degenerate-span pin, and the non-finite
+ * nets — which is why those pins throw instead of warning. A map-agnostic
+ * bounds net would move every map's unclamped-but-contained behaviour (and
+ * the Shipment sim-equivalence hash) for a failure class no shipped map
+ * exhibits outside the balcony vault this gate was written for. The asymmetry
+ * is intentional and covered, not drift: the policy inputs (bounds, floorY,
+ * nadeFenceTop, rails) are all inside the per-map geo hash, so a regen that
+ * weakens a map's DATA walls desyncs its hash loudly instead of silently
+ * inheriting another map's net. */
+const IS_NUKETOWN = MAP.id === "nuketown";
 /** Uniform-grid broadphase over MAP.solids — see shared/solidgrid.ts. */
 const SOLID_GRID: SolidGrid = indexSolids(SOLIDS);
 
@@ -123,6 +204,17 @@ const SOLID_GRID: SolidGrid = indexSolids(SOLIDS);
  * One integer compare on the hot path buys that back: same length, same index;
  * different length, rebuild. `indexSolids` caches, so the rebuild happens once
  * per mutation, not once per query.
+ *
+ * SAME-LENGTH STALENESS (accepted, documented — review MEDIUM): the guard is
+ * length-only, so an in-place move/flag flip at the SAME length (a regen
+ * retag, a test-harness `SOLIDS[i] = {...}` without push/splice) keeps serving
+ * the stale grid until the length changes. The shipped game never mutates
+ * colliders in place (promotion clones at build; the server never touches
+ * SOLIDS post-import), and the only in-place writer is the server-local
+ * test harness — which pushes synthetics (length changes) precisely so they
+ * go live. A content version-stamp (per-box hash per query) would cost the
+ * hot path for a writer that does not exist in production; length is the
+ * contract, documented here.
  */
 function solidGrid(): SolidGrid {
   return SOLID_GRID.builtLength === SOLIDS.length ? SOLID_GRID : indexSolids(SOLIDS);
@@ -165,12 +257,23 @@ const STACKED_FLOORS = MAP.stackedFloors;
  */
 const CLIMB_IS_FLOOR = MAP.climbablesAreFloors === true;
 /**
- * STOREY-AWARE NAV (Nuketown). True only when the map is stacked AND its nav
- * seeds carry a height: two houses whose ground rooms sit exactly under their
- * upstairs rooms, so "the nearest node" and "the goal" need a y or a bot
- * standing in the kitchen anchors to the bedroom above it. Every use below is
- * `NAV_Y && ...`, so Shipment / dust2 (seeds without y) / Ares compile to the
- * code that was there before — sim-equivalence hash unchanged.
+ * STOREY-AWARE NAV (Nuketown + dust2). True only when the map is stacked AND
+ * its nav seeds carry a height: two houses whose ground rooms sit exactly
+ * under their upstairs rooms (or dust2's terraces and tunnels), so "the
+ * nearest node" and "the goal" need a y or a bot standing in the kitchen
+ * anchors to the bedroom above it. Every use below is `NAV_Y && ...`, so
+ * Shipment / Ares (single-deck, seeds without y) compile to the code that was
+ * there before — sim-equivalence hash unchanged.
+ *
+ * DUST2 IS A NAV_Y MAP (review MEDIUM-1): stackedFloors defaults true and all
+ * 380 shipped seeds are y-bearing, so its graph builds under the widened
+ * branches below (LINK_R 0.44 + default pad 0.15 = 0.59 m corridor, 0.25 m
+ * sample stride) at the shipped linkMax 12 with the lattice off (step 0 — the
+ * 380 grown seeds ARE the lattice, no duplication). That configuration is the
+ * validated one, and it is PINNED, not assumed: the geo hash covers seeds +
+ * navLinkPad + linkMax + stackedFloors, so a regen that drops y's, widens the
+ * pad past the doors, or retunes the range desyncs loudly in CI instead of
+ * silently rebuilding a flat-validated edge set under storey-aware branches.
  */
 const NAV_Y = MAP.stackedFloors && MAP.navSeeds.some((w) => w.y !== undefined);
 /** Metres of horizontal distance one metre of height difference is worth when picking a node. */
@@ -198,7 +301,7 @@ export const MAX_RENDER_LAG = 150;
 
 /**
  * Ceiling on SimPlayer.cmdBank — half a second of real time, the same span as
- * the seat's drain budget (server/index.ts BURST_CAP). It has to cover the
+ * the seat's drain budget (server/index.ts MOVE_BANK_MAX). It has to cover the
  * longest honest stall, because WS is TCP and a delayed packet
  * head-of-line-blocks the ones behind it so the whole stall lands as one burst
  * that must be paid for out of the time the stall banked; and it has to stop
@@ -214,28 +317,8 @@ export const CMD_BANK = 0.5;
  */
 const SNAP_EVERY = Math.max(1, Math.round(TICK_HZ / SNAP_HZ));
 
-export const EYE = 1.62;
-export const CROUCH_EYE = 1.12;
-export const SLIDE_EYE = 0.72;
-export const RADIUS = 0.3;
-export const STAND_H = 1.74;
-export const CROUCH_H = 1.18;
-export const SLIDE_H = 0.82;
-
-export const WALK = 2.65;
-export const RUN = 4.35;
-export const SPRINT = 5.92;
-export const TAC = 6.45;
-export const TAC_FUEL = 2.0;
-export const CROUCH_SPD = 2.05;
-export const ADS_MUL = 0.68;
-export const SLIDE_TIME = 0.58;
-export const GRAVITY = 20.4;
-export const JUMP_V = 5.55;
-export const ACCEL = 18;
-export const AIR_ACCEL = 3.2;
-export const FRICTION = 13;
-export const SLIDE_FRIC = 2.1;
+// (Movement-model constants live above the active-map block: shared/maps/
+// nuketown.ts pins its envelopes against the same bindings.)
 
 // ---------------------------------------------------------------------------
 // BANANA FRAG — the thrown nana
@@ -381,6 +464,64 @@ export const REGEN_RATE0 = 10;
 export const REGEN_RATE1 = 36;
 
 /**
+ * INPUT SANITIZATION (security HIGH-1): every numeric a client controls is
+ * validated ONCE at ingress, here, before applyInput or predictMovement reads
+ * it. A NaN in yaw/pitch/ax/az/dx/dy/dz used to flow straight through —
+ * clamp(NaN) is NaN (both comparisons false, returns v), norm2(NaN) is
+ * NaN/NaN, wish/vx/vy go NaN, integrate's `if (p.x < loX)` is false for NaN
+ * so the Nuketown OOB clamp never fires, throwNade's `dl < 0.2` is false for
+ * NaN so a NaN direction is normalised into NaN velocity, and explode's
+ * `d > NADE_DMG_R` is false for NaN so a void frag poisons hp with NaN.
+ * After this function every one of those fields is finite: non-finite inputs
+ * coerce to the neutral value (0 = no strafe, no aim offset, no spread dir),
+ * sticks clamp to [-1, 1], and pitch clamps at the use sites below.
+ * ox/oy/oz/clientTime/rt keep their use-site finite fallbacks (eye anchor /
+ * rewind reconstruction) so a dropped field still throws from the eye.
+ */
+function sanitizeCmd(cmd: InputCmd): void {
+  if (!Number.isFinite(cmd.seq)) cmd.seq = 0;
+  if (!Number.isFinite(cmd.ax)) cmd.ax = 0;
+  else cmd.ax = clamp(cmd.ax, -1, 1);
+  if (!Number.isFinite(cmd.az)) cmd.az = 0;
+  else cmd.az = clamp(cmd.az, -1, 1);
+  if (!Number.isFinite(cmd.yaw)) cmd.yaw = 0;
+  else cmd.yaw = ((cmd.yaw % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  if (!Number.isFinite(cmd.pitch)) cmd.pitch = 0;
+  else cmd.pitch = clamp(cmd.pitch, -1.45, 1.45);
+  if (!Number.isFinite(cmd.dx)) cmd.dx = 0;
+  else cmd.dx = clamp(cmd.dx, -1, 1);
+  if (!Number.isFinite(cmd.dy)) cmd.dy = 0;
+  else cmd.dy = clamp(cmd.dy, -1, 1);
+  if (!Number.isFinite(cmd.dz)) cmd.dz = 0;
+  else cmd.dz = clamp(cmd.dz, -1, 1);
+  // SERVER-PARITY (review M2): the server's sanitizeCmd (server/src/index.ts)
+  // additionally drops dt<=0 commands (returns null) and coerces numeric
+  // strings via Number(v), while this coerces non-finite dt to TICK_DT and
+  // rejects numeric strings to 0. Direction hints dx/dy/dz clamp to [-1, 1]
+  // HERE exactly like the server's clampDirection (security LOW): both sides
+  // normalise afterwards (fireDir/throwNade), so an unclamped |d| > 1 was
+  // never a cheat — but it was an authority-vs-prediction divergence until
+  // the shared normalisation. Aligned where it matters for prediction:
+  // yaw wraps to [0,2π) and pitch clamps to ±1.45 here exactly like the
+  // server (sin/cos agree either way, but the stored p.yaw / snapshot would
+  // diverge, and ghost vs authority pitch would disagree until the use-site
+  // clamp). Remaining deltas are DOCUMENTED, not holes: a dt<=0 command the
+  // client predicts as one tick the server drops (transient mispredict, next
+  // ack re-syncs); numeric-string fields the server coerces this zeroes (both
+  // finite after sanitize, use-site eye/rewind fallbacks cover the rest).
+  if (!Number.isFinite(cmd.dt) || cmd.dt <= 0) cmd.dt = TICK_DT;
+  else cmd.dt = clamp(cmd.dt, 0, 0.15);
+  if (!Number.isFinite(cmd.ox)) cmd.ox = 0;
+  else cmd.ox = clamp(cmd.ox, -128, 128);
+  if (!Number.isFinite(cmd.oy)) cmd.oy = 0;
+  else cmd.oy = clamp(cmd.oy, -128, 128);
+  if (!Number.isFinite(cmd.oz)) cmd.oz = 0;
+  else cmd.oz = clamp(cmd.oz, -128, 128);
+  if (!Number.isFinite(cmd.clientTime)) cmd.clientTime = 0;
+  if (cmd.rt !== undefined && !Number.isFinite(cmd.rt)) cmd.rt = undefined;
+}
+
+/**
  * The command a body is allowed during "pregame" / "countdown": aim only.
  *
  * Module-level and mutated in place — applyInput runs once per command per tick
@@ -439,16 +580,59 @@ const FROZEN: InputCmd = {
  * Shipment's four rects are its four perimeter walls, in the order the filter
  * used to return them — NADE_SOLIDS ordering decides trace ties.
  */
-const NADE_FENCE: OBB[] = MAP.nadeFenceRects.map((r) => ({
-  x: r.x,
-  y: (FLOOR_Y + MAP.nadeFenceTop) * 0.5,
-  z: r.z,
-  sx: r.sx,
-  sy: MAP.nadeFenceTop - FLOOR_Y,
-  sz: r.sz,
-  yaw: r.yaw,
-  visual: "wall",
-}));
+const NADE_FENCE: OBB[] = MAP.nadeFenceRects.map((r, i) => {
+  // Regen-shape tolerant: dust2's generator emits bare footprints AND full OBBs
+  // ({x,z,sx,sz} vs {x,z,w,d}); accept both spellings here so a generator that
+  // renames a field produces a fence, not a NaN collider. Non-finite or
+  // non-positive sizes throw loudly at import — a NaN fence box is a frag that
+  // sails through the map edge and detonates in the void, and a silent one is
+  // worse than a boot that refuses to load. (buildNuketown AND buildDust2 throw
+  // on an EMPTY fence list: Nuketown's 3.2 m boundary is below every ballistic
+  // arc off the deck, so no fence means frags over the balcony sail out.)
+  // TOP IS LOAD-BEARING TOO (security HIGH-2/M2): a NaN or short
+  // nadeFenceTop extrudes a NaN/short fence the frag sails over — the same
+  // void detonation a missing rect is. Finite-checked here (import layer) AND
+  // in each map builder (data layer); both throw, so neither a regen nor a
+  // stale build slips a silent hole through. The bar is map-relative: Top must
+  // clear 24 m (the dust2/nuketown policy: crest 10.6 + lob) OR the map's own
+  // crest + 2 m lob margin — whichever it clears first. Shipment's code-built
+  // 13 m fence (crest ~2.7 m) passes the second arm; a NaN or a 3.5 m regen
+  // top on Nuketown passes neither and fails the build instead of warning
+  // past it.
+  if (!Number.isFinite(MAP.nadeFenceTop) || !Number.isFinite(FLOOR_Y))
+    throw new Error(`map "${MAP.id}": nadeFenceTop/floorY is not finite (got top ${MAP.nadeFenceTop}, floorY ${FLOOR_Y})`);
+  if (!(MAP.nadeFenceTop - FLOOR_Y > 0))
+    throw new Error(`map "${MAP.id}": nadeFenceTop ${MAP.nadeFenceTop} does not clear floorY ${FLOOR_Y}`);
+  {
+    let crest = -Infinity;
+    for (const o of SOLIDS) {
+      if (Number.isFinite(o.y) && Number.isFinite(o.sy)) crest = Math.max(crest, o.y + o.sy * 0.5);
+    }
+    if (!(MAP.nadeFenceTop >= 24 || MAP.nadeFenceTop > crest + 2))
+      throw new Error(
+        `map "${MAP.id}": nadeFenceTop ${MAP.nadeFenceTop} clears neither 24 m nor crest ${crest.toFixed(2)} + 2 m lob margin`,
+      );
+  }
+  const sx = r.sx ?? r.w;
+  const sz = r.sz ?? r.d;
+  const yaw = r.yaw ?? 0;
+  for (const [k, v] of [["x", r.x], ["z", r.z], ["sx", sx], ["sz", sz], ["yaw", yaw]] as const) {
+    if (!Number.isFinite(v))
+      throw new Error(`map "${MAP.id}": nadeFenceRect ${i} has non-finite ${k} (regen drift — see MapDef.nadeFenceRects)`);
+  }
+  if (!(sx! > 0 && sz! > 0))
+    throw new Error(`map "${MAP.id}": nadeFenceRect ${i} has non-positive size ${sx}x${sz}`);
+  return {
+    x: r.x,
+    y: (FLOOR_Y + MAP.nadeFenceTop) * 0.5,
+    z: r.z,
+    sx: sx!,
+    sy: MAP.nadeFenceTop - FLOOR_Y,
+    sz: sz!,
+    yaw,
+    visual: "wall",
+  };
+});
 
 /**
  * SEAM PLUGS — frag-only, and the reason a 22 cm banana can never wedge itself
@@ -609,7 +793,64 @@ export function lastNadeHit(): { x: number; y: number; z: number } {
  */
 export function stepNadeBody(b: NadeBody, dt: number): number {
   nadeHitV = 0;
-  if (b.asleep) return 0;
+  // NUKETOWN OOB BACKSTOP, FRAG HALF (security #1/C) — ALSO FOR SLEEPING
+  // FRAGS (security HIGH-3). The old code returned here when asleep, BEFORE
+  // the XZ backstop below: a frag that crossed MAP.bounds on the same step
+  // NADE_SLEEP settled it went asleep-OOB and was never teleported back, yet
+  // still fused and exploded in the void with clear LOS (blastSees runs
+  // against SOLIDS, not the fence, and the bounds are virtual). So the
+  // backstop runs BEFORE the asleep early-out: an OOB frag is clamped,
+  // bounced, and re-armed (asleep = false) so the substeps below re-settle it
+  // inside; an in-bounds asleep frag still returns here. Gated on
+  // IS_NUKETOWN like the main backstop; other maps never reach it.
+  if (b.asleep && !IS_NUKETOWN) return 0;
+  if (b.asleep && IS_NUKETOWN) {
+    const bb0 = MAP.bounds;
+    const loX0 = bb0.minX + NADE_RADIUS;
+    const hiX0 = bb0.maxX - NADE_RADIUS;
+    const loZ0 = bb0.minZ + NADE_RADIUS;
+    const hiZ0 = bb0.maxZ - NADE_RADIUS;
+    let woke = false;
+    // OOB + NON-FINITE WAKE (review MEDIUM): the old gate woke on non-finite
+    // X/Z only — a NaN Y (or NaN/insane velocity) slept forever, fused, and
+    // exploded in the void (blast damage is guarded, replication is not). Any
+    // non-finite coordinate or velocity re-arms the frag inside the map.
+    if (!Number.isFinite(b.x) || !Number.isFinite(b.z) || !Number.isFinite(b.y)) {
+      b.x = (bb0.minX + bb0.maxX) * 0.5;
+      b.z = (bb0.minZ + bb0.maxZ) * 0.5;
+      if (!Number.isFinite(b.y)) b.y = FLOOR_Y + NADE_RADIUS;
+      b.vx = 0;
+      b.vy = 0;
+      b.vz = 0;
+      woke = true;
+    } else if (!Number.isFinite(b.vx) || !Number.isFinite(b.vy) || !Number.isFinite(b.vz)) {
+      b.vx = 0;
+      b.vy = 0;
+      b.vz = 0;
+      woke = true;
+    } else {
+      if (b.x < loX0) {
+        b.x = loX0;
+        bounceNade(b, 1, 0, 0, 0);
+        woke = true;
+      } else if (b.x > hiX0) {
+        b.x = hiX0;
+        bounceNade(b, -1, 0, 0, 0);
+        woke = true;
+      }
+      if (b.z < loZ0) {
+        b.z = loZ0;
+        bounceNade(b, 0, 0, 1, 0);
+        woke = true;
+      } else if (b.z > hiZ0) {
+        b.z = hiZ0;
+        bounceNade(b, 0, 0, -1, 0);
+        woke = true;
+      }
+    }
+    if (woke) b.asleep = false;
+    else return 0;
+  }
   const steps = 3;
   const sdt = dt / steps;
   for (let i = 0; i < steps; i++) {
@@ -636,6 +877,75 @@ export function stepNadeBody(b: NadeBody, dt: number): number {
         return nadeHitV;
       }
     }
+  }
+  // NUKETOWN OOB BACKSTOP, FRAG HALF (security #1/C). The 56-rect frag fence
+  // (MapDef.nadeFenceRects, extruded to nadeFenceTop 26) is the real wall a lob
+  // bounces off; this is the net behind it. A frag arcing over the 3.2 m
+  // boundary with deck-launch speed can cross MAP.bounds mid-step (up to
+  // ~0.24 m past the line across the 3 substeps), and without this it would
+  // detonate in the void where no player can ever be. Teleport back inside the
+  // inset and bounce off the invisible plane (same kernel, so predictNade's
+  // landing marker agrees exactly). Gated on IS_NUKETOWN: other maps never
+  // reach it and stay bit-identical.
+  //
+  // CADENCE NOTE (accepted, documented): this runs ONCE per stepNadeBody call,
+  // not once per substep — the fence above is the per-substep real wall, this
+  // is the net. predictNade steps the same kernel at the same TICK_DT, so the
+  // marker and the sim agree exactly despite the coarser net.
+  if (IS_NUKETOWN) {
+    const bb = MAP.bounds;
+    const loX = bb.minX + NADE_RADIUS;
+    const hiX = bb.maxX - NADE_RADIUS;
+    const loZ = bb.minZ + NADE_RADIUS;
+    const hiZ = bb.maxZ - NADE_RADIUS;
+    let fenced = false;
+    // Non-finite X/Z (L2: NaN comparisons are false, so NaN x/z fell through
+    // the OOB arms below and stayed void-OOB): re-arm inside like Y/velocity
+    // rather than detonate the void.
+    if (!Number.isFinite(b.x)) {
+      b.x = (bb.minX + bb.maxX) * 0.5;
+      b.vx = 0;
+      fenced = true;
+    }
+    if (!Number.isFinite(b.z)) {
+      b.z = (bb.minZ + bb.maxZ) * 0.5;
+      b.vz = 0;
+      fenced = true;
+    }
+    if (!Number.isFinite(b.y)) {
+      b.y = FLOOR_Y + NADE_RADIUS;
+      b.vy = 0;
+      fenced = true;
+    }
+    if (!Number.isFinite(b.vx) || !Number.isFinite(b.vy) || !Number.isFinite(b.vz)) {
+      b.vx = 0;
+      b.vy = 0;
+      b.vz = 0;
+      fenced = true;
+    }
+    if (b.x < loX) {
+      b.x = loX;
+      bounceNade(b, 1, 0, 0, 0);
+      fenced = true;
+    } else if (b.x > hiX) {
+      b.x = hiX;
+      bounceNade(b, -1, 0, 0, 0);
+      fenced = true;
+    }
+    if (b.z < loZ) {
+      b.z = loZ;
+      bounceNade(b, 0, 0, 1, 0);
+      fenced = true;
+    } else if (b.z > hiZ) {
+      b.z = hiZ;
+      bounceNade(b, 0, 0, -1, 0);
+      fenced = true;
+    }
+    // A frag that crossed the line on the same step it settled re-arms: the
+    // asleep early-out at the top would otherwise leave it asleep-OOB forever.
+    // (The top-of-function OOB check already covers frags that ARRIVE asleep;
+    // this covers frags that FALL asleep OOB mid-step.)
+    if (fenced) b.asleep = false;
   }
   return nadeHitV;
 }
@@ -973,6 +1283,23 @@ export type SimPlayer = {
    */
   cmdBank: number;
   /**
+   * GHOST-SIDE TRAVEL BANK (review HIGH-2): the seat-level meter the server
+   * drains (seat.moveBank, one MOVE_TICK per drained command, capped at
+   * MAX_CMDS_PER_TICK per tick) has no SimPlayer home, so the ghost carries
+   * its own copy. predictMovement funds it per predicted command and spends
+   * one TICK_DT of travel per command that moves, exactly parallel to cmdBank
+   * for the gun clocks — a 960 cmds/s flood can no longer replay ~15x the
+   * travel the authority integrates out of a capped bank plus a capped drain.
+   *
+   * Residual, documented: the server funds per TICK on the wall clock while
+   * the ghost funds per COMMAND, so a multi-command drain tick still differs
+   * by up to one bank. The next ack re-syncs it (predictionFor carries the
+   * seat's live value), and what is left is a render-smoothing error, never a
+   * hit — hits are hitscan against the authority, and the ghost's hitmarker is
+   * explicitly predicted (see game.ts predMarked).
+   */
+  moveBank: number;
+  /**
    * Fire commands this player has had REFUSED for claiming a muzzle that is not
    * on its body (GameSession.tryFire's anti-teleport guard). A healthy client
    * reads 0 forever; anything else is a client/server disagreement about where
@@ -1043,7 +1370,7 @@ export class GameSession {
   mode: Mode = "tdm";
   score0 = 0;
   score1 = 0;
-  remain = MATCH_TIME;
+  remain = TDM_MATCH_TIME;
   over = false;
   players = new Map<string, SimPlayer>();
   /** Live banana frags, authoritative. */
@@ -1372,6 +1699,9 @@ export class GameSession {
       // time from there. qa/hitlab's rate-cheat block now asserts the first
       // second as well as the ten-second mean, because the mean never saw this.
       cmdBank: 0,
+      // Travel opens empty for the same reason: the ghost seeds both banks
+      // from PredictionState (server-funded), never from a grant.
+      moveBank: 0,
       badOrigin: 0,
       originClamped: 0,
       netFed: false,
@@ -1428,7 +1758,7 @@ export class GameSession {
    */
   nextMatch(): void {
     this.over = false;
-    this.remain = MATCH_TIME;
+    this.remain = matchTimeFor(this.mode);
     this.score0 = 0;
     this.score1 = 0;
     this.phase = "live";
@@ -1642,6 +1972,14 @@ export class GameSession {
     // A fresh body has taken no damage: the regen clock starts here, so nothing
     // carries a half-elapsed delay out of the life that just ended.
     p.regenT = 0;
+    // THE COMMAND CLOCK RESTARTS HERE (review HIGH): cmdBank is earned time, and
+    // a corpse banks it while dead — without a reset the next life opens with a
+    // funded burst (the same class the server's moveBank reset on death closes
+    // for travel). nextMatch() spawns every body, so the rollover inherits this.
+    p.cmdBank = 0;
+    // Travel restarts with it: the seat bank is zeroed on death server-side,
+    // and the ghost re-seeds from the next snapshot's PredictionState.
+    p.moveBank = 0;
     p.alive = true;
     p.dead = 0;
     p.protect = SPAWN_PROTECT;
@@ -1671,6 +2009,7 @@ export class GameSession {
   }
 
   applyInput(p: SimPlayer, cmd: InputCmd, rewind = true): void {
+    sanitizeCmd(cmd);
     p.seq = cmd.seq;
     // A consumed command is acknowledged even when its body is dead. Otherwise
     // the client replays a whole corpse's input backlog onto the next life.
@@ -1910,6 +2249,11 @@ export class GameSession {
       const dy = cy - n.y;
       const dz = o.z - n.z;
       const d = Math.hypot(dx, dy, dz);
+      // NaN-POISON GUARD (security HIGH-1): a non-finite blast distance fails
+      // every comparison below (d > R is false for NaN) and would otherwise
+      // flow into k/dmg as NaN, poisoning hp with NaN. Inputs are sanitized at
+      // ingress so this is unreachable — it is the last net, not the fence.
+      if (!Number.isFinite(d)) continue;
       if (d > NADE_DMG_R) continue;
       if (d > 0.35 && !blastSees(n, o.x, cy, o.z, d)) continue;
       const k = clamp(d / NADE_DMG_R, 0, 1);
@@ -2102,8 +2446,10 @@ export class GameSession {
    * turn the slower it runs, a 30 fps player got a third more rounds per second
    * than a 60 fps one on the same machine. The bank fixes it by construction:
    * credit can only ever be spent out of real time that was paid in, so the
-   * total per wall-second is exactly 1.0 s for EVERY arrival pattern — evenly
-   * spread, bunched, or dumped 16 at a time out of a stall.
+   * total per wall-second is exactly 1.0 s SUSTAINED for EVERY arrival pattern — evenly
+   * spread, bunched, or dumped 16 at a time out of a stall — plus the 0.5 s
+   * banked burst on the first flood second after idle (idle-to-full integrates
+   * 0.5 + 1.0 = 1.5 s that second).
    *
    * Deliberately NOT everything step() ages. Spawn protection and the UAV are
    * match-state timers on the SERVER's clock, not consequences of this player's
@@ -2776,21 +3122,99 @@ function startReload(p: SimPlayer): void {
  * same order — and the same deterministic spread, written to lastShotD*, so the
  * caller draws the tracer and tests the hitmarker on the ray the server traces.
  */
-export function predictMovement(p: SimPlayer, cmd: InputCmd, dt = TICK_DT): boolean {
+export function predictMovement(p: SimPlayer, cmd: InputCmd, dt = TICK_DT, live = true): boolean {
+  sanitizeCmd(cmd);
   p.seq = cmd.seq;
   if (!p.alive) return false;
-  if (p.fireCd > -dt) p.fireCd = Math.max(-dt, p.fireCd - dt);
-  p.swap = Math.max(0, p.swap - dt);
-  p.nadeCd = Math.max(0, p.nadeCd - dt);
-  p.sprintOut = Math.max(0, p.sprintOut - dt);
-  tickAdsReload(p, dt);
+  // PRE-LIVE MIRROR (review M2): the authority gates movement/fire/cook behind
+  // inputLocked(phase) — aim lands, everything else is a FROZEN friction step
+  // (GameSession.applyInput). The old ghost ignored the gate and full-walked
+  // the countdown while the server bled velocity, so every client entered GO
+  // metres ahead of its body and reconciled. Pass live=false (game.ts passes
+  // matchLive()) to replay the same FROZEN step: gun clocks still age (the
+  // server credits them per drained command even pre-live), but no
+  // movement input, no cook, no trigger. Default true preserves existing
+  // offline/harness callers.
+  if (!live) {
+    // BANKED PRE-LIVE CREDIT (review HIGH): the authority funds pre-live ticks
+    // too — stepInputs banks wall time and creditCommandTime spends cmd.dt per
+    // drained command even while applyInput runs the FROZEN gate — so raw-dt
+    // ageing here spent time nobody banked whenever the account ran dry. The
+    // ghost funds TICK_DT per predicted command out of its own cmdBank (seeded
+    // 0 on a fresh ghost, exactly like a fresh body) and spends cmd.dt — the
+    // same value the authority will spend for this command — through the same
+    // floors. At steady 64 Hz 1:1 drain the two are bit-identical; a
+    // multi-command drain tick still differs (the server funds per TICK, the
+    // ghost per COMMAND), but that gap is bounded by one CMD_BANK and the next
+    // ack re-syncs it — and pre-live there is no trigger, cook or movement for
+    // it to land on anyway.
+    p.cmdBank = Math.min(CMD_BANK, (Number.isFinite(p.cmdBank) ? p.cmdBank : 0) + dt);
+    const g = Math.min(cmd.dt, p.cmdBank);
+    if (g > 0) {
+      p.cmdBank -= g;
+      if (p.fireCd > -g) p.fireCd = Math.max(-g, p.fireCd - g);
+      if (p.swap > 0) p.swap = Math.max(0, p.swap - g);
+      if (p.nadeCd > 0) p.nadeCd = Math.max(0, p.nadeCd - g);
+      if (p.sprintOut > 0) p.sprintOut = Math.max(0, p.sprintOut - g);
+      tickAdsReload(p, g);
+    }
+    p.yaw = cmd.yaw;
+    p.pitch = clamp(cmd.pitch, -1.45, 1.45);
+    FROZEN.seq = cmd.seq;
+    FROZEN.yaw = p.yaw;
+    FROZEN.pitch = p.pitch;
+    // TRAVEL IS METERED TOO (review HIGH-2): the FROZEN friction step still
+    // integrates (bleed), so it spends one tick of the ghost travel bank like
+    // the authority spends one MOVE_TICK per drained command. Unfunded, the
+    // body holds position for this command — the queued command still lands on
+    // the next funded tick server-side, and the next ack re-syncs the ghost.
+    if (spendTravel(p, TICK_DT)) movePlayer(p, FROZEN, TICK_DT);
+    p.nadeUp = false;
+    return false;
+  }
+  // BANKED LIVE CREDIT (review MEDIUM-2): the authority does not age gun
+  // clocks by raw dt — stepInputs funds 1/64 s of wall time per tick
+  // (bankCommandTime) and the drain loop spends min(cmd.dt, bank) per drained
+  // command (creditCommandTime), so a 3-command drain tick credits at most one
+  // tick of clock, not three. The old raw-dt ageing here credited all three,
+  // so the ghost predicted faster fire than the authority on any burst drain
+  // or replay. The ghost now funds dt per predicted command out of its own
+  // cmdBank (same floors as the authority, same as the pre-live path above;
+  // sanitizeCmd already clamped cmd.dt to (0, 0.15]) and the ghost spends
+  // min(cmd.dt, bank): at steady 64 Hz 1:1 drain this is bit-identical to raw dt, and a
+  // burst can no longer spend time nobody banked. Residual gap is bounded by
+  // one CMD_BANK (the server funds per TICK, the ghost per COMMAND) and the
+  // next ack re-syncs it — movement is metered the same way below, so the
+  // worst case is a bounded position + hitmarker over-prediction on a burst
+  // drain, documented here, not an unbounded split.
+  p.cmdBank = Math.min(CMD_BANK, (Number.isFinite(p.cmdBank) ? p.cmdBank : 0) + dt);
+  const g = Math.min(cmd.dt, p.cmdBank);
+  if (g > 0) {
+    p.cmdBank -= g;
+    if (p.fireCd > -g) p.fireCd = Math.max(-g, p.fireCd - g);
+    if (p.swap > 0) p.swap = Math.max(0, p.swap - g);
+    if (p.nadeCd > 0) p.nadeCd = Math.max(0, p.nadeCd - g);
+    if (p.sprintOut > 0) p.sprintOut = Math.max(0, p.sprintOut - g);
+    tickAdsReload(p, g);
+  }
   if (!cmd.fire) p.armed = true;
   p.yaw = cmd.yaw;
   p.pitch = clamp(cmd.pitch, -1.45, 1.45);
   p.wantAds = cmd.ads && p.slide <= 0 && p.reload <= 0;
   trySwap(p, cmd.weapon);
   if (cmd.reload) startReload(p);
-  movePlayer(p, cmd, dt);
+  // TRAVEL IS METERED (review HIGH-2): the authority gates travel behind the
+  // same arrival pattern — at most MAX_CMDS_PER_TICK drained per tick, each
+  // spending one MOVE_TICK of seat.moveBank. The ghost spends one TICK_DT of
+  // its own moveBank (seeded from PredictionState, 0 on a fresh ghost like a
+  // fresh body) per command that moves. Unfunded, the body holds position for
+  // this command while aim/gun clocks still replay above — the server will
+  // integrate the queued command on a later funded tick, and the next ack
+  // re-syncs the ghost. Residual: the server funds per TICK, the ghost per
+  // COMMAND, so a burst still leads by up to one bank — a render-smoothing
+  // error (errX/errY/errZ decay it), never a hit: hits are hitscan against
+  // the authority.
+  if (spendTravel(p, TICK_DT)) movePlayer(p, cmd, dt);
   // Trigger state affects later movement: a spent magazine starts a reload,
   // which prevents sprinting. Replay ammunition without generating hits/FX.
   const verdict = stepCook(p, cmd);
@@ -2826,6 +3250,20 @@ export function predictMovement(p: SimPlayer, cmd: InputCmd, dt = TICK_DT): bool
   return false;
 }
 
+/**
+ * Spend one tick of ghost travel. Parallel to spendTravel's gun-clock twin
+ * above (creditCommandTime): funds dt per predicted command out of the
+ * ghost's own moveBank (capped at CMD_BANK, the seat's MOVE_BANK_MAX twin)
+ * and spends one TICK_DT per command that moves. Returns false when the
+ * account is empty — the caller holds position for that command.
+ */
+function spendTravel(p: SimPlayer, dt: number): boolean {
+  p.moveBank = Math.min(CMD_BANK, (Number.isFinite(p.moveBank) ? p.moveBank : 0) + dt);
+  if (p.moveBank < TICK_DT - 1e-9) return false;
+  p.moveBank -= TICK_DT;
+  return true;
+}
+
 export function predictionState(p: SimPlayer) {
   return {
     x: p.x, y: p.y, z: p.z, vx: p.vx, vy: p.vy, vz: p.vz,
@@ -2834,6 +3272,13 @@ export function predictionState(p: SimPlayer) {
     ads: p.ads, reload: p.reload, sprintOut: p.sprintOut,
     fireCd: p.fireCd, swap: p.swap, nadeCd: p.nadeCd,
     heat: p.heat, shotAgo: p.shotAgo, armed: p.armed, cook: p.cook,
+    // Earned-time banks, exact (review HIGH-1/HIGH-2): without these the
+    // ghost rebuilt its account from 0 + dt on every snapshot while the
+    // authority kept banking on the wall clock, so after any idle the ghost
+    // predicted 1-2 ticks of drain credit differently. Seeded from the ack,
+    // preserved across reconciles by ghostFrom.
+    cmdBank: p.cmdBank,
+    moveBank: p.moveBank,
   };
 }
 
@@ -3163,7 +3608,14 @@ function integrate(p: SimPlayer, dt: number, ph0: number): void {
     p.y += p.vy * sdt;
     // CEILINGS (shared/ceiling.ts): a head that rises into an overhead solid stops under it, never a lateral push.
     if (p.vy > 0) stopAtCeiling(p, y0 + ph, ph, false);
-    const gh = groundHeight(p.x, p.z, SOLIDS, fromY);
+    // JUMP-VAULT SNAP GATE: railVault tops only count as floor while the body
+    // is airborne after a jump and not sliding (!onGround && slide <= 0) — a
+    // slide that goes airborne off a deck/stair lip (onGround false, slide > 0
+    // persisting) must never be snapped Deck→RailTop. A grounded walker held
+    // as steel by resolveCircle above must never be snapped Deck→RailTop.
+    // Standing ON a rail top stays put: groundHeight still counts a top
+    // at/above fromY, so a grounded body balanced on the rail keeps its floor.
+    const gh = groundHeight(p.x, p.z, SOLIDS, fromY, FLOOR_Y, !p.onGround && p.slide <= 0);
     if (p.y <= gh) {
       p.y = gh;
       if (p.vy < 0) p.vy = 0;
@@ -3177,6 +3629,95 @@ function integrate(p: SimPlayer, dt: number, ph0: number): void {
       p.onGround = true;
     }
   }
+  // NUKETOWN OOB EXFIL CLAMP (security #1). The deck rails top out at ~4.0 m
+  // and a jump apex is 0.76 m, so feet at ~4.76 m ballistically clear the
+  // 3.2 m perimeter (below every rail top, never a mantle step) — and
+  // integrate() never had an XZ bounds check (MAP.bounds only gated spawns),
+  // so a rail launch could fly out of the map and land in the void. Bodies
+  // are now fenced into MAP.bounds (inset RADIUS, outward velocity zeroed):
+  // the INTENDED direction is preserved — deck→lawn stays inside the bounds
+  // (the player jump-vault lands on the lawn, movement code untouched) and
+  // lawn→deck still needs the stairs — while anything crossing the map edge
+  // mid-air is teleported back to the fence. Gated on IS_NUKETOWN, so every
+  // other map compiles to the code it had before.
+  //
+  // RIM FLOORLESS NOTE: the clamp lands on the map's floor plane (FLOOR_Y) or
+  // whatever climbable top the re-sample below finds — the floor plane is
+  // infinite, so a clamped body always has ground; buildNuketown additionally
+  // asserts finite bounds (a {x,z,w,d} regen rect would make every comparison
+  // below false and silently disable the clamp — the OOB it exists to close).
+  //
+  // NO RESOLVE/CEILING RE-RUN (accepted, documented): the teleport is at most
+  // SPRINT*TICK_DT ≈ 0.09 m of overshoot, so a clamped body can sit up to one
+  // frame ~9 cm inside a fence-adjacent face before the next tick's
+  // resolveCircle pushes it out. Re-running the full circle + ceiling sweep
+  // here would cost it every teleport for no gameplay gain — one stale frame
+  // inside a perimeter wall is not a stuck body, and the next tick resolves
+  // it exactly as a walked-into wall.
+  if (IS_NUKETOWN) {
+    const b = MAP.bounds;
+    const loX = b.minX + RADIUS;
+    const hiX = b.maxX - RADIUS;
+    const loZ = b.minZ + RADIUS;
+    const hiZ = b.maxZ - RADIUS;
+    let clamped = false;
+    // Non-finite positions (unreachable now inputs are sanitized at ingress;
+    // this is the last net, not the fence) teleport to the fence like an OOB.
+    // Non-finite VELOCITY zeroes even when the position is in bounds (parity
+    // with the asleep-wake + post-step frag nets below): an in-bounds body
+    // with NaN vx/vz would otherwise keep the poisoned velocity into the next
+    // tick's integrate.
+    if (!Number.isFinite(p.vx)) p.vx = 0;
+    if (!Number.isFinite(p.vz)) p.vz = 0;
+    if (!Number.isFinite(p.x) || p.x < loX) {
+      p.x = !Number.isFinite(p.x) ? (b.minX + b.maxX) * 0.5 : loX;
+      if (p.vx < 0 || !Number.isFinite(p.vx)) p.vx = 0;
+      clamped = true;
+    } else if (p.x > hiX) {
+      p.x = hiX;
+      if (p.vx > 0 || !Number.isFinite(p.vx)) p.vx = 0;
+      clamped = true;
+    }
+    if (!Number.isFinite(p.z) || p.z < loZ) {
+      p.z = !Number.isFinite(p.z) ? (b.minZ + b.maxZ) * 0.5 : loZ;
+      if (p.vz < 0 || !Number.isFinite(p.vz)) p.vz = 0;
+      clamped = true;
+    } else if (p.z > hiZ) {
+      p.z = hiZ;
+      if (p.vz > 0 || !Number.isFinite(p.vz)) p.vz = 0;
+      clamped = true;
+    }
+    // y/vy are independent like x/vx above (review LOW): a poisoned vy zeroes
+    // in place and KEEPS its finite y — gravity re-grounds the body next tick
+    // — while only a poisoned y teleports to the floor plane. Zeroing-then-
+    // teleporting on a vy fault alone moved a finite body for a velocity fault.
+    if (!Number.isFinite(p.y)) {
+      p.y = FLOOR_Y;
+      p.vy = 0;
+      clamped = true;
+    } else if (!Number.isFinite(p.vy)) {
+      p.vy = 0;
+    }
+    if (clamped) {
+      // The teleport (up to SPRINT*TICK_DT ≈ 0.09 m of overshoot) can move the
+      // body onto a different floor than the substeps above sampled — re-sample
+      // instead of standing one stale tick on the void's y. Only runs on the
+      // teleported path; unclamped bodies keep the exact code above.
+      const gh = groundHeight(p.x, p.z, SOLIDS, walkFromY(p.y), FLOOR_Y, !p.onGround && p.slide <= 0);
+      if (p.y <= gh) {
+        p.y = gh;
+        if (p.vy < 0) p.vy = 0;
+        p.onGround = true;
+      } else {
+        p.onGround = false;
+      }
+      if (p.y < FLOOR_Y) {
+        p.y = FLOOR_Y;
+        p.vy = 0;
+        p.onGround = true;
+      }
+    }
+  }
 }
 
 /**
@@ -3185,7 +3726,11 @@ function integrate(p: SimPlayer, dt: number, ph0: number): void {
  * under the lowest underside it crossed — Infinity when it crossed none.
  */
 function ceilingFeetY(p: SimPlayer, head0: number, ph: number, contact = false): number {
-  const bot = ceilingCrossed(SOLIDS, solidGrid(), p.x, p.z, RADIUS, p.y, p.vy, head0, p.y + ph, contact);
+  // Jump-vault mirror: a railVault panel resolveCircle would hold as steel
+  // (grounded body, or a slide gone airborne off a lip) is a ceiling here;
+  // one it would mantle (airborne after a jump, slide <= 0) is never a
+  // ceiling — the two agree by construction.
+  const bot = ceilingCrossed(SOLIDS, solidGrid(), p.x, p.z, RADIUS, p.y, p.vy, head0, p.y + ph, contact, !p.onGround && p.slide <= 0);
   return bot === Infinity ? Infinity : Math.max(bot - CEIL_EPS, head0) - ph;
 }
 
@@ -3198,7 +3743,13 @@ function ceilingFeetY(p: SimPlayer, head0: number, ph: number, contact = false):
  */
 function stopAtCeiling(p: SimPlayer, head0: number, ph: number, fit: boolean): void {
   const y = ceilingFeetY(p, head0, ph);
-  if (y === Infinity || (fit && y < groundHeight(p.x, p.z, SOLIDS, walkFromY(p.y)))) return;
+  // Jump-vault mirror: the floor under the feet reads railVault tops exactly
+  // when the live snap does (airborne after a jump, unslid) — the same
+  // boolean integrate threads, verbatim. A grounded head-in-rail is
+  // impossible on shipped maps (the rail underside sits ~at deck level), so
+  // this only matters as agreement by construction, not as gameplay.
+  const vaulting = !p.onGround && p.slide <= 0;
+  if (y === Infinity || (fit && y < groundHeight(p.x, p.z, SOLIDS, walkFromY(p.y), FLOOR_Y, vaulting))) return;
   p.y = y;
   if (p.vy > 0) p.vy = 0;
 }
@@ -3212,7 +3763,11 @@ function stopAtCeiling(p: SimPlayer, head0: number, ph: number, fit: boolean): v
  */
 function roomToStand(p: SimPlayer, ph0: number): boolean {
   const y = ceilingFeetY(p, p.y + ph0, STAND_H, true);
-  return y === Infinity || y >= groundHeight(p.x, p.z, SOLIDS, walkFromY(p.y));
+  // Same verbatim-mirror boolean as stopAtCeiling above (LOW-3): the floor
+  // the stand-up check refuses to sink through must read railVault tops
+  // exactly when the live snap does.
+  const vaulting = !p.onGround && p.slide <= 0;
+  return y === Infinity || y >= groundHeight(p.x, p.z, SOLIDS, walkFromY(p.y), FLOOR_Y, vaulting);
 }
 
 /**
@@ -3254,7 +3809,22 @@ function resolveCircle(p: SimPlayer): void {
       if (p.y + ph < bot + 0.05 || p.y > top - 0.02) continue;
       const hit = circleHitsOBB(p.x, p.z, RADIUS, o);
       if (hit.hit && hit.pen > 0) {
-        if (o.climb && top - p.y < 1.05 && p.y + 0.2 < top && p.vy >= -0.5) {
+        // JUMP-VAULT GATE (Nuketown rails only — other maps never set
+        // railVault, so the added clause is a dead branch there). A railVault
+        // panel mantles ONLY while the body is airborne after a jump AND not
+        // sliding (!onGround && slide <= 0: movePlayer cleared onGround the
+        // same tick cmd.jump fired, and it stays clear until a groundHeight
+        // snap lands the body again; a slide that goes airborne off a deck or
+        // stair lip keeps slide > 0 while onGround reads false, and must stay
+        // steel like every other grounded approach). A grounded body —
+        // walking, sprinting, sliding or crouching into the rail with
+        // vy ~= 0 — reads it as hard steel, exactly like a wall:
+        // no pass-through, so the groundHeight snap below can never lift a
+        // walker Deck→RailTop like a stair. Sliding is grounded too (a slide
+        // never jumps), and the vy >= -0.5 re-steel for fast falls is kept for
+        // every mantle including rails. Client prediction and the authority
+        // both run this function, so they agree by construction.
+        if (o.climb && top - p.y < 1.05 && p.y + 0.2 < top && p.vy >= -0.5 && (!o.railVault || (!p.onGround && p.slide <= 0))) {
           continue;
         }
         p.x += hit.nx * hit.pen;
@@ -3896,10 +4466,7 @@ export function botProbe(p: SimPlayer): {
   };
 }
 
-/** Radius the navigator validates GOALS with: the body plus a shoulder. */
-const BOT_CLEAR_R = RADIUS + 0.14;
-/**
- * Radius the navigator STEERS with. Wider, and deliberately: the wall standoff
+/** Radius the navigator STEERS with. Wider, and deliberately: the wall standoff
  * refuses to walk a line that ends against steel, so a route planned at body
  * width sends a bot into a squeeze the standoff then refuses to enter, and it
  * ping-pongs on the lip of it (measured: the crate at (2.5,2.15) against the
@@ -3924,7 +4491,7 @@ const BOT_BANDS = [0, 0.62, 0.34, 0.16];
  * `lowSolid` asks the OTHER question: is it legal here for a body that would
  * rather not wade through a dumpster? See LOW PROPS ARE NOT DOORWAYS, below.
  */
-function botBlocked(x: number, z: number, r: number, lowSolid = false, fromY = Infinity, y = groundHeight(x, z, SOLIDS, fromY)): boolean {
+function botBlocked(x: number, z: number, r: number, lowSolid = false, fromY = Infinity, y = groundHeight(x, z, SOLIDS, fromY, FLOOR_Y, false), allowRailVault = false): boolean {
   // Nothing here moves, so one gathered list covers the whole sweep. The
   // per-solid bounding-circle test below is kept: it is exact where the grid is
   // only conservative, and it costs two multiplies.
@@ -3934,11 +4501,36 @@ function botBlocked(x: number, z: number, r: number, lowSolid = false, fromY = I
     if (o.visual === "roof") continue;
     const top = o.y + o.sy * 0.5;
     const bot = o.y - o.sy * 0.5;
-    if (y + STAND_H < bot + 0.05 || y > top - 0.02) continue;
     const dx = x - o.x;
     const dz = z - o.z;
     const reach = r + solidFootRadius(o, cand[ci]!);
     if (dx * dx + dz * dz > reach * reach) continue;
+    // NUKETOWN RAIL VAULTS ARE HARD STEEL to every live query: a wandering,
+    // chasing or funnelled bot must feel the 3 m drop, and the band ladder
+    // (1.22→0.62→0.34→0.16→crossLow) plus pre-standoff separation must never
+    // narrow it away. Only the link builder opts back in (allowRailVault),
+    // and only for deck-level edges — lawn→deck legs stay steel. Other maps
+    // never set railVault, so this branch is dead code off Nuketown.
+    //
+    // JUMP-VAULT NAV AGREEMENT (LOW-2): this branch sits ABOVE the y-skip on
+    // purpose, with its own height gate. nav ground (botGroundY below, and
+    // this function's own default y) reads deck under a rail footprint
+    // (vaulting=false); the legacy nav ground (vaulting=true) instead lifted
+    // the sample to the rail top ~4.0, and the old order then skipped the
+    // steel test on that lifted y (y > top - 0.02) and reported clear inside
+    // body width — while live steering holds the same panel as steel. Steel
+    // first keeps nav ground and nav steel in agreement by construction. A
+    // body at/above the top still skips its own panel (nothing balanced on a
+    // rail reads blocked), and the shipped backstops (graph reject at 5018 +
+    // live botWallPush standoff) already held — this only removes the
+    // by-construction disagreement.
+    if (o.railVault && NAV_Y && !allowRailVault) {
+      if (y + STAND_H < bot + 0.05 || y > top - 0.02) continue;
+      const hitRail = circleHitsOBB(x, z, r, o);
+      if (hitRail.hit && hitRail.pen > 0) return true;
+      continue;
+    }
+    if (y + STAND_H < bot + 0.05 || y > top - 0.02) continue;
     // A MANTLE-HEIGHT CLIMBABLE BOX IS NEVER STEEL — except to the two
     // preferred passes of `botSteer`'s bearing fan (`lowSolid`), which treat
     // Shipment's low PROPS as obstacles to walk around rather than over.
@@ -3956,9 +4548,24 @@ function botBlocked(x: number, z: number, r: number, lowSolid = false, fromY = I
   return false;
 }
 
-/** The floor a standing bot would be on at (x,z), stepping from `fromY`. */
+/** The floor a standing bot would be on at (x,z), stepping from `fromY`.
+ *
+ * JUMP-VAULT NAV AGREEMENT (LOW-2): nav ground never vaults (vaulting=false)
+ * — a deck-level walker must read deck under a rail footprint, not the rail
+ * top. The legacy default (vaulting=true: every climb top counts, kept for
+ * spawn/clearance scans and non-nav callers) lifted the sample to railTop
+ * ~4.0, and the old botBlocked order then skipped the steel test on that
+ * lifted y and reported clear inside body width. Standing ON a rail still
+ * counts (groundHeight keeps a top at/above fromY even with vaulting=false),
+ * and other maps have no railVault box, so the flag is a dead branch there.
+ */
 function botGroundY(x: number, z: number, fromY = Infinity): number {
-  return groundHeight(x, z, SOLIDS, fromY);
+  return groundHeight(x, z, SOLIDS, fromY, FLOOR_Y, false);
+}
+
+/** Instruments only (nuketown rail sweeps): the walker-height query, verbatim. */
+export function botGroundYDebug(x: number, z: number, fromY: number): number {
+  return botGroundY(x, z, fromY);
 }
 
 /**
@@ -3984,6 +4591,21 @@ function botPathClear(
   // NAV_Y maps sample every 0.25 m: a 0.5 m stride steps straight past a
   // window jamb's corner (the line "clears" a 2 m opening it cannot walk)
   const n = NAV_Y ? Math.max(1, Math.min(40, Math.ceil(l / 0.25))) : Math.max(1, Math.min(16, Math.ceil(l / 0.5)));
+  // RAIL STRIDE HOLE (security D): the samples above are 0.25 m apart and the
+  // rail panel is 0.12 m thick, so a probe aimed straight across a deck rail
+  // lands a sample on either side and reads clear — while steering (which aims
+  // through the "clear" line) then walks the body into steel it mantles over
+  // by design (resolveCircle steps a deck body onto the rail top), and the
+  // clamp only contains where it lands. botBlocked already holds every rail
+  // as hard steel per sample (allowRailVault defaults false); this closes the
+  // gap BETWEEN samples. Height-gated, so lawn legs under the balcony still
+  // read clear; expanded by the query radius, so a centreline that merely
+  // misses the panel at body width still counts as a crossing. Dead branch
+  // off NAV_Y maps (RAIL_VAULT_N === 0 everywhere else) — including the height
+  // tracking below, which costs the other maps nothing.
+  const trackRail = NAV_Y && RAIL_VAULT_N > 0;
+  let yLo = trackRail ? (Number.isFinite(fromY) ? fromY : botGroundY(x0, z0, Infinity)) : 0;
+  let yHi = yLo;
   let y = fromY;
   for (let i = 1; i <= n; i++) {
     const t = i / n;
@@ -3991,8 +4613,15 @@ function botPathClear(
     const z = z0 + dz * t;
     const ground = botGroundY(x, z, y);
     if (botBlocked(x, z, r, lowSolid, y, ground)) return false;
-    if (y !== Infinity) y = ground;
+    if (y !== Infinity) {
+      y = ground;
+      if (trackRail) {
+        if (ground < yLo) yLo = ground;
+        if (ground > yHi) yHi = ground;
+      }
+    }
   }
+  if (trackRail && segHitsRailVault(x0, z0, x1, z1, yLo, yHi, r)) return false;
   return true;
 }
 
@@ -4252,15 +4881,132 @@ export function spawnPoolFor(mode: "ffa" | "tdm", team: 0 | 1): Spawn[] {
  */
 const BOT_LINK_MAX = MAP.navLattice.linkMax;
 
+/**
+ * How many railVault panels this map has (Nuketown: 11, everywhere else: 0).
+ * Lets the rail-crossing reject below compile to a single dead branch off
+ * Nuketown — no scan, no behaviour change, bit-identical graphs elsewhere.
+ */
+const RAIL_VAULT_N = SOLIDS.reduce((n, o) => n + (o.railVault ? 1 : 0), 0);
+
+/**
+ * Segment vs every railVault footprint: does the line a→b run THROUGH
+ * deck-rail steel at a height a body could occupy?
+ *
+ * HEIGHT GATE (review HIGH-1): the edge's vertical span is tested against the
+ * panel's before the 2D crossing. Ground edges (feet ~0-0.22, head under 2 m)
+ * pass ~3 m UNDER the 3.05 m rail bots and never touch it — the old exact-2D
+ * test rejected them anyway and severed lawn routes running under the
+ * balcony. Mirrors resolveCircle's own skip band (y+STAND_H < bot+0.05 ||
+ * y > top-0.02), conservative on the edge's span — STANDING-ONLY, i.e. the
+ * gate tests STAND_H even for a crouch/slide body, so a crouched or sliding
+ * bot under the balcony can read blocked where it would physically fit. That
+ * over-rejects safe low legs on purpose (documented, kept): a routed leg
+ * never vaults, and a false blocked only reroutes around the house while a
+ * false clear would route a body through rail steel it stalls on. A deck→deck
+ * edge at 3.05 m overlaps [railBot, railTop] and is tested; a lawn→deck edge
+ * spans it and is tested too (it can only cross the rail by vaulting it,
+ * which routed legs never do).
+ *
+ * MINKOWSKI PAD (review HIGH-1, other way): pad 0 tests the CENTRELINE, but
+ * the deck sampler (botBlocked at LINK_R, rails re-allowed as mantle for
+ * deck-level edges) clears a centreline that misses the 0.12 m panel by
+ * 0.1-0.5 m — while live steering holds the same rail as hard steel with a
+ * 1.22 m standoff. So deck-height callers expand the panel by the radius they
+ * planned at (LINK_R for graph edges, r for live probes): what the router
+ * emits, a body at planning width can actually walk. Deck-interior legs that
+ * merely run ALONGSIDE a rail stay clear of the expanded footprint (deck
+ * interior nodes sit well off the rail line — measured, see the build pin
+ * below) and survive; the deck stays connected via the stairs/dfloor, never
+ * via a vault.
+ */
+function segHitsRailVault(
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+  yA: number,
+  yB: number,
+  pad: number,
+): boolean {
+  for (let k = 0; k < SOLIDS.length; k++) {
+    const o = SOLIDS[k]!;
+    if (!o.railVault) continue;
+    const top = o.y + o.sy / 2;
+    const bot = o.y - o.sy / 2;
+    if (Math.max(yA, yB) + STAND_H < bot + 0.05 || Math.min(yA, yB) > top - 0.02) continue;
+    const c = Math.cos(-o.yaw);
+    const s = Math.sin(-o.yaw);
+    const lax = (ax - o.x) * c - (az - o.z) * s;
+    const laz = (ax - o.x) * s + (az - o.z) * c;
+    const lbx = (bx - o.x) * c - (bz - o.z) * s;
+    const lbz = (bx - o.x) * s + (bz - o.z) * c;
+    const hx = o.sx * 0.5 + pad;
+    const hz = o.sz * 0.5 + pad;
+    // Slab test, segment vs AABB in the panel's frame.
+    let tmin = 0;
+    let tmax = 1;
+    const dx = lbx - lax;
+    if (Math.abs(dx) < 1e-9) {
+      if (lax < -hx || lax > hx) continue;
+    } else {
+      let t1 = (-hx - lax) / dx;
+      let t2 = (hx - lax) / dx;
+      if (t1 > t2) {
+        const tmp = t1;
+        t1 = t2;
+        t2 = tmp;
+      }
+      if (t1 > tmin) tmin = t1;
+      if (t2 < tmax) tmax = t2;
+      if (tmax < tmin) continue;
+    }
+    const dz = lbz - laz;
+    if (Math.abs(dz) < 1e-9) {
+      if (laz < -hz || laz > hz) continue;
+    } else {
+      let t1 = (-hz - laz) / dz;
+      let t2 = (hz - laz) / dz;
+      if (t1 > t2) {
+        const tmp = t1;
+        t1 = t2;
+        t2 = tmp;
+      }
+      if (t1 > tmin) tmin = t1;
+      if (t2 < tmax) tmax = t2;
+      if (tmax < tmin) continue;
+    }
+    return true;
+  }
+  return false;
+}
+
 /** Straight-line walkability for a graph edge. Same rules as botPathClear, but
  *  sampled by DISTANCE rather than capped at 16 steps — an 11 m link tested at
  *  0.69 m intervals can step straight over a 0.55 m wall slab. */
 function botLinkClear(a: BotNavPt, b: BotNavPt): boolean {
-  // NAV_Y maps validate links 0.15 m wider than the planner's body: a link that
-  // only just threads a 1.5 m doorway from node centre to node centre is one a
-  // real (off-centre) bot cannot walk, so the graph must route via the doorway
-  // axis nodes instead. Shipment/dust2/Ares: LINK_R === BOT_CLEAR_R.
-  const LINK_R = NAV_Y ? BOT_CLEAR_R + (MAP.navLinkPad ?? 0.15) : BOT_CLEAR_R; // map stream: NAV_Y-only pad (Nuketown 1.10 m doors)
+  // NAV_Y maps validate links wider than the planner's body: a link that only
+  // just threads a doorway from node centre to node centre is one a real
+  // (off-centre) bot cannot walk, so the graph must route via the doorway
+  // axis nodes instead. Shipment/Ares (flat): LINK_R === BOT_CLEAR_R.
+  // Nuketown: BOT_CLEAR_R 0.44 + navLinkPad 0.05 = 0.49, a 0.98 m corridor
+  // through the 1.10 m doors — pinned in buildNuketown, so a regen that drops
+  // navLinkPad (default 0.15 → 1.18 m, wider than the doors) throws there
+  // instead of silently fragmenting the graph here. Dust2 (NAV_Y, default pad
+  // 0.15): 0.59 m — the shipped edge set (380 y-seeds, linkMax 12, lattice
+  // off) was built under this radius and the 0.25 m stride, and the geo hash
+  // pins seeds + pad + range, so a flat-validated set cannot slip in silent
+  // (review MEDIUM-1).
+  const LINK_R = NAV_Y ? BOT_CLEAR_R + (MAP.navLinkPad ?? 0.15) : BOT_CLEAR_R;
+  // Nuketown rails: botLinkClear re-allows the railVault mantle ONLY for
+  // edges whose BOTH ends are on the deck (y >= DECK_RAIL_ALLOW_Y, derived
+  // from the same DECK_RAIL_DECKS/DECK_RAIL_TOL the geometry gate promotes on:
+  // min deck 3.05 − 0.3 = 2.75, so decks 3.05/3.09 m pass while top stair
+  // treads at 2.65/2.68 m and any tall prop at 2.5-3.0 m do not). No magic
+  // literal: if the gate's decks ever move, this follows them. Every other
+  // edge — lawn→deck, ground→deck, any leg with a low end — stays hard steel,
+  // so no routed edge vaults the balcony from the outside. Other maps never
+  // set railVault, so the value of this flag is dead code off Nuketown.
+  const allowRail = NAV_Y && Math.min(a.y, b.y) >= DECK_RAIL_ALLOW_Y;
   const dx = b.x - a.x;
   const dz = b.z - a.z;
   const n = Math.max(2, Math.ceil(Math.hypot(dx, dz) / 0.45));
@@ -4281,7 +5027,7 @@ function botLinkClear(a: BotNavPt, b: BotNavPt): boolean {
     const z = a.z + dz * t;
     // `fromY` is the previous sample's floor: this is a walker stepping along
     // the line, not a god-view query, so a deck 4 m overhead is invisible to it.
-    if (i < n && botBlocked(x, z, LINK_R, false, prevY)) return false;
+    if (i < n && botBlocked(x, z, LINK_R, false, prevY, botGroundY(x, z, prevY), allowRail)) return false;
     const y = i < n ? botGroundY(x, z, prevY) : b.y;
     const dy = y - prevY;
     const rise = Math.abs(dy);
@@ -4295,6 +5041,21 @@ function botLinkClear(a: BotNavPt, b: BotNavPt): boolean {
     }
     prevY = y;
   }
+  // RAIL-VAULT EDGES ARE UNROUTABLE (review HIGH-1, security #3). The sampler
+  // above re-allows the rail mantle for deck-level edges, so without this a
+  // deck→deck edge whose straight line runs THROUGH a rail panel reads clear
+  // and the router emits it — while live steering (botBlocked default false +
+  // botWallPush, which keeps the rail a face on EVERY rung) stalls at the
+  // steel it was routed over. Any segment crossing a railVault footprint is
+  // therefore rejected from the routable set here: it stays steel to the
+  // graph exactly as it is steel to the body, so routed and live agree by
+  // construction. Deck-interior legs that merely run ALONGSIDE a rail stay
+  // LINK_R clear of the expanded footprint and survive; the deck stays
+  // connected via the stairs/dfloor, never via a vault. Falling off the
+  // 0.12 m rail top with no balance model was never on the table — no emitted
+  // hop touches a rail, and the import-time assertion below fails the build
+  // if one ever does.
+  if (NAV_Y && RAIL_VAULT_N > 0 && segHitsRailVault(a.x, a.z, b.x, b.z, a.y, b.y, LINK_R)) return false;
   return true;
 }
 
@@ -4651,6 +5412,33 @@ if (BOT_NAV.length > MAP.navLattice.maxNodes) {
 /** The nav graph's edges. Always built at import — it is the O(n^2) scan the
  *  route table used to open with, and it is what makes the table optional. */
 const BOT_ADJ = buildBotAdj(BOT_NAV.length, botLinkWeight);
+
+/**
+ * BUILD PIN (review HIGH-1, security #3): no ROUTED edge may cross a railVault
+ * footprint. botLinkClear's post-filter above already rejects such edges, so
+ * this loop should never fire — it exists so a future edit that re-opens a
+ * rail edge fails the build loudly instead of shipping bots a hop they stall
+ * on (live steering treats every rail as steel on every rung). Height-gated
+ * and LINK_R-expanded exactly like the filter it shadows. Runs once at
+ * import, over the edge set, and is a dead branch (RAIL_VAULT_N === 0) on
+ * every map but Nuketown.
+ */
+if (NAV_Y && RAIL_VAULT_N > 0) {
+  const LINK_R = BOT_CLEAR_R + (MAP.navLinkPad ?? 0.15);
+  for (let i = 0; i < BOT_ADJ.n; i++) {
+    for (let e = BOT_ADJ.off[i]!; e < BOT_ADJ.off[i + 1]!; e++) {
+      const j = BOT_ADJ.to[e]!;
+      if (j <= i) continue;
+      const a = BOT_NAV[i]!;
+      const b = BOT_NAV[j]!;
+      if (segHitsRailVault(a.x, a.z, b.x, b.z, a.y, b.y, LINK_R)) {
+        throw new Error(
+          `BOT_ADJ edge ${i}<->${j} crosses a railVault panel: the router would emit an un-walkable hop (deck routes via stairs, never via a vault)`,
+        );
+      }
+    }
+  }
+}
 /**
  * WHICH WALK-CONNECTED COMPONENT EACH NAV NODE IS IN.
  *
@@ -4725,9 +5513,27 @@ export function botPathClearDebug(x0: number, z0: number, x1: number, z1: number
   return botPathClear(x0, z0, x1, z1, BOT_CLEAR_R, false, walkFromY(fromY));
 }
 
+/** Instruments only (nuketown rail sweeps): the height-gated, Minkowski-padded rail-crossing test, verbatim. */
+export function railSegHitsDebug(
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+  yA: number,
+  yB: number,
+  pad: number,
+): boolean {
+  return segHitsRailVault(ax, az, bx, bz, yA, yB, pad);
+}
+
 /** Instruments only: a bot's live mind (goal, route state). Never gameplay. */
 export function botMindDebug(s: GameSession, p: SimPlayer): Record<string, unknown> {
   return botMind(s, p) as unknown as Record<string, unknown>;
+}
+
+/** Instruments only: BOT_NAV node positions (for the rail-crossing sweep). */
+export function botNavNodesDebug(): Array<{ x: number; y: number; z: number }> {
+  return BOT_NAV.map((q) => ({ x: q.x, y: q.y, z: q.z }));
 }
 
 /** Instruments only (qa/nuketown-map.test.ts, scripts/nuketown): the component id of every BOT_NAV node and the edge lists. */
@@ -4935,8 +5741,18 @@ function botWallPush(p: SimPlayer, band = 0, crossLow = false): void {
     if (p.y + STAND_H < bot + 0.05 || p.y > top - 0.02) continue;
     const mantle = !!o.climb && top - p.y < 1.05 && p.y + 0.2 < top;
     // NAV_Y (stacked-floor maps): a mantle-height climbable is a floor (stair
-    // tread, window sill, porch roof), never a face to keep away from
-    if (mantle && (crossLow || NAV_Y)) continue;
+    // tread, window sill, porch roof), never a face to keep away from.
+    // Nuketown deck rails (OBB.railVault) are the exception on EVERY rung:
+    // they stay a face even on the crossLow bottom rung (which otherwise drops
+    // all mantles) and even on the funnel-narrowed ladder a routed
+    // deck-to-deck leg starts on — plus separation runs BEFORE this sweep, so
+    // a crowd shove that forces the ladder down to crossLow must still not
+    // drop the rail. Players are untouched: resolveCircle/groundHeight never
+    // read this, so the jump-vault works exactly as before (gated on
+    // airborne there, on the wish running into rail steel here). Thin-epsilon and
+    // rail thickness are asserted in the nuketown gate, not here; A.maxY is
+    // reset per build; only this function reads railVault.
+    if (mantle && ((crossLow && !o.railVault) || (NAV_Y && !o.railVault))) continue;
     const off = band > 0 ? band : mantle ? BOT_TUNING.standoffLow : BOT_TUNING.standoff;
     const pad = RADIUS + Math.max(off, BOT_TUNING.sprintNear);
     const dx = p.x - o.x;
@@ -5702,6 +6518,34 @@ function botSteer(s: GameSession, p: SimPlayer, m: BotMind, gx: number, gz: numb
 }
 
 /**
+ * RAIL-VAULT JUMP (Nuketown only). Live steering holds every railVault panel
+ * as hard steel (botBlocked default + botWallPush on every rung), and the
+ * router never emits a vault edge — so a bot whose wish runs into rail steel
+ * at deck height would lean on it until the watchdog fires. When the navigator
+ * actually wants to go through the rail (a chase/pressure/fight leg the graph
+ * has no edge for), the honest move is the same one a player makes: jump.
+ * Sets cmd.jump for the tick; the airborne mantle in resolveCircle +
+ * groundHeight does the rest through the same shared movement both sides run.
+ *
+ * Gated to: Nuketown (NAV_Y && RAIL_VAULT_N > 0 — dead branch elsewhere),
+ * grounded, deck-height, unprotected, with a real wish whose 0.9 m probe
+ * crosses a railVault footprint at body width (the same segHitsRailVault test
+ * the router uses). Crouch/slide never vault (both stay grounded), lawn legs
+ * pass under the height gate, and a body balanced ON a rail top probes along
+ * it (the height gate skips its own panel), so there is no hop loop.
+ */
+function botRailVaultJump(p: SimPlayer, cmd: InputCmd, wx: number, wz: number): void {
+  if (!NAV_Y || RAIL_VAULT_N === 0) return;
+  if (!p.onGround || p.slide > 0 || p.crouch || p.protect > 0) return;
+  if (p.y < DECK_RAIL_ALLOW_Y) return;
+  const wl = Math.hypot(wx, wz);
+  if (wl < 1e-4) return;
+  const nx = wx / wl;
+  const nz = wz / wl;
+  if (segHitsRailVault(p.x, p.z, p.x + nx * 0.9, p.z + nz * 0.9, p.y, p.y, BOT_CLEAR_R)) cmd.jump = true;
+}
+
+/**
  * ONE place where a bot's wish direction becomes stick input, so the three
  * forces compose in the right order every time: where it wants to go, the
  * shove off nearby bodies, and the wall standoff LAST. Order matters — with
@@ -5822,6 +6666,13 @@ function botMove(s: GameSession, p: SimPlayer, m: BotMind, cmd: InputCmd, wx: nu
     m.lastAz = 0;
     return;
   }
+  // NUKETOWN RAIL VAULT: the navigator's wish runs into rail steel — jump it.
+  // Grounded, deck-height, unprotected only (see botRailVaultJump); the probe
+  // fires at most while the wish still points through the panel, and the
+  // airborne mantle carries the body over. No routed leg ever vaults (the
+  // graph has no rail edge), so this only fires on greedy direct legs —
+  // never on a routed doorway/stair funnel the bot is already walking.
+  botRailVaultJump(p, cmd, wx, wz);
   // A DIRECTION IS A DIRECTION. What survives the standoff is a heading; its
   // LENGTH is an artefact of how much of the wish two opposing faces cancelled,
   // and feeding that length through as stick deflection is a silent way to stop

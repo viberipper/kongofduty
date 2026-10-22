@@ -1,30 +1,46 @@
 /**
  * Type-only declarations (re-implemented).
  *
- * The original `shared/maps/types.ts` never shipped in any bundle sourcemap
- * (pure type re-exports leave no trace). Call sites import these names from
- * `"./types"`:
+ * These mirror the RUNTIME shapes — what the JSON files on disk and the
+ * code-built maps actually carry — not the generator's authoring shorthand:
  *
- *   shared/maps/index.ts     -> MapDef, Rect, FenceRect, MinimapRect, NavLattice
- *   shared/maps/{dust2,ares,shipment,nuketown}.ts -> the same set
- *
- * Vite/esbuild strips types at build time, so these only matter for the
- * editor/typecheck. Shapes follow the usage documented in the map modules
- * (e.g. dust2.ts: fence rects arrive as bare footprints or full OBBs with
- * y/sy, the lattice owns nav seeds and links).
+ *   Rect        map bounds, always `{minX, maxX, minZ, maxZ}` (shipment.ts,
+ *               ares.ts, dust2.json, nuketown.json all agree). The old
+ *               `{x,z,w,d}` spelling never existed at runtime; code that read
+ *               `bounds.minX` through the index signature worked while the
+ *               type lied, and a regen that emitted `{x,z,w,d}` would have
+ *               made every `loX` comparison false — silently disabling the
+ *               Nuketown OOB clamp (buildNuketown now asserts all four
+ *               finite and min < max, loudly).
+ *   FenceRect   frag-fence footprint `{x, z, sx, sz, yaw}`, with the
+ *               generator's alternates accepted at the boundary: `{w, d}`
+ *               for `{sx, sz}` (normalised in sim.ts NADE_FENCE), and the
+ *               dust2 full-OBB extras `{y, sy, top}`.
+ *   NavLattice  `{x0, x1, z0, z1, step, linkMax, maxNodes}` (step <= 0 means
+ *               the map brings its own nav seeds and wants no lattice).
  */
 
+import type { OBB, Spawn, Waypoint } from "../map";
+
 export type Rect = {
-  x: number;
-  z: number;
-  /** full width (x extent). `hw` (half width) is accepted by the generator. */
-  w: number;
-  /** full depth (z extent). `hd` (half depth) is accepted by the generator. */
-  d: number;
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
 };
 
-/** Fence rect: footprint or full OBB (top via y/sy), plus optional metadata. */
-export type FenceRect = Rect & {
+/** Frag-fence rect: footprint or full OBB (top via y/sy), plus optional metadata. */
+export type FenceRect = {
+  x: number;
+  z: number;
+  /** full x extent; the generator may emit `w` instead (normalised in sim.ts). */
+  sx?: number;
+  /** full z extent; the generator may emit `d` instead (normalised in sim.ts). */
+  sz?: number;
+  /** alternate spellings for sx/sz, accepted at the sim boundary. */
+  w?: number;
+  d?: number;
+  yaw?: number;
   /** footprint corners format | OBB format */
   y?: number;
   sy?: number;
@@ -34,7 +50,12 @@ export type FenceRect = Rect & {
   nadeFence?: boolean;
 };
 
-export type MinimapRect = Rect & {
+export type MinimapRect = {
+  x: number;
+  z: number;
+  sx: number;
+  sz: number;
+  yaw: number;
   color?: string;
   label?: string;
   /** alpha 0..1 */
@@ -43,14 +64,13 @@ export type MinimapRect = Rect & {
 
 /** Nav lattice: cells + seed/link metadata (behavior obtained from map data). */
 export type NavLattice = {
-  xmin: number;
-  zmin: number;
-  cell: number;
-  nx: number;
-  nz: number;
-  blocked?: Array<number>;
-  links?: Array<number>;
-  seeds?: Array<number>;
+  x0: number;
+  x1: number;
+  z0: number;
+  z1: number;
+  step: number;
+  linkMax: number;
+  maxNodes: number;
   [key: string]: unknown;
 };
 
@@ -64,6 +84,25 @@ export type MapDef = {
   botScale?: number;
   /** seat/team layout for 5v5 / FFA */
   seats?: unknown;
+  solids: OBB[];
+  floorY: number;
+  bounds: Rect;
+  spawns: Spawn[];
+  navSeeds: Waypoint[];
+  navPockets: unknown[];
+  navLattice: NavLattice;
+  nadeFenceRects: FenceRect[];
+  nadeFenceTop: number;
+  stackedFloors?: boolean;
+  navHeightGate?: number | null;
+  climbablesAreFloors?: boolean;
+  navLinkPad?: number;
+  stepSmoothMax?: number;
+  visualContainers?: unknown[];
+  minimap?: MinimapRect[];
+  minimapImage?: string;
+  audioScale?: number;
+  qaViews?: unknown[];
   /** everything else comes from the runtime map json (setMapData) */
   [key: string]: unknown;
 };
