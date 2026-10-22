@@ -32,7 +32,7 @@ const PACK_FIELDS = [
   "id","seq","name","op","team","x","y","z","vx","vy","vz","yaw","pitch",
   "hp","armor","weapon","ads","sprint","crouch","slide","reload","firing","alive",
   "protect","kills","deaths","streak","ping","ammo","reserve","nades","nadeUp",
-  "alt","altAmmo","altRes","swap","cook",
+  "alt","altAmmo","altRes","swap","cook","gun",
 ];
 function decodeMsg(m) {
   if (m?.t === "snap" && m.packed === 1 && Array.isArray(m.players)) {
@@ -228,6 +228,27 @@ async function main() {
   console.log(`[ares] namecheck ok=${chk.ok} exists=${chk.room?.exists} map=${chk.room?.map} maxPlayable=${chk.room?.maxPlayable} players=${chk.room?.players}`);
   if (chk.room?.exists !== true) throw new Error("namecheck: room not found");
   if (chk.room?.map !== "ares") throw new Error("namecheck: wrong map");
+
+  // ---------- 4) PRIVATE GUN GAME ----------
+  const gh = new Fake("gun-host");
+  const gg = new Fake("gun-guest");
+  await gh.connect(url());
+  await gg.connect(url());
+  gh.send({ t: "join", name: "GUN-HOST", room: "GUN-TEST", mode: "gun", map: "nuketown", snapshotFormat: "compact-v1", lobby: true });
+  gg.send({ t: "join", name: "GUN-GUEST", room: "GUN-TEST", mode: "gun", map: "nuketown", snapshotFormat: "compact-v1", lobby: true });
+  await gh.waitFor((m) => m.find((x) => x.t === "welcome"));
+  const glob = await gh.waitFor((m) => m.find((x) => x.t === "lobby" && x.players?.length === 2));
+  console.log(`[gun] lobby mode=${glob.mode} maxPlayable=${glob.maxPlayable} players=${glob.players.map((p) => p.name).join("/")}`);
+  if (glob.mode !== "gun") throw new Error(`gun lobby.mode=${glob.mode}, expected gun`);
+  // nuketown gun seats == ffa seats (MAP_SEATS, shared/modes.ts seatsFor)
+  if (glob.maxPlayable !== 12) throw new Error(`gun maxPlayable=${glob.maxPlayable}, expected 12`);
+  gh.send({ t: "startmatch" });
+  await gh.waitFor((m) => m.find((x) => x.t === "start"));
+  await sleep(3600);
+  const glive = gh.snaps.find((s) => s.phase === "live");
+  if (!glive) throw new Error("gun: no live snapshot after countdown");
+  console.log(`[gun] live players=${glive.players.length} gun0=${glive.players[0]?.gun}`);
+  if (glive.players[0]?.gun !== 0) throw new Error(`gun start value=${glive.players[0]?.gun}, expected 0`);
 
   // shut the hub worker back down (spawned case)
   if (proc) {
