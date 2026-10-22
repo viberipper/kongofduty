@@ -10,17 +10,17 @@
  * grenade and every bot route pointing at a world that no longer exists.
  *
  * SELECTION, in order:
- *   browser  `?map=<id>`  ->  localStorage  ->  default
+ *   browser  `?map=<id>`  ->  default
  *   node     `--map=<id>` ->  SHIPMENT_MAP env  ->  default
  *
- * The browser half copies audio-packs.ts `readPackPref` exactly — the shipped,
- * proven pattern for a URL-pinned option with a saved preference behind it — so
- * a qa instrument can pin a map on a link and a returning player keeps theirs.
+ * The browser map is URL-pinned so links and map-change reloads select it.
+ * The menu owns the remembered card selection; persisting the active map here
+ * would make a fresh visit load that world before the player can reach the menu.
  *
  * WHEN IS IT READ? Lazily, on the first `activeMap()` call — which is
  * shared/sim.ts's module body, i.e. before any client code runs at all. Module
  * imports are hoisted above `boot()`, so main.ts cannot set this "first"; what
- * main.ts does instead is CONFIRM the choice (and persist it), which is why
+ * main.ts does instead is CONFIRM the choice, which is why
  * `lockActiveMap()` is a no-op when the answer already matches and throws when
  * it does not. A mismatch there would mean the sim built one map and the
  * renderer drew another.
@@ -205,42 +205,31 @@ export function withMapQuery(url: string, id: string, force = false): string {
   }
 }
 
-const LS_KEY = "shipment.map";
+const LEGACY_LS_KEY = "shipment.map"; // Clear the active-map preference saved by older releases.
 
 export function isMapId(id: string | null | undefined): id is string {
   return !!id && (MAP_IDS as readonly string[]).includes(id);
 }
 
 /**
- * `?map=<id>` wins (qa + shareable links), then the saved choice, then the
- * default. Untrusted input is whitelisted, never trusted — same shape as
+ * A valid `?map=<id>` (qa + shareable links) wins; otherwise use the default.
+ * Untrusted input is whitelisted, never trusted — same shape as
  * server/index.ts `roomCode()`.
  */
 export function readMapPref(search?: string): string {
   const s = search ?? (typeof location !== "undefined" ? location.search : "");
+  try {
+    if (typeof localStorage !== "undefined") localStorage.removeItem(LEGACY_LS_KEY);
+  } catch {
+    /* private mode */
+  }
   try {
     const q = new URLSearchParams(s).get("map");
     if (isMapId(q)) return q;
   } catch {
     /* no URL API / malformed query */
   }
-  try {
-    if (typeof localStorage !== "undefined") {
-      const v = localStorage.getItem(LS_KEY);
-      if (isMapId(v)) return v;
-    }
-  } catch {
-    /* private mode */
-  }
   return DEFAULT_MAP_ID;
-}
-
-export function writeMapPref(id: string): void {
-  try {
-    if (typeof localStorage !== "undefined") localStorage.setItem(LS_KEY, id);
-  } catch {
-    /* private mode */
-  }
 }
 
 /** Node: `--map=<id>` on argv, then SHIPMENT_MAP in the environment. */

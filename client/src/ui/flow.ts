@@ -11,10 +11,9 @@
  * parameters then rode every later reload.
  *
  * Now every map-changing navigation goes through `goToMap()`, which
- *   1. writes the map preference,
- *   2. stores an INTENT (what the player was doing: quick play, host a
+ *   1. stores an INTENT (what the player was doing: quick play, host a
  *      private match, join public, join an invite) in sessionStorage, and
- *   3. navigates to a CLEAN url — this deployment's base path, `?map=`, and
+ *   2. navigates to a CLEAN url — this deployment's base path, `?map=`, and
  *      only the diagnostic params worth keeping (never join/play/test).
  * `boot()` in main.ts takes the intent and resumes it on the first frame, so
  * the player sees one loading screen and lands where they were going.
@@ -22,7 +21,7 @@
  * Also: the map card art + display name helpers (data-driven from
  * shared/maps MAP_OPTIONS; adding a map is one entry there).
  */
-import { MAP_OPTIONS, isMapId, writeMapPref } from "@shared/maps";
+import { MAP_OPTIONS, isMapId } from "@shared/maps";
 import type { ModeId } from "@shared/modes";
 
 export type Intent =
@@ -85,7 +84,6 @@ export function cleanUrl(map?: string): string {
 export function goToMap(map: string, intent: Intent | null, current: string): boolean {
   if (!isMapId(map)) return false;
   if (map === current && !intent) return false;
-  writeMapPref(map);
   if (intent) saveIntent(intent);
   location.replace(cleanUrl(map));
   return true;
