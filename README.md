@@ -11,6 +11,7 @@ Local copy of the browser game at https://cnvs.dev/kong/ — **including a custo
 - **Many bug fixes**, e.g. around ADS, HUD, and gameplay details.
 - **Lobby settings:** private-match lobby has a SETTINGS button (host, guests, spectators) that opens the settings modal over the lobby.
 - **Nuketown balcony vault:** deck rail panels block like steel — Jump required to vault them, no automatic walk-over.
+- **Endcard always fits (fullscreen fix):** the end-of-match screen shrink-fits its content to any viewport (shrink-only zoom, re-measured after webfont swap) with safe-centering and scroll fallback, so title, podium, both scoreboards, stats, accolades and PLAY AGAIN / MAIN MENU stay visible and reachable even in F11 fullscreen — the original can overflow and clip the buttons there.
 
 ## Quick start
 

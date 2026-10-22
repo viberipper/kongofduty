@@ -35,6 +35,33 @@ export interface EndParams {
 const $ = (id: string): HTMLElement => document.getElementById(id)!;
 let timer = 0;
 
+/**
+ * ENDCARD FIT (F11-fullscreen fix). The card's intrinsic height (168tu title +
+ * podium + capped board + side + actions ≈ 1140tu) exceeds the 1080tu a 16:9
+ * viewport offers, so at large viewports the buttons clip — and with
+ * place-items:center and no overflow even the top is unreachable. Small
+ * (windowed) viewports fit thanks to the px floors, which is why windowed
+ * looked fine. Shrink-only zoom on .ec-inner keeps the whole card visible at
+ * any viewport; it never grows and never touches anything else (HUD scale
+ * etc. are unaffected).
+ */
+function fitEndcard(): void {
+  const card = $("endcard");
+  if (card.classList.contains("hidden")) return;
+  const inner = card.querySelector(".ec-inner") as HTMLElement | null;
+  if (!inner) return;
+  inner.style.removeProperty("zoom");
+  const avail = card.clientHeight - 16;
+  const need = inner.offsetHeight;
+  if (need > 0 && avail > 0 && need > avail) inner.style.setProperty("zoom", String(avail / need));
+}
+window.addEventListener("resize", fitEndcard);
+// Webfonts (Barlow/Inter, display:swap) can swap in AFTER the rAF-measured
+// fit in showEndcard, leaving it measured with fallback metrics — re-fit once
+// they settle. Guarded (no Document.fonts in old browsers): the optional
+// chain no-ops there. One-shot promise, no listener, no loop.
+if (document.fonts?.ready) document.fonts.ready.then(() => fitEndcard(), () => {});
+
 function h<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
@@ -73,7 +100,9 @@ export function computeResult(p: Pick<EndParams, "mode" | "s0" | "s1" | "board">
 export function hideEndcard(): void {
   if (timer) clearInterval(timer);
   timer = 0;
-  $("endcard").classList.add("hidden");
+  const card = $("endcard");
+  card.classList.add("hidden");
+  (card.querySelector(".ec-inner") as HTMLElement | null)?.style.removeProperty("zoom");
   document.body.classList.remove("match-over");
 }
 
@@ -213,6 +242,8 @@ export function showEndcard(p: EndParams): MatchResult {
     timer = window.setInterval(tick, 200);
   }
   uiSfx(r.result === "victory" ? "confirm" : "back");
+  fitEndcard();
+  requestAnimationFrame(fitEndcard);
   return r.result;
 }
 
