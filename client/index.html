@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>BANANA SHIPMENT — netsplit.in | Browser FPS Game </title>
+    <!-- SEO: canonical + primary meta for https://kong.netsplit.in/ -->
+    <link rel="canonical" href="https://kong.netsplit.in/" />
+    <meta
+      name="description"
+      content="Banana Shipment by netsplit.in (@viberipper) – free browser FPS: TDM, FFA, Gun Game on Shipment, Dust2, Nuketown. Free vibecode game."
+    />
+    <meta
+      name="keywords"
+      content="Banana Shipment, netsplit.in, viberipper, KongOfDuy, vibecode, game, browser fps, multiplayer shooter, shipment, dust2, nuketown, ares relay, tdm, ffa, gun game, free browser game, fps shooter, webgl fps"
+    />
+    <meta name="author" content="netsplit.in" />
+    <meta name="robots" content="index,follow" />
+    <!-- Banana yellow: browser chrome + Discord embed accent. -->
+    <meta name="theme-color" content="#ffd23f" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="format-detection" content="telephone=no" />
+    <!-- OG: Facebook, Discord, messengers (absolute URLs only). -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="netsplit.in" />
+    <meta property="og:title" content="BANANA SHIPMENT — netsplit.in | Browser FPS Game" />
+    <meta
+      property="og:description"
+      content="Banana Shipment by netsplit.in (@viberipper) – free browser FPS: TDM, FFA, Gun Game on Shipment, Dust2, Nuketown. Free vibecode game."
+    />
+    <meta property="og:url" content="https://kong.netsplit.in/" />
+    <meta property="og:image" content="https://kong.netsplit.in/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Banana Shipment key art: original illustrated container yard and browser FPS branding" />
+    <meta property="og:locale" content="en_US" />
+    <!-- X/Twitter cards. -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="BANANA SHIPMENT — netsplit.in | Browser FPS Game " />
+    <meta
+      name="twitter:description"
+      content="Banana Shipment by netsplit.in (@viberipper) – free browser FPS: TDM, FFA, Gun Game on Shipment, Dust2, Nuketown. Free vibecode game."
+    />
+    <meta name="twitter:image" content="https://kong.netsplit.in/og-image.png" />
+    <meta name="twitter:image:alt" content="Banana Shipment key art: original illustrated container yard and browser FPS branding" />
+    <meta name="twitter:site" content="@viberipper" />
+    <meta name="twitter:creator" content="@viberipper" />
+    <!-- Mobile: no apple-touch-icon asset in static/, so none linked. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="BANANA SHIPMENT" />
+    <meta name="application-name" content="BANANA SHIPMENT" />
+    <!-- Structured data: schema.org VideoGame. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "Banana Shipment",
+        "url": "https://kong.netsplit.in/",
+        "image": "https://kong.netsplit.in/og-image.png",
+        "author": { "@type": "Organization", "name": "netsplit.in", "url": "https://netsplit.in/" },
+        "publisher": { "@type": "Organization", "name": "netsplit.in", "url": "https://netsplit.in/" },
+        "creator": { "@type": "Person", "name": "viberipper" },
+        "genre": ["Shooter", "FPS"],
+        "applicationCategory": "Game",
+        "operatingSystem": "Web Browser",
+        "gamePlatform": "Web Browser",
+        "inLanguage": ["en"],
+        "description": "Banana Shipment by netsplit.in (@viberipper) – free browser FPS: TDM, FFA, Gun Game on Shipment, Dust2, Nuketown. Free vibecode game.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+        "keywords": "Banana Shipment, netsplit.in, viberipper, KongOfDuy, vibecode, game, browser fps, multiplayer shooter, shipment, dust2, nuketown"
+      }
+    </script>
+    <!-- Self-hosted OFL fonts (static/assets/ui/fonts, licences alongside).
+         Two families only: Barlow Condensed for display, Inter for body. -->
+    <link rel="preload" href="assets/ui/fonts/barlow-condensed-500.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="assets/ui/fonts/barlow-condensed-700.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="assets/ui/fonts/barlow-condensed-600.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="assets/ui/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- Compiled original stylesheet (no mirror bundle: src/*.css are only stubs,
+         the real sheet was not extractable from any sourcemap). Copied by Vite
+         to dist with identical content except the /kong/→/ font prefix
+         (4× url(/kong/assets/ui/fonts/…) → url(/assets/ui/fonts/…), otherwise byte-identical).
+         Note: Vite additionally emits an unreferenced hashed copy
+         (game-<hash>.css) next to this file — a known, harmless artifact;
+         the browser only loads this file. -->
+    <link rel="stylesheet" crossorigin href="assets/game.css" />
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="c"></canvas>
+
+      <!-- LOADING. Map art, map + mode, real stage progress (client/src/bootstage.ts
+           stamps every phase of the pipeline into #bootstage and the bar). -->
+      <div id="boot" class="screen">
+        <div class="boot-art" id="boot-art"></div>
+        <div class="boot-shade"></div>
+        <div class="boot-brand"><b>BANANA</b> SHIPMENT</div>
+        <div class="boot-inner">
+          <p class="eyebrow" id="boot-mode">LOADING</p>
+          <h1 class="boot-map" id="boot-map"></h1>
+          <p class="boot-rules" id="boot-rules"></p>
+          <div class="boot-progress">
+            <div class="boot-bar"><i id="boot-fill"></i></div>
+            <div class="boot-stage" id="bootstage"></div>
+          </div>
+        </div>
+        <p class="boot-tip" id="boottip"></p>
+      </div>
+      <script>
+        // The loading card shows the map being loaded from the very first paint
+        // (before the module graph — and dust2's collider data — has arrived).
+        // main.ts takes the card over once it runs.
+        try {
+          var m = new URLSearchParams(location.search).get("map") || "shipment";
+          if (/^[a-z0-9]{2,24}$/.test(m)) document.getElementById("boot-art").style.backgroundImage = 'url("' + new URL("assets/ui/maps/" + m + ".jpg", document.baseURI).href + '")';
+        } catch (e) {}
+      </script>
+
+      <!-- MAIN MENU. One menu for every map: the map is a card you pick, not a skin.
+           Tiles, cards and the mode selector are filled by client/src/ui/menu.ts
+           from shared/maps MAP_OPTIONS + shared/modes.ts, never written here. -->
+      <div id="menu" class="screen hidden">
+        <div class="menu-art" id="menu-art"></div>
+        <div class="menu-shade"></div>
+        <header class="topbar">
+          <div class="brand"><b>BANANA</b> SHIPMENT</div>
+          <nav class="tabs" aria-label="Main">
+            <button type="button" class="tab is-on" data-tab="play">PLAY</button>
+            <button type="button" class="tab" data-act="loadout">LOADOUT</button>
+            <button type="button" class="tab" data-act="settings">SETTINGS</button>
+          </nav>
+          <div class="topbar-right">
+            <button type="button" class="callsign-chip" id="callsign-chip" title="Change callsign">
+              <span class="cs-label">CALLSIGN</span><b id="callsign-name">—</b><i class="cs-edit">EDIT</i>
+            </button>
+          </div>
+        </header>
+
+        <section class="menu-hero" aria-live="polite">
+          <p class="eyebrow" id="hero-mode"></p>
+          <h2 id="hero-map"></h2>
+          <p id="hero-blurb"></p>
+        </section>
+        <main class="menu-body">
+          <section class="play-col">
+            <p class="eyebrow">MULTIPLAYER</p>
+            <h1 class="menu-title">PLAY</h1>
+            <div class="play-tiles" id="play-tiles">
+              <button type="button" class="tile is-primary" data-act="play">
+                <span class="tile-k">QUICK PLAY</span>
+                <span class="tile-sub" id="tile-sub-play"></span>
+                <span class="tile-meta" id="tile-meta-play">OFFLINE · VS BOTS</span>
+              </button>
+              <button type="button" class="tile" data-act="lobby">
+                <span class="tile-k">PRIVATE MATCH</span>
+                <span class="tile-sub" id="tile-sub-lobby"></span>
+                <span class="tile-meta">CREATE A LOBBY · INVITE BY LINK</span>
+              </button>
+              <button type="button" class="tile" data-act="multi">
+                <span class="tile-k">PUBLIC MATCH</span>
+                <span class="tile-sub" id="tile-sub-multi"></span>
+                <span class="tile-meta">ALWAYS-ON SERVER · DROP IN ANYTIME</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="setup" aria-label="Match setup">
+            <header class="setup-head"><span class="eyebrow">MAP</span><span class="setup-count" id="map-count"></span></header>
+            <div class="map-cards" id="map-cards" role="radiogroup" aria-label="Map"></div>
+            <header class="setup-head"><span class="eyebrow">MODE</span></header>
+            <div class="seg seg--wide" id="mode-seg" role="radiogroup" aria-label="Mode"></div>
+            <div class="setup-rules">
+              <b id="setup-goal"></b>
+              <p id="setup-rules"></p>
+            </div>
+          </section>
+        </main>
+
+        <!--
+          THE FOOTER CARRIES THE MAP'S LICENCE LINE, and it is an obligation, not
+          a credit: `de_dust2 - CS map` ships under CC-BY-4.0, whose attribution
+          clause is satisfied by naming the work, the author and the licence
+          wherever the work is used (docs/dustmap/build-w1-world.md §7.1). This
+          line, and the matching one in README.md, discharge the licence.
+        -->
+        <footer class="menu-foot">
+          <div class="keyline" id="menu-keys"></div>
+          <small class="attrib"
+            >This work is based on "de_dust2 - CS map"
+            (https://sketchfab.com/3d-models/de-dust2-cs-map-056008d59eb849a29c0ab6884c0c3d87) by vrchris
+            (https://sketchfab.com/vrchris) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/).</small
+          >
+        </footer>
+      </div>
+
+      <!-- IN-MATCH HUD. Every id here is read by game.ts / main.ts / ui/hud.ts. -->
+      <div id="hud" class="hidden">
+        <div class="hud-tl">
+          <div id="minimap"><canvas id="mmap" width="180" height="180"></canvas></div>
+          <div id="scorebug">
+            <div class="sb-top"><b id="clock">0:00</b><span id="sb-state"></span><span id="sb-mode"></span></div>
+            <div class="sb-row ally"><b id="s0">0</b><div class="sb-bar"><i id="s0bar"></i></div><span id="s0lbl">YOUR TEAM</span></div>
+            <div class="sb-row enemy"><b id="s1">0</b><div class="sb-bar"><i id="s1bar"></i></div><span id="s1lbl">ENEMY</span></div>
+          </div>
+        </div>
+        <div id="killfeed"></div>
+        <div id="streaks"></div>
+        <div id="dmg"><i class="dmg-arc"></i></div>
+        <div id="lowhp"></div>
+        <div id="cross"><i></i><i></i><i></i><i></i><b class="cross-dot"></b></div>
+        <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
+        <div id="hint" class="hidden">CLICK TO PLAY</div>
+        <div id="killbanner"></div>
+        <div id="reloadbar" class="hidden"><span>RELOADING</span><i></i></div>
+        <div id="hpbar"><div class="hp-track"><i id="hp"></i></div><b id="hpnum">100</b></div>
+        <div id="weapon-hud">
+          <div class="wh-main">
+            <div class="wh-ammo"><b id="ammo">30</b><span class="wh-sep">/</span><span id="res">90</span></div>
+            <div class="wh-name"><span id="wname">—</span><i id="wclass"></i></div>
+          </div>
+          <div class="wh-mag" id="wmag"></div>
+          <div class="wh-row">
+            <div class="wh-alt" id="walt"></div>
+            <div class="wh-lethal" id="wlethal"><span class="wh-key">G</span><span class="wh-lethal-name">FRAG</span><div id="nades"><i></i><i></i></div><i class="wh-fuse" id="wfuse"></i></div>
+          </div>
+        </div>
+        <div id="nadehint" class="hidden"><span class="key">G</span> FRAG GRENADE · HOLD TO COOK</div>
+        <div id="killcam" class="hidden">
+          <div class="kc-bar top"></div>
+          <div class="kc-tag">KILLCAM</div>
+          <div class="kc-plate">
+            <span class="kc-label">KILLED BY</span>
+            <b id="killer">—</b>
+            <span class="kc-kill" id="kc-tag"></span>
+            <div class="kc-hp"><div class="kc-track"><i id="kc-hp"></i></div><span id="kc-hpnum">—</span></div>
+          </div>
+          <button id="kc-skip" type="button">
+            <svg class="kc-ring" viewBox="0 0 44 44" aria-hidden="true">
+              <circle class="kc-ring-bg" cx="22" cy="22" r="19" />
+              <circle class="kc-ring-arc" id="kc-arc" cx="22" cy="22" r="19" />
+            </svg>
+            <b id="kc-count">2.3</b>
+            <span><i class="key">SPACE</i> SKIP</span>
+          </button>
+          <div class="kc-bar bot"></div>
+        </div>
+        <div id="scoreboard" class="hidden"></div>
+        <div id="fps" class="hidden"></div>
+      </div>
+
+      <!-- END OF MATCH. Painted by client/src/ui/endcard.ts. -->
+      <div id="endcard" class="screen hidden">
+        <div class="ec-shade"></div>
+        <div class="ec-inner">
+          <p class="eyebrow" id="ec-eyebrow">MATCH COMPLETE</p>
+          <h2 id="endtitle">VICTORY</h2>
+          <p class="ec-reason" id="ec-reason"></p>
+          <p id="endscore"></p>
+          <div class="ec-podium" id="ec-podium"></div>
+          <div class="ec-grid">
+            <div id="endboard"></div>
+            <aside class="ec-side" id="ec-side"></aside>
+          </div>
+          <div class="ec-actions" id="ec-actions"></div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+

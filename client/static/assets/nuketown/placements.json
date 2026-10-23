@@ -1,0 +1,2615 @@
+{
+ "placements": [
+  {
+   "id": "bus",
+   "asset": "nuketown_bus",
+   "replaces": "bus",
+   "pos": [
+    -2.8442,
+    0,
+    1.9571
+   ],
+   "yaw": -0.14137,
+   "scale": 1
+  },
+  {
+   "id": "truck",
+   "asset": "nuketown_truck",
+   "replaces": "truck",
+   "pos": [
+    3.189,
+    0,
+    0.1183
+   ],
+   "yaw": -0.02618,
+   "scale": 1
+  },
+  {
+   "id": "jeep",
+   "asset": "nuketown_jeep",
+   "replaces": "jeep",
+   "pos": [
+    0.4215,
+    0.004,
+    14.1813
+   ],
+   "yaw": -1.5708,
+   "scale": 1
+  },
+  {
+   "id": "car_a",
+   "asset": "nuketown_car_a",
+   "pos": [
+    -2.31,
+    0.2199,
+    -14.03
+   ],
+   "replaces": "car_a",
+   "yaw": -0.37176,
+   "scale": 1
+  },
+  {
+   "id": "car_b",
+   "asset": "nuketown_car_b",
+   "pos": [
+    -13.6,
+    0.264,
+    1.2
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "car_white",
+   "asset": "nuketown_car_white",
+   "pos": [
+    17.1,
+    0.24,
+    34.2
+   ],
+   "yaw": 1.5708,
+   "scale": 1
+  },
+  {
+   "id": "car_mp",
+   "asset": "nuketown_car_mp",
+   "pos": [
+    -1.6,
+    0.03,
+    20.6
+   ],
+   "yaw": 1.0821,
+   "scale": 1
+  },
+  {
+   "id": "m35",
+   "asset": "nuketown_m35",
+   "pos": [
+    -3.331,
+    0.03,
+    35
+   ],
+   "yaw": -3.14159,
+   "scale": 1
+  },
+  {
+   "id": "clock_tower",
+   "asset": "clock_tower",
+   "pos": [
+    -14.4,
+    0.2199,
+    -21.5
+   ],
+   "replaces": "tower",
+   "yaw": -0.6013,
+   "scale": 1
+  },
+  {
+   "id": "welcome_sign",
+   "asset": "welcome_sign",
+   "pos": [
+    -8.906,
+    0.2199,
+    -12.3867
+   ],
+   "yaw": -0.64342,
+   "scale": 1
+  },
+  {
+   "id": "street_sign",
+   "asset": "street_sign",
+   "pos": [
+    -6.3,
+    0.2199,
+    15.2
+   ],
+   "yaw": -1.5708,
+   "scale": 1
+  },
+  {
+   "id": "mailbox_mason",
+   "asset": "mailbox_mason",
+   "pos": [
+    -9.33,
+    0.2493,
+    3.25
+   ],
+   "yaw": -1.95389,
+   "scale": 1
+  },
+  {
+   "id": "mailbox_hammond",
+   "asset": "mailbox_hammond",
+   "pos": [
+    8.35,
+    0.2199,
+    4.85
+   ],
+   "yaw": 2.14147,
+   "scale": 1
+  },
+  {
+   "id": "gazebo",
+   "asset": "gazebo",
+   "pos": [
+    -33.05,
+    0.2199,
+    1.15
+   ],
+   "replaces": "gazebo",
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "fallout_shelter",
+   "asset": "fallout_shelter",
+   "pos": [
+    -28.7,
+    0.22,
+    -19.65
+   ],
+   "replaces": "fallout_shelter",
+   "yaw": 1.5708,
+   "scale": 1
+  },
+  {
+   "id": "shed_green",
+   "asset": "shed_green",
+   "pos": [
+    -37,
+    0.2199,
+    -18
+   ],
+   "yaw": 1.89019,
+   "scale": 1
+  },
+  {
+   "id": "garden_arbor",
+   "asset": "garden_arbor",
+   "pos": [
+    -40.6,
+    0.2199,
+    -15.2
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "trash_can_1",
+   "asset": "trash_can",
+   "pos": [
+    -19.55,
+    0.22,
+    4.35
+   ],
+   "yaw": 0.24435,
+   "scale": 1
+  },
+  {
+   "id": "trash_can_2",
+   "asset": "trash_can_open",
+   "pos": [
+    -18.85,
+    0.22,
+    4.6
+   ],
+   "yaw": 0.54105,
+   "scale": 1
+  },
+  {
+   "id": "shed_yellow",
+   "asset": "shed_yellow",
+   "pos": [
+    25.75,
+    0.2199,
+    -17.9
+   ],
+   "replaces": "shed_yellow",
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "swing_set",
+   "asset": "swing_set",
+   "replaces": "swingset",
+   "pos": [
+    33.2194,
+    0.2199,
+    -19.8344
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "sandbox_pad",
+   "asset": "sandbox_pad",
+   "pos": [
+    33.2194,
+    0.2199,
+    -19.8344
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "bbq_brick",
+   "asset": "bbq_brick",
+   "pos": [
+    24.5,
+    0.44,
+    2.3
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_sofa",
+   "asset": "sofa_leather",
+   "pos": [
+    15.34,
+    0.22,
+    -5.459
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_mq_sofa",
+   "asset": "mq_man_plaid_sit",
+   "pos": [
+    14.854,
+    0.22,
+    -5.32
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_armchair",
+   "asset": "armchair_leather",
+   "pos": [
+    14.561,
+    0.22,
+    -3.814
+   ],
+   "yaw": -0.75049,
+   "scale": 1
+  },
+  {
+   "id": "yel_coffee_table",
+   "asset": "coffee_table",
+   "pos": [
+    15.503,
+    0.22,
+    -4.299
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_rug_living",
+   "asset": "rug_rect",
+   "pos": [
+    15.523,
+    0.22,
+    -4.151
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_floor_lamp",
+   "asset": "floor_lamp",
+   "pos": [
+    13.992,
+    0.22,
+    -5.349
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_side_table",
+   "asset": "side_table",
+   "pos": [
+    16.616,
+    0.22,
+    -5.718
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_table_lamp_living",
+   "asset": "table_lamp",
+   "pos": [
+    16.616,
+    0.84,
+    -5.718
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_tv_console",
+   "asset": "tv_console",
+   "pos": [
+    16.851,
+    0.22,
+    -4.539
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_painting_living",
+   "asset": "painting_landscape",
+   "pos": [
+    15.273,
+    1.77,
+    -5.933
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_chandelier",
+   "asset": "chandelier",
+   "pos": [
+    15.85,
+    2.84,
+    -1.824
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_plant_living",
+   "asset": "plant_snake",
+   "pos": [
+    14.333,
+    0.22,
+    -2.923
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_sconce_arch_n",
+   "asset": "wall_sconce",
+   "pos": [
+    17.294,
+    1.97,
+    -3.693
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_sconce_arch_s",
+   "asset": "wall_sconce",
+   "pos": [
+    17.833,
+    1.97,
+    0.139
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_mq_window",
+   "asset": "mq_woman_blouse",
+   "pos": [
+    14.893,
+    0.22,
+    -0.73
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_hall_table",
+   "asset": "hall_table",
+   "pos": [
+    18.015,
+    0.22,
+    2.871
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_hall_mirror",
+   "asset": "wall_mirror",
+   "pos": [
+    18.213,
+    1.72,
+    2.843
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_sconce_hall_n",
+   "asset": "wall_sconce",
+   "pos": [
+    18.117,
+    1.97,
+    2.16
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_sconce_hall_s",
+   "asset": "wall_sconce",
+   "pos": [
+    18.309,
+    1.97,
+    3.526
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_globe_entry",
+   "asset": "ceiling_globe",
+   "pos": [
+    16.236,
+    2.84,
+    2.717
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_kit_0",
+   "asset": "kit_base_60_red",
+   "pos": [
+    20.662,
+    0.22,
+    -6.388
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_kit_1",
+   "asset": "kit_base_90_red",
+   "pos": [
+    20.766,
+    0.22,
+    -5.645
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_kit_2",
+   "asset": "kit_base_60_red",
+   "pos": [
+    20.871,
+    0.22,
+    -4.902
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_kit_3",
+   "asset": "kit_base_90_red",
+   "pos": [
+    20.975,
+    0.22,
+    -4.16
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_kit_4",
+   "asset": "kit_base_45dr_red",
+   "pos": [
+    21.069,
+    0.22,
+    -3.491
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_kit_5",
+   "asset": "kit_base_90_red",
+   "pos": [
+    21.163,
+    0.22,
+    -2.823
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_kit_6",
+   "asset": "kit_base_filler_15_red",
+   "pos": [
+    21.236,
+    0.22,
+    -2.303
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_kit_7",
+   "asset": "kit_sink_90_red",
+   "pos": [
+    21.309,
+    0.22,
+    -1.783
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_kit_8",
+   "asset": "kit_base_30_red",
+   "pos": [
+    21.393,
+    0.22,
+    -1.189
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_kitup_0",
+   "asset": "kit_upper_60_red",
+   "pos": [
+    20.662,
+    1.62,
+    -6.388
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_kitup_1",
+   "asset": "kit_upper_90_red",
+   "pos": [
+    20.766,
+    1.62,
+    -5.645
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_kitup_2",
+   "asset": "kit_upper_60_light_red",
+   "pos": [
+    20.871,
+    1.62,
+    -4.902
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_kitup_3",
+   "asset": "kit_upper_90_red",
+   "pos": [
+    20.975,
+    1.62,
+    -4.16
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_fridge",
+   "asset": "fridge",
+   "pos": [
+    21.113,
+    0.22,
+    -0.594
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_stove",
+   "asset": "stove_red",
+   "pos": [
+    19.66,
+    0.22,
+    -6.212
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_kit_side_30",
+   "asset": "kit_base_30_red",
+   "pos": [
+    19.086,
+    0.22,
+    -6.469
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_kitup_side_30",
+   "asset": "kit_upper_30_red",
+   "pos": [
+    19.086,
+    1.62,
+    -6.469
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_clutter_stove",
+   "asset": "clutter_stove",
+   "pos": [
+    19.66,
+    1.13,
+    -6.212
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_clutter_dishes",
+   "asset": "clutter_dishes",
+   "pos": [
+    21.187,
+    1.125,
+    -2.654
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_wall_clock",
+   "asset": "wall_clock",
+   "pos": [
+    19.613,
+    2.27,
+    -6.543
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_curtain_kitchen",
+   "asset": "curtain_cafe_navy",
+   "pos": [
+    21.302,
+    0.22,
+    -1.833
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_globe_kitchen",
+   "asset": "ceiling_globe",
+   "pos": [
+    19.61,
+    2.84,
+    -0.938
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_mq_sink",
+   "asset": "mq_woman_blouse",
+   "pos": [
+    20.567,
+    0.22,
+    -1.679
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_kitchen_table",
+   "asset": "kitchen_table",
+   "pos": [
+    21.006,
+    0.22,
+    3.965
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_chair_n",
+   "asset": "windsor_chair",
+   "pos": [
+    20.907,
+    0.22,
+    3.262
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_chair_w",
+   "asset": "windsor_chair",
+   "pos": [
+    20.264,
+    0.22,
+    4.069
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_mq_dining",
+   "asset": "mq_man_plaid_sit",
+   "pos": [
+    20.917,
+    0.22,
+    3.331
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_workbench",
+   "asset": "workbench",
+   "pos": [
+    17.291,
+    0.22,
+    -16.002
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_tool_clutter",
+   "asset": "tool_clutter",
+   "pos": [
+    16.895,
+    1.12,
+    -15.947
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_paint_cans",
+   "asset": "paint_cans",
+   "pos": [
+    16.632,
+    0.22,
+    -16.021
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_shop_light",
+   "asset": "shop_light",
+   "pos": [
+    17.401,
+    2.8,
+    -15.22
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_shelving",
+   "asset": "shelving",
+   "pos": [
+    16.119,
+    0.22,
+    -7.818
+   ],
+   "yaw": -3.28122,
+   "scale": 1
+  },
+  {
+   "id": "yel_wall_shelves",
+   "asset": "wall_shelves",
+   "pos": [
+    19.191,
+    1.12,
+    -9.311
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_mq_garage",
+   "asset": "mq_man_suit",
+   "pos": [
+    18.547,
+    0.22,
+    -9.726
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_lawnmower",
+   "asset": "lawnmower",
+   "pos": [
+    15.672,
+    0.22,
+    -12.705
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_shovel",
+   "asset": "shovel",
+   "pos": [
+    14.8,
+    0.22,
+    -13.39
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_tyre",
+   "asset": "tyre_hanging",
+   "pos": [
+    14.6,
+    2.17,
+    -14.675
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_trash_1",
+   "asset": "garage_trash_can",
+   "pos": [
+    18.416,
+    0.22,
+    -12.666
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_trash_2",
+   "asset": "garage_trash_can",
+   "pos": [
+    18.308,
+    0.22,
+    -13.297
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_crate",
+   "asset": "wood_crate",
+   "pos": [
+    17.913,
+    0.22,
+    -16.251
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_boxes_stack_g",
+   "asset": "boxes_stack",
+   "pos": [
+    14.8,
+    0.22,
+    -15.763
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_boxes_pair_g",
+   "asset": "boxes_pair",
+   "pos": [
+    15.444,
+    0.22,
+    -15.854
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_bookcase_low",
+   "asset": "bookcase_low",
+   "pos": [
+    20.635,
+    3.09,
+    1.074
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_dresser_back",
+   "asset": "dresser",
+   "pos": [
+    20.536,
+    3.09,
+    1.911
+   ],
+   "yaw": -3.28122,
+   "scale": 1
+  },
+  {
+   "id": "yel_bed_single",
+   "asset": "bed_single",
+   "pos": [
+    18.142,
+    3.09,
+    -5.781
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_desk",
+   "asset": "desk",
+   "pos": [
+    20.692,
+    3.09,
+    -4.019
+   ],
+   "yaw": 1.43117,
+   "scale": 1
+  },
+  {
+   "id": "yel_desk_chair",
+   "asset": "desk_chair",
+   "pos": [
+    20.246,
+    3.09,
+    -3.956
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_boxes_pair_b",
+   "asset": "boxes_pair",
+   "pos": [
+    19.94,
+    3.09,
+    -6.135
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_mq_child",
+   "asset": "mq_child_stand",
+   "pos": [
+    17.943,
+    3.09,
+    -4.895
+   ],
+   "yaw": -3.28122,
+   "scale": 1
+  },
+  {
+   "id": "yel_globe_back",
+   "asset": "ceiling_globe",
+   "pos": [
+    19.569,
+    6.518,
+    -1.235
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_bed_double",
+   "asset": "bed_double",
+   "pos": [
+    15.076,
+    3.09,
+    -4.822
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_mq_bed",
+   "asset": "mq_woman_sit",
+   "pos": [
+    15.97,
+    3.09,
+    -4.567
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_nightstand_w",
+   "asset": "nightstand",
+   "pos": [
+    13.915,
+    3.09,
+    -5.533
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_nightstand_e",
+   "asset": "nightstand",
+   "pos": [
+    15.995,
+    3.09,
+    -5.826
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_lamp_w",
+   "asset": "table_lamp",
+   "pos": [
+    13.915,
+    3.73,
+    -5.533
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_lamp_e",
+   "asset": "table_lamp",
+   "pos": [
+    15.995,
+    3.73,
+    -5.826
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_painting_bed",
+   "asset": "painting_landscape",
+   "pos": [
+    14.926,
+    4.64,
+    -5.885
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_sconce_bed_w",
+   "asset": "wall_sconce",
+   "pos": [
+    13.688,
+    4.84,
+    -5.711
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_sconce_bed_e",
+   "asset": "wall_sconce",
+   "pos": [
+    16.164,
+    4.84,
+    -6.059
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_wardrobe",
+   "asset": "wardrobe",
+   "pos": [
+    13.917,
+    3.09,
+    -3.44
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_dresser_bed",
+   "asset": "dresser",
+   "pos": [
+    16.46,
+    3.09,
+    3.59
+   ],
+   "yaw": -3.28122,
+   "scale": 1
+  },
+  {
+   "id": "yel_mantel_clock",
+   "asset": "mantel_clock",
+   "pos": [
+    16.46,
+    3.95,
+    3.59
+   ],
+   "yaw": -3.28122,
+   "scale": 1
+  },
+  {
+   "id": "yel_plant_bed",
+   "asset": "plant_snake",
+   "pos": [
+    17.543,
+    3.09,
+    3.392
+   ],
+   "yaw": -3.28122,
+   "scale": 1
+  },
+  {
+   "id": "yel_rug_bed",
+   "asset": "rug_rect",
+   "pos": [
+    15.33,
+    3.09,
+    -3.013
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "yel_globe_bed",
+   "asset": "ceiling_globe",
+   "pos": [
+    15.813,
+    6.564,
+    -1.011
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "yel_mq_wardrobe",
+   "asset": "mq_woman_dress",
+   "pos": [
+    13.9,
+    3.09,
+    -5.286
+   ],
+   "yaw": -1.71042,
+   "scale": 1
+  },
+  {
+   "id": "lamp_1",
+   "asset": "street_lamp",
+   "replaces": "lamp_1",
+   "pos": [
+    -5.9233,
+    0.2199,
+    13.3162
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "lamp_2",
+   "asset": "street_lamp",
+   "replaces": "lamp_2",
+   "pos": [
+    6.4321,
+    0.2199,
+    10.0464
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "lamp_3",
+   "asset": "street_lamp",
+   "pos": [
+    -5.73,
+    0.205,
+    24
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "lamp_4",
+   "asset": "street_lamp",
+   "pos": [
+    6.27,
+    0.205,
+    27
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "lamp_5",
+   "asset": "street_lamp",
+   "pos": [
+    -5.73,
+    0.205,
+    45
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "lamp_6",
+   "asset": "street_lamp",
+   "pos": [
+    6.27,
+    0.205,
+    43
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "lamp_7",
+   "asset": "street_lamp",
+   "pos": [
+    -5.73,
+    0.205,
+    66
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "lamp_8",
+   "asset": "street_lamp",
+   "pos": [
+    6.27,
+    0.205,
+    59
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "lamp_9",
+   "asset": "street_lamp",
+   "pos": [
+    6.27,
+    0.205,
+    74
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "hydrant",
+   "asset": "hydrant",
+   "pos": [
+    6.15,
+    0.2199,
+    13
+   ],
+   "yaw": 1.5708,
+   "scale": 1
+  },
+  {
+   "id": "pole_xfmr",
+   "asset": "utility_pole_xfmr",
+   "replaces": "pole_xfmr",
+   "pos": [
+    -8.0881,
+    0.2199,
+    7.0288
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "pole_s1",
+   "asset": "utility_pole",
+   "pos": [
+    -5.6,
+    0.205,
+    33
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "pole_s2",
+   "asset": "utility_pole",
+   "pos": [
+    -5.6,
+    0.205,
+    61
+   ],
+   "yaw": -0.02618,
+   "scale": 1
+  },
+  {
+   "id": "pole_s3",
+   "asset": "utility_pole_guyed",
+   "pos": [
+    -8.6,
+    -0.1,
+    90
+   ],
+   "yaw": -3.14159,
+   "scale": 1
+  },
+  {
+   "id": "power_lines",
+   "asset": "power_lines",
+   "pos": [
+    0,
+    0,
+    0
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "shot_tower",
+   "asset": "shot_tower",
+   "pos": [
+    -95,
+    0.34,
+    -140
+   ],
+   "yaw": -0.61087,
+   "scale": 1
+  },
+  {
+   "id": "test_rig",
+   "asset": "test_rig",
+   "pos": [
+    -75,
+    0.05,
+    38
+   ],
+   "yaw": -1.5708,
+   "scale": 1
+  },
+  {
+   "id": "mast_green",
+   "asset": "service_mast",
+   "pos": [
+    -11.949,
+    0.22,
+    -11.641
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "mast_yellow",
+   "asset": "service_mast_low",
+   "pos": [
+    16.247,
+    0.22,
+    5.669
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "antenna_green",
+   "asset": "tv_antenna",
+   "pos": [
+    -15.276,
+    8.62,
+    -7.949
+   ],
+   "yaw": 0.3194,
+   "scale": 1
+  },
+  {
+   "id": "antenna_yellow",
+   "asset": "tv_antenna",
+   "pos": [
+    18.4,
+    7.485,
+    -5.615
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "street_out",
+   "asset": "street_out",
+   "pos": [
+    0,
+    0,
+    0
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "ranch_plum",
+   "asset": "ranch_plum",
+   "pos": [
+    -13,
+    0.205,
+    28.5
+   ],
+   "yaw": -1.5708,
+   "scale": 1
+  },
+  {
+   "id": "ranch_blue",
+   "asset": "ranch_blue",
+   "pos": [
+    -12.4,
+    0.205,
+    60.5
+   ],
+   "yaw": -1.5708,
+   "scale": 1
+  },
+  {
+   "id": "ranch_carport",
+   "asset": "ranch_carport",
+   "pos": [
+    13.6,
+    0.205,
+    25
+   ],
+   "yaw": 1.5708,
+   "scale": 1
+  },
+  {
+   "id": "ranch_pink",
+   "asset": "ranch_pink",
+   "pos": [
+    12.8,
+    0.205,
+    60
+   ],
+   "yaw": 1.5708,
+   "scale": 1
+  },
+  {
+   "id": "nb_clothesline_1",
+   "asset": "clothesline",
+   "pos": [
+    -30,
+    0.205,
+    31
+   ],
+   "yaw": -1.5708,
+   "scale": 1
+  },
+  {
+   "id": "nb_picnic_1",
+   "asset": "picnic_table",
+   "pos": [
+    -27.2,
+    0.205,
+    23.5
+   ],
+   "yaw": -0.31416,
+   "scale": 1
+  },
+  {
+   "id": "nb_picnic_2",
+   "asset": "picnic_table",
+   "pos": [
+    29,
+    0.205,
+    26.5
+   ],
+   "yaw": 0.24435,
+   "scale": 1
+  },
+  {
+   "id": "nb_chaise_1",
+   "asset": "chaise_lounge",
+   "pos": [
+    27.4,
+    0.205,
+    35
+   ],
+   "yaw": 1.74533,
+   "scale": 1
+  },
+  {
+   "id": "nb_clothesline_2",
+   "asset": "clothesline",
+   "pos": [
+    -29.5,
+    0.205,
+    61
+   ],
+   "yaw": -1.5708,
+   "scale": 1
+  },
+  {
+   "id": "nb_trash_1",
+   "asset": "trash_can",
+   "pos": [
+    -23.2,
+    0.205,
+    51
+   ],
+   "yaw": -0.17453,
+   "scale": 1
+  },
+  {
+   "id": "nb_trash_2",
+   "asset": "trash_can_open",
+   "pos": [
+    -23.25,
+    0.205,
+    51.75
+   ],
+   "yaw": 0.5236,
+   "scale": 1
+  },
+  {
+   "id": "nb_hose_1",
+   "asset": "hose_reel",
+   "pos": [
+    23.6,
+    0.205,
+    57.5
+   ],
+   "yaw": 1.5708,
+   "scale": 1
+  },
+  {
+   "id": "nb_patio_1",
+   "asset": "patio_chair",
+   "pos": [
+    28.4,
+    0.205,
+    61.8
+   ],
+   "yaw": 2.0944,
+   "scale": 1
+  },
+  {
+   "id": "nb_patio_2",
+   "asset": "patio_chair",
+   "pos": [
+    29.3,
+    0.205,
+    60.9
+   ],
+   "yaw": 2.61799,
+   "scale": 1
+  },
+  {
+   "id": "antenna_plum",
+   "asset": "tv_antenna",
+   "pos": [
+    -18.3,
+    4.99,
+    29.5
+   ],
+   "yaw": -1.5708,
+   "scale": 1
+  },
+  {
+   "id": "antenna_pink",
+   "asset": "tv_antenna",
+   "pos": [
+    17.8,
+    6.14,
+    64.45
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "flood_gate_w",
+   "asset": "floodlight_pole",
+   "pos": [
+    -9.6,
+    0.205,
+    78.2
+   ],
+   "yaw": -2.87834,
+   "scale": 1
+  },
+  {
+   "id": "flood_gate_e",
+   "asset": "floodlight_pole",
+   "pos": [
+    10.2,
+    0.205,
+    78.2
+   ],
+   "yaw": 2.85862,
+   "scale": 1
+  },
+  {
+   "id": "hydrant_2",
+   "asset": "hydrant",
+   "pos": [
+    -5.75,
+    0.205,
+    36.4
+   ],
+   "yaw": -1.5708,
+   "scale": 1
+  },
+  {
+   "id": "flood_green",
+   "asset": "floodlight_pole",
+   "pos": [
+    -41,
+    -0.1,
+    -27.5
+   ],
+   "yaw": -0.38932,
+   "scale": 1
+  },
+  {
+   "id": "flood_yellow",
+   "asset": "floodlight_pole",
+   "pos": [
+    42,
+    -0.1,
+    -25.5
+   ],
+   "yaw": 0.60107,
+   "scale": 1
+  },
+  {
+   "id": "sawhorse_1",
+   "asset": "knife_rest",
+   "pos": [
+    -3.62,
+    0.004,
+    15.22
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "sawhorse_2",
+   "asset": "knife_rest",
+   "pos": [
+    -0.77,
+    0.004,
+    15.22
+   ],
+   "yaw": 0.02618,
+   "scale": 1
+  },
+  {
+   "id": "sawhorse_3",
+   "asset": "knife_rest",
+   "pos": [
+    2.08,
+    0,
+    15.24
+   ],
+   "yaw": -0.01745,
+   "scale": 1
+  },
+  {
+   "id": "sawhorse_4",
+   "asset": "knife_rest_end",
+   "pos": [
+    4.93,
+    0.0172,
+    15.2
+   ],
+   "yaw": 0,
+   "scale": 1
+  },
+  {
+   "id": "berm_w",
+   "asset": "sandbag_berm",
+   "pos": [
+    -3.25,
+    0.004,
+    13.35
+   ],
+   "yaw": -0.13963,
+   "scale": 1
+  },
+  {
+   "id": "berm_e",
+   "asset": "sandbag_berm",
+   "pos": [
+    4.05,
+    0,
+    13.5
+   ],
+   "yaw": -3.00197,
+   "scale": 1
+  },
+  {
+   "id": "sandbag_stack",
+   "asset": "sandbag_stack",
+   "pos": [
+    -5.6,
+    0.22,
+    14.4
+   ],
+   "yaw": -0.20944,
+   "scale": 1
+  },
+  {
+   "id": "trash_can_3",
+   "asset": "trash_can",
+   "pos": [
+    41.3,
+    0.2199,
+    -9.4
+   ],
+   "yaw": -0.43633,
+   "scale": 1
+  },
+  {
+   "id": "trash_can_4",
+   "asset": "trash_can_open",
+   "pos": [
+    42.05,
+    0.2199,
+    -8.9
+   ],
+   "yaw": 0.69813,
+   "scale": 1
+  },
+  {
+   "id": "green_sofa",
+   "asset": "sofa_leather",
+   "pos": [
+    -17.6426,
+    0.22,
+    -5.445
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_armchair",
+   "asset": "armchair_leather",
+   "pos": [
+    -13.8919,
+    0.22,
+    -4.015
+   ],
+   "yaw": 2.53369,
+   "scale": 1
+  },
+  {
+   "id": "green_tv",
+   "asset": "tv_console",
+   "pos": [
+    -11.9052,
+    0.22,
+    -7.6974
+   ],
+   "yaw": 1.89019,
+   "scale": 1
+  },
+  {
+   "id": "green_bookshelf",
+   "asset": "bookshelf",
+   "pos": [
+    -16.2913,
+    0.22,
+    -10.3908
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_rug_living",
+   "asset": "rug_rect",
+   "pos": [
+    -15.8251,
+    0.22,
+    -5.813
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_plant_living",
+   "asset": "plant_snake",
+   "pos": [
+    -13.3778,
+    0.22,
+    -3.2446
+   ],
+   "yaw": 1.89019,
+   "scale": 1
+  },
+  {
+   "id": "green_chandelier",
+   "asset": "chandelier",
+   "pos": [
+    -14.7213,
+    2.8,
+    -7.0805
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_painting_sofa",
+   "asset": "painting_landscape",
+   "pos": [
+    -18.0983,
+    1.77,
+    -5.5957
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_painting_south",
+   "asset": "painting_landscape",
+   "pos": [
+    -15.301,
+    1.82,
+    -3.4804
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_sconce_arch_n",
+   "asset": "wall_sconce",
+   "pos": [
+    -16.6947,
+    1.97,
+    -9.8397
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_sconce_arch_s",
+   "asset": "wall_sconce",
+   "pos": [
+    -17.8408,
+    1.97,
+    -6.3743
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_mq_sofa",
+   "asset": "mq_man_plaid_sit",
+   "pos": [
+    -17.7331,
+    0.22,
+    -4.9483
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_mq_window",
+   "asset": "mq_woman_blouse",
+   "pos": [
+    -13.2916,
+    0.22,
+    -4.2378
+   ],
+   "yaw": -1.4488,
+   "scale": 1
+  },
+  {
+   "id": "green_kb90_corner",
+   "asset": "kit_base_90",
+   "pos": [
+    -21.9324,
+    0.22,
+    -14.2577
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_kb60",
+   "asset": "kit_base_60",
+   "pos": [
+    -22.1679,
+    0.22,
+    -13.5456
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_kb45",
+   "asset": "kit_base_45dr",
+   "pos": [
+    -22.3328,
+    0.22,
+    -13.0472
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_kb30",
+   "asset": "kit_base_30",
+   "pos": [
+    -22.4505,
+    0.22,
+    -12.6911
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_kb15",
+   "asset": "kit_base_filler_15",
+   "pos": [
+    -22.5212,
+    0.22,
+    -12.4775
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_sink",
+   "asset": "kit_sink_90",
+   "pos": [
+    -22.686,
+    0.22,
+    -11.9791
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_kb60b",
+   "asset": "kit_base_60",
+   "pos": [
+    -22.9215,
+    0.22,
+    -11.267
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_fridge",
+   "asset": "fridge",
+   "pos": [
+    -22.7963,
+    0.22,
+    -10.4672
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_ku90",
+   "asset": "kit_upper_90",
+   "pos": [
+    -21.9324,
+    1.62,
+    -14.2577
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_ku60",
+   "asset": "kit_upper_60_light",
+   "pos": [
+    -22.1679,
+    1.62,
+    -13.5456
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_stove",
+   "asset": "stove_white",
+   "pos": [
+    -20.9279,
+    0.22,
+    -14.0466
+   ],
+   "yaw": 0.3194,
+   "scale": 1
+  },
+  {
+   "id": "green_kb90_n",
+   "asset": "kit_base_90",
+   "pos": [
+    -20.0347,
+    0.22,
+    -14.104
+   ],
+   "yaw": 0.3194,
+   "scale": 1
+  },
+  {
+   "id": "green_ku90_n",
+   "asset": "kit_upper_90",
+   "pos": [
+    -20.0347,
+    1.62,
+    -14.104
+   ],
+   "yaw": 0.3194,
+   "scale": 1
+  },
+  {
+   "id": "green_clutter_stove",
+   "asset": "clutter_stove",
+   "pos": [
+    -20.9279,
+    1.13,
+    -14.0466
+   ],
+   "yaw": 0.3194,
+   "scale": 1
+  },
+  {
+   "id": "green_dishes",
+   "asset": "clutter_dishes",
+   "pos": [
+    -22.0558,
+    1.125,
+    -12.9292
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_curtain_sink",
+   "asset": "curtain_cafe_navy",
+   "pos": [
+    -22.686,
+    0.22,
+    -11.9791
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_clock",
+   "asset": "wall_clock",
+   "pos": [
+    -20.8227,
+    2.27,
+    -14.3647
+   ],
+   "yaw": 0.3194,
+   "scale": 1
+  },
+  {
+   "id": "green_kitchen_table",
+   "asset": "kitchen_table",
+   "pos": [
+    -18.4629,
+    0.22,
+    -11.3724
+   ],
+   "yaw": 0.3194,
+   "scale": 1
+  },
+  {
+   "id": "green_chair_w",
+   "asset": "windsor_chair",
+   "pos": [
+    -19.2699,
+    0.22,
+    -11.6393
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_chair_e",
+   "asset": "windsor_chair",
+   "pos": [
+    -17.6559,
+    0.22,
+    -11.1055
+   ],
+   "yaw": 1.89019,
+   "scale": 1
+  },
+  {
+   "id": "green_chair_s",
+   "asset": "windsor_chair",
+   "pos": [
+    -18.6827,
+    0.22,
+    -10.7078
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_globe_kitchen",
+   "asset": "ceiling_globe",
+   "pos": [
+    -20.1981,
+    2.8,
+    -9.629
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_mq_sink",
+   "asset": "mq_woman_blouse",
+   "pos": [
+    -21.7793,
+    0.22,
+    -11.6792
+   ],
+   "yaw": 1.89019,
+   "scale": 1
+  },
+  {
+   "id": "green_mq_table",
+   "asset": "mq_man_plaid_sit",
+   "pos": [
+    -19.2035,
+    0.22,
+    -11.6173
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_workbench",
+   "asset": "workbench",
+   "pos": [
+    -19.4339,
+    0.22,
+    -3.3727
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_tools",
+   "asset": "tool_clutter",
+   "pos": [
+    -19.4565,
+    1.12,
+    -3.5908
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_shelving",
+   "asset": "shelving",
+   "pos": [
+    -18.192,
+    0.22,
+    -3.8793
+   ],
+   "yaw": 0.3194,
+   "scale": 1
+  },
+  {
+   "id": "green_paint_cans",
+   "asset": "paint_cans",
+   "pos": [
+    -17.629,
+    0.22,
+    -3.7026
+   ],
+   "yaw": 0.3194,
+   "scale": 1
+  },
+  {
+   "id": "green_trash_1",
+   "asset": "garage_trash_can",
+   "pos": [
+    -17.9889,
+    0.22,
+    3.2774
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_trash_2",
+   "asset": "garage_trash_can",
+   "pos": [
+    -18.606,
+    0.22,
+    3.0733
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_mower",
+   "asset": "lawnmower",
+   "pos": [
+    -17.6751,
+    0.22,
+    0.8954
+   ],
+   "yaw": 1.89019,
+   "scale": 1
+  },
+  {
+   "id": "green_tyre",
+   "asset": "tyre_hanging",
+   "pos": [
+    -18.6052,
+    2.17,
+    3.3895
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_shovel",
+   "asset": "shovel",
+   "pos": [
+    -19.2192,
+    0.22,
+    3.1759
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_boxes_garage",
+   "asset": "boxes_stack",
+   "pos": [
+    -21.3879,
+    0.22,
+    2.09
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_mq_garage",
+   "asset": "mq_man_suit",
+   "pos": [
+    -18.0324,
+    0.22,
+    -3.1198
+   ],
+   "yaw": -0.71098,
+   "scale": 1
+  },
+  {
+   "id": "green_cover_boxes",
+   "asset": "boxes_stack",
+   "pos": [
+    -20.5367,
+    3.05,
+    -12.4268
+   ],
+   "yaw": 0.02794,
+   "scale": 1
+  },
+  {
+   "id": "green_dresser_back",
+   "asset": "dresser",
+   "pos": [
+    -18.1811,
+    3.05,
+    -12.5431
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_bed_single",
+   "asset": "bed_single",
+   "pos": [
+    -20.0918,
+    3.05,
+    -6.1286
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_dresser_window",
+   "asset": "dresser",
+   "pos": [
+    -22.3226,
+    3.05,
+    -6.0712
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_boxes_back",
+   "asset": "boxes_stack",
+   "pos": [
+    -21.553,
+    3.05,
+    -14.2902
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_boxes_pair",
+   "asset": "boxes_pair",
+   "pos": [
+    -21.7728,
+    3.05,
+    -13.6256
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_suitcase",
+   "asset": "suitcase",
+   "pos": [
+    -19.3666,
+    3.05,
+    -13.7356
+   ],
+   "yaw": 0.3194,
+   "scale": 1
+  },
+  {
+   "id": "green_globe_back",
+   "asset": "ceiling_globe",
+   "pos": [
+    -19.8183,
+    6.3,
+    -9.5034
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_sconce_stairhead",
+   "asset": "wall_sconce",
+   "pos": [
+    -16.237,
+    4.8,
+    -12.8481
+   ],
+   "yaw": 0.3194,
+   "scale": 1
+  },
+  {
+   "id": "green_mq_child",
+   "asset": "mq_child_stand",
+   "pos": [
+    -20.8713,
+    3.05,
+    -6.7972
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_bed_double",
+   "asset": "bed_double",
+   "pos": [
+    -15.3249,
+    3.05,
+    -4.6185
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_nightstand_w",
+   "asset": "nightstand",
+   "pos": [
+    -16.534,
+    3.05,
+    -4.1473
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_nightstand_e",
+   "asset": "nightstand",
+   "pos": [
+    -14.6351,
+    3.05,
+    -3.5193
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_lamp_w",
+   "asset": "table_lamp",
+   "pos": [
+    -16.5327,
+    3.69,
+    -4.1511
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_lamp_e",
+   "asset": "table_lamp",
+   "pos": [
+    -14.6339,
+    3.69,
+    -3.5231
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_wardrobe",
+   "asset": "wardrobe",
+   "pos": [
+    -12.1502,
+    3.05,
+    -6.9885
+   ],
+   "yaw": 1.89019,
+   "scale": 1
+  },
+  {
+   "id": "green_dresser_bed",
+   "asset": "dresser",
+   "pos": [
+    -13.9935,
+    3.05,
+    -10.2366
+   ],
+   "yaw": 0.3194,
+   "scale": 1
+  },
+  {
+   "id": "green_mantel_clock",
+   "asset": "mantel_clock",
+   "pos": [
+    -13.9919,
+    3.91,
+    -10.2413
+   ],
+   "yaw": 0.3194,
+   "scale": 1
+  },
+  {
+   "id": "green_rug_bed",
+   "asset": "rug_rect",
+   "pos": [
+    -14.7041,
+    3.05,
+    -6.4955
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_drapes_exit",
+   "asset": "drapes_navy",
+   "pos": [
+    -11.325,
+    3.615,
+    -8.4324
+   ],
+   "yaw": 1.89019,
+   "scale": 1
+  },
+  {
+   "id": "green_globe_bed",
+   "asset": "ceiling_globe",
+   "pos": [
+    -14.3729,
+    6.3,
+    -6.8599
+   ],
+   "yaw": -1.2514,
+   "scale": 1
+  },
+  {
+   "id": "green_painting_bed",
+   "asset": "painting_landscape",
+   "pos": [
+    -15.6618,
+    4.93,
+    -3.5997
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_sconce_bed_w",
+   "asset": "wall_sconce",
+   "pos": [
+    -16.6112,
+    4.8,
+    -3.9137
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_sconce_bed_e",
+   "asset": "wall_sconce",
+   "pos": [
+    -14.7124,
+    4.8,
+    -3.2857
+   ],
+   "yaw": -2.8222,
+   "scale": 1
+  },
+  {
+   "id": "green_mq_bed",
+   "asset": "mq_woman_sit",
+   "pos": [
+    -16.0245,
+    3.2,
+    -5.1943
+   ],
+   "yaw": 1.89019,
+   "scale": 1
+  },
+  {
+   "id": "green_mq_wardrobe",
+   "asset": "mq_woman_dress",
+   "pos": [
+    -12.8535,
+    3.05,
+    -6.1994
+   ],
+   "yaw": 1.59873,
+   "scale": 1
+  }
+ ],
+ "hiddenStandins": [
+  "bus",
+  "truck",
+  "jeep",
+  "car_a",
+  "tower",
+  "gazebo",
+  "fallout_shelter",
+  "shed_yellow",
+  "swingset",
+  "lamp_1",
+  "lamp_2",
+  "pole_xfmr"
+ ]
+}

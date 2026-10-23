@@ -1,0 +1,23 @@
+{
+  "name": "kong-local",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local copy of the Kong client (bundled assets + sourcemap sources) with its own game server; for personal offline use only.",
+  "scripts": {
+    "install:all": "npm --prefix client install && npm --prefix server install",
+    "dev": "node start-dev.mjs",
+    "build": "npm --prefix client run build && npm --prefix server run build",
+    "build:client": "npm --prefix client run build",
+    "build:server": "npm --prefix server run build",
+    "play": "node server/dist/server.mjs --root=client/dist --port=8765",
+    "server": "node server/dist/server.mjs --root=client/dist --port=8765",
+    "start": "node server/dist/server.mjs --root=client/dist --port=8765",
+    "test:protocol": "node server/test-client.mjs",
+    "check:nuketown": "node scripts/nuketown/check-geo.mjs",
+    "check:dust2": "node scripts/nuketown/check-dust2-geo.mjs",
+    "check:p0": "node scripts/check-p0.mjs",
+    "check:probe": "node scripts/nuketown/probe.mjs",
+    "check:smoke": "node scripts/smoke.mjs"
+  }
+}

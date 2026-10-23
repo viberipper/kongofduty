@@ -1,0 +1,17 @@
+three.js r186 (npm three@0.186.1), vendored 2026-10-21.
+
+build/
+  three.module.js       WebGL2 build (imported as "three")
+  three.core.js         shared core (imported by three.module.js / three.webgpu.js)
+  three.webgpu.js       WebGPURenderer + NodeMaterial + TSL runtime (imported as "three/webgpu")
+  three.tsl.js          TSL shader functions (imported as "three/tsl", re-exports via three/webgpu)
+  three.webgpu.nodes.js node-material build (reserved for the TSL post-chain port)
+
+examples/jsm/
+  geometries/ loaders/ postprocessing/ shaders/ utils/   full upstream dirs (r186)
+  libs/meshopt_decoder.module.js                          only what GLTFLoader needs
+  tsl/                        TSL display/pass nodes (BloomNode, GTAONode, …) for the
+                              follow-up: porting the EffectComposer post-chain to RenderPipeline
+
+Source: https://registry.npmjs.org/three/-/three-0.186.1.tgz
+Update: replace the dirs above from the npm tarball, keep this file in sync.

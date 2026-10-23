@@ -1,0 +1,386 @@
+{
+  "pack": "studio-real",
+  "title": "STUDIO REAL",
+  "codec": "opus/ogg",
+  "sourceFormat": {
+    "sampleRate": 44100,
+    "bitDepth": 16,
+    "container": "wav",
+    "channels": "mono (spatialised SFX), stereo (ambience, medals, UI stings)"
+  },
+  "encodedAt": "2026-08-16",
+  "bitrate": {
+    "mono": "88k",
+    "stereo": "112k"
+  },
+  "bytes": 1184780,
+  "masterBytes": 13363614,
+  "fileCount": 59,
+  "sizes": {
+    "gun-ar-1.ogg": 5072,
+    "gun-ar-2.ogg": 4851,
+    "gun-ar-3.ogg": 4934,
+    "gun-ar-4.ogg": 4372,
+    "gun-ak-1.ogg": 7306,
+    "gun-ak-2.ogg": 6424,
+    "gun-ak-3.ogg": 6754,
+    "gun-ak-4.ogg": 6693,
+    "gun-smg-1.ogg": 4013,
+    "gun-smg-2.ogg": 3519,
+    "gun-smg-3.ogg": 3796,
+    "gun-smg-4.ogg": 3296,
+    "gun-sniper-1.ogg": 8544,
+    "gun-sniper-2.ogg": 7983,
+    "gun-sniper-3.ogg": 8309,
+    "gun-sniper-4.ogg": 7874,
+    "gun-ar-far-1.ogg": 8583,
+    "gun-ar-far-2.ogg": 8172,
+    "gun-ak-far-1.ogg": 8770,
+    "gun-ak-far-2.ogg": 8836,
+    "gun-smg-far-1.ogg": 6843,
+    "gun-smg-far-2.ogg": 7224,
+    "gun-sniper-far-1.ogg": 9220,
+    "gun-sniper-far-2.ogg": 9241,
+    "reload-magout.ogg": 3128,
+    "reload-magin.ogg": 4403,
+    "reload-rack.ogg": 4186,
+    "reload-rack-sniper.ogg": 5486,
+    "step-dirt-1.ogg": 2688,
+    "step-dirt-2.ogg": 2617,
+    "step-dirt-3.ogg": 2371,
+    "step-dirt-4.ogg": 2486,
+    "step-metal-1.ogg": 3036,
+    "step-metal-2.ogg": 3079,
+    "step-metal-3.ogg": 3601,
+    "step-metal-4.ogg": 3068,
+    "hitmarker.ogg": 1532,
+    "headshot.ogg": 5323,
+    "kill-confirm.ogg": 16760,
+    "damage-taken.ogg": 2731,
+    "nade-pin.ogg": 1569,
+    "nade-throw.ogg": 2100,
+    "nade-bounce-1.ogg": 1491,
+    "nade-bounce-2.ogg": 1496,
+    "explosion-near.ogg": 15203,
+    "explosion-far.ogg": 19777,
+    "medal-1.ogg": 14007,
+    "medal-2.ogg": 16082,
+    "medal-3.ogg": 17696,
+    "medal-4.ogg": 18665,
+    "medal-streak.ogg": 21896,
+    "ui-click.ogg": 3046,
+    "ui-deploy.ogg": 12826,
+    "match-start.ogg": 20336,
+    "match-end.ogg": 27239,
+    "amb-jungle-loop.ogg": 675731,
+    "amb-bird-piha.ogg": 27585,
+    "amb-bird-chirp.ogg": 26281,
+    "amb-insect-burst.ogg": 34630
+  },
+  "events": {
+    "gun-ar": {
+      "files": [
+        "gun-ar-1.ogg",
+        "gun-ar-2.ogg",
+        "gun-ar-3.ogg",
+        "gun-ar-4.ogg"
+      ],
+      "gain": 0.85,
+      "pitchVarPct": 3,
+      "notes": "M4A1-class. AR-15 D_32P + Marlin 336 I_22P near takes as bodies (4 real takes, L/R mics), Ruger Single Six transient as the snap, .22 mid-distance take as the tail. Tight 340 ms decay."
+    },
+    "gun-ak": {
+      "files": [
+        "gun-ak-1.ogg",
+        "gun-ak-2.ogg",
+        "gun-ak-3.ogg",
+        "gun-ak-4.ogg"
+      ],
+      "gain": 0.9,
+      "pitchVarPct": 3.5,
+      "notes": "AK47-class. Four separate AK-47 C_28P near singles (real round-robin), 1911 crack layered for snap, AK mid-distance C_31P for the tail. Fattest low-mid of the four classes."
+    },
+    "gun-smg": {
+      "files": [
+        "gun-smg-1.ogg",
+        "gun-smg-2.ogg",
+        "gun-smg-3.ogg",
+        "gun-smg-4.ogg"
+      ],
+      "gain": 0.78,
+      "pitchVarPct": 4,
+      "notes": "SMG. Carl Gustav M45 x3 + PPSh near singles, Walther PPQ 9 mm snap. Shortest of the set (~200 ms) so full-auto never smears."
+    },
+    "gun-sniper": {
+      "files": [
+        "gun-sniper-1.ogg",
+        "gun-sniper-2.ogg",
+        "gun-sniper-3.ogg",
+        "gun-sniper-4.ogg"
+      ],
+      "gain": 1,
+      "pitchVarPct": 3,
+      "notes": "M40A3-class. Four Mosin Nagant M_21P near singles pitched down, Model 12 shotgun lowpassed to 900 Hz as the chest sub, long AK mid-distance tail. 880 ms max."
+    },
+    "gun-ar-far": {
+      "files": [
+        "gun-ar-far-1.ogg",
+        "gun-ar-far-2.ogg"
+      ],
+      "gain": 0.5,
+      "pitchVarPct": 6,
+      "notes": "Other-player / distant AR. Real AK-47 mid-distance take, gentle 4.2 kHz rolloff, 3.5 ms soft attack, 42% wet dark reverb, two offset reflections. Rendered ~7.5 dB below the near shots so 20 of them stack politely."
+    },
+    "gun-ak-far": {
+      "files": [
+        "gun-ak-far-1.ogg",
+        "gun-ak-far-2.ogg"
+      ],
+      "gain": 0.5,
+      "pitchVarPct": 6,
+      "notes": "Distant AK. Same mid-distance source, slower and darker (3.8 kHz), longest far tail."
+    },
+    "gun-smg-far": {
+      "files": [
+        "gun-smg-far-1.ogg",
+        "gun-smg-far-2.ogg"
+      ],
+      "gain": 0.45,
+      "pitchVarPct": 7,
+      "notes": "Distant SMG from the .22 mid-distance take — smallest, driest, quickest of the far set."
+    },
+    "gun-sniper-far": {
+      "files": [
+        "gun-sniper-far-1.ogg",
+        "gun-sniper-far-2.ogg"
+      ],
+      "gain": 0.6,
+      "pitchVarPct": 5,
+      "notes": "Distant sniper from the 1911 mid-distance take pitched down 0.86x — a boom with almost no crack, the 'someone is shooting across the map' cue."
+    },
+    "reload-out": {
+      "files": [
+        "reload-magout.ogg"
+      ],
+      "gain": 0.6,
+      "pitchVarPct": 2,
+      "notes": "Stage 1/3, shared across classes. metalLatch release + handgun-reload mag-drop."
+    },
+    "reload-in": {
+      "files": [
+        "reload-magin.ogg"
+      ],
+      "gain": 0.65,
+      "pitchVarPct": 2,
+      "notes": "Stage 2/3, shared. Mag seat from handgun-reload-zer0sol + a soft impact for weight."
+    },
+    "reload-rack": {
+      "files": [
+        "reload-rack.ogg"
+      ],
+      "gain": 0.7,
+      "pitchVarPct": 2,
+      "notes": "Stage 3/3, shared. assaultriflereload1 charging handle + rubberduck metal clack."
+    },
+    "reload-rack-sniper": {
+      "files": [
+        "reload-rack-sniper.ogg"
+      ],
+      "gain": 0.7,
+      "pitchVarPct": 2,
+      "notes": "Bolt-action stage 3 variant for the sniper: shotguncock at 0.82x + metalClick lockup."
+    },
+    "step-dirt": {
+      "files": [
+        "step-dirt-1.ogg",
+        "step-dirt-2.ogg",
+        "step-dirt-3.ogg",
+        "step-dirt-4.ogg"
+      ],
+      "gain": 0.5,
+      "pitchVarPct": 8,
+      "notes": "Walk on jungle floor. TinyWorlds gravel/mud/leaves with a Kenney grass step lowpassed underneath. Run = same files at 1.12-1.2x rate and a shorter interval."
+    },
+    "step-metal": {
+      "files": [
+        "step-metal-1.ogg",
+        "step-metal-2.ogg",
+        "step-metal-3.ogg",
+        "step-metal-4.ogg"
+      ],
+      "gain": 0.55,
+      "pitchVarPct": 7,
+      "notes": "Walk on crates / ship deck. Thimras takes 03/08/14/21 (recorded for games) + concrete step for weight. Run = rate, not new files."
+    },
+    "hitmarker": {
+      "files": [
+        "hitmarker.ogg"
+      ],
+      "gain": 0.55,
+      "pitchVarPct": 4,
+      "notes": "130 ms, highpassed at 320 Hz so it sits on top of the shot instead of fighting it."
+    },
+    "headshot": {
+      "files": [
+        "headshot.ogg"
+      ],
+      "gain": 0.7,
+      "pitchVarPct": 2,
+      "notes": "Hitmarker punch + a bell and pluck a just 5th/octave above the kill-confirm root — same key, higher register."
+    },
+    "kill-confirm": {
+      "files": [
+        "kill-confirm.ogg"
+      ],
+      "gain": 0.8,
+      "pitchVarPct": 1.5,
+      "notes": "The dopamine cue: punch, then major-pentatonic 3rd -> 5th -> octave with a steel-drum octave and a sub-octave bong. Stereo."
+    },
+    "damage-taken": {
+      "files": [
+        "damage-taken.ogg"
+      ],
+      "gain": 0.75,
+      "pitchVarPct": 5,
+      "notes": "Deliberately dark: 5.2 kHz lowpass, -9 dB at 3.3 kHz, cannon sub under it. Never stings when you are already being hurt."
+    },
+    "nade-pin": {
+      "files": [
+        "nade-pin.ogg"
+      ],
+      "gain": 0.6,
+      "pitchVarPct": 3,
+      "notes": "metalLatch at 1.22x + UI click transient."
+    },
+    "nade-throw": {
+      "files": [
+        "nade-throw.ogg"
+      ],
+      "gain": 0.55,
+      "pitchVarPct": 6,
+      "notes": "Two artisticdude swishes pitched down 0.72x/0.85x for a heavy arm arc."
+    },
+    "nade-bounce": {
+      "files": [
+        "nade-bounce-1.ogg",
+        "nade-bounce-2.ogg"
+      ],
+      "gain": 0.5,
+      "pitchVarPct": 10,
+      "notes": "Two surfaces: soft impact + gravel (dirt), wood + tin (crate/metal). Pick by surface or at random."
+    },
+    "explosion-near": {
+      "files": [
+        "explosion-near.ogg"
+      ],
+      "gain": 1,
+      "pitchVarPct": 4,
+      "notes": "Firework cannon body + Kenney sub + debris crunch, 1.8 s, 3.2 kHz dipped 9 dB."
+    },
+    "explosion-far": {
+      "files": [
+        "explosion-far.ogg"
+      ],
+      "gain": 0.6,
+      "pitchVarPct": 5,
+      "notes": "Muffled distant explosion + a 0.72x cannon sub, 2.6 kHz lowpass, 40% wet 2 s reverb."
+    },
+    "medal-1": {
+      "files": [
+        "medal-1.ogg"
+      ],
+      "gain": 0.7,
+      "pitchVarPct": 0,
+      "notes": "Kill streak tier 1: root -> 5th."
+    },
+    "medal-2": {
+      "files": [
+        "medal-2.ogg"
+      ],
+      "gain": 0.72,
+      "pitchVarPct": 0,
+      "notes": "Tier 2 (double): root-3rd-5th + steel drum."
+    },
+    "medal-3": {
+      "files": [
+        "medal-3.ogg"
+      ],
+      "gain": 0.75,
+      "pitchVarPct": 0,
+      "notes": "Tier 3 (triple): four-note run to the octave."
+    },
+    "medal-4": {
+      "files": [
+        "medal-4.ogg"
+      ],
+      "gain": 0.78,
+      "pitchVarPct": 0,
+      "notes": "Tier 4 (fury): root-5th-octave-10th, widest stereo."
+    },
+    "medal-streak": {
+      "files": [
+        "medal-streak.ogg"
+      ],
+      "gain": 0.85,
+      "pitchVarPct": 0,
+      "notes": "Banner: full six-note major-pentatonic run with a steel-drum 12th on top. All medals share one root, so overlapping tiers stay consonant."
+    },
+    "ui-click": {
+      "files": [
+        "ui-click.ogg"
+      ],
+      "gain": 0.45,
+      "pitchVarPct": 3,
+      "notes": "Tiny, 140 ms, octave pluck under the click."
+    },
+    "ui-deploy": {
+      "files": [
+        "ui-deploy.ogg"
+      ],
+      "gain": 0.7,
+      "pitchVarPct": 0,
+      "notes": "Root -> 5th with a sub-octave bong. Same root as the medals."
+    },
+    "match-start": {
+      "files": [
+        "match-start.ogg"
+      ],
+      "gain": 0.8,
+      "pitchVarPct": 0,
+      "notes": "Rising steel-drum root-5th-octave over a bong pedal."
+    },
+    "match-end": {
+      "files": [
+        "match-end.ogg"
+      ],
+      "gain": 0.85,
+      "pitchVarPct": 0,
+      "notes": "MASHED! — descending pentatonic octave-6th-5th-3rd resolving onto a held root."
+    },
+    "amb-jungle": {
+      "files": [
+        "amb-jungle-loop.ogg"
+      ],
+      "gain": 0.35,
+      "pitchVarPct": 0,
+      "notes": "48 s seamless stereo bed: BigSoundBank forest ambience + two detuned cicada layers panned wide + a dawn-chorus layer, 4 s equal-power wrap crossfade, no edge fades. Loop it forever."
+    },
+    "amb-bird": {
+      "files": [
+        "amb-bird-piha.ogg",
+        "amb-bird-chirp.ogg"
+      ],
+      "gain": 0.3,
+      "pitchVarPct": 12,
+      "notes": "Sparse one-shots over the bed — screaming piha (the jungle bird) and a chirp cluster. Fire every 8-25 s at random pan."
+    },
+    "amb-insect": {
+      "files": [
+        "amb-insect-burst.ogg"
+      ],
+      "gain": 0.25,
+      "pitchVarPct": 8,
+      "notes": "Cicada swell with 350 ms in / 450 ms out fades so it blooms rather than triggers."
+    }
+  }
+}

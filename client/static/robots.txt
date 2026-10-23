@@ -1,0 +1,6 @@
+# BANANA SHIPMENT — netsplit.in (@viberipper) | https://kong.netsplit.in/
+# Publisher: netsplit.in — Social: @viberipper
+# Free browser FPS (vibecode game): Banana Shipment, netsplit.in, viberipper, KongOfDuy, Shipment/Dust2/Nuketown, TDM/FFA/Gun Game.
+# Crawlers welcome: the game index may be fully crawled.
+User-agent: *
+Allow: /

@@ -1,0 +1,34 @@
+# Build outputs (generated via `npm run build`)
+dist/
+client/dist/
+server/dist/
+debug/
+
+# Dependencies (per package: `npm --prefix client install`, `npm --prefix server install`)
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Runtime logs
+*.log
+
+# Local dev/QA tools (headless checks, asset repair, probes) — kept locally, not part of the repo
+scripts/
+
+# Local CI workflow — kept locally, not part of the repo
+.github/
+
+# Repo-local Git identity (other GitHub login) — never commit this file
+.gitconfig.local
+
+# OS clutter
+.DS_Store
+Thumbs.db
+.opencode/
+
+.agents/
+cloudflare/
+.wrangler/
+skills-lock.json
+.origin/
+.deploy/

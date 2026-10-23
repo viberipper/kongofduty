@@ -1,0 +1,10 @@
+/*
+ * Style placeholders (re-implemented).
+ *
+ * The original per-module stylesheets (feel.css, matchfeel.css, roundstrip.css,
+ * spectate.css, weapons-hud.css) were never extracted from a sourcemap, so
+ * these stubs keep the module graph intact. The REAL rules live in the
+ * compiled original `assets/game.css` (client/static, linked manually
+ * in client/index.html); `assets/index-*.css` from these stubs is intentionally
+ * near-empty.
+ */
