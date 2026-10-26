@@ -18,6 +18,17 @@
  * rejected play() (no gesture yet), or a line with no clip (unknown mode
  * label) falls back to the browser's localService voice, exactly as before.
  *
+ * SPAM CONTROL (say-gating, no finish-path changes): the mode call fires only
+ * at match start (round 2+ re-arms the clocks but never repeats it), first
+ * blood fires once per match, multi-kills hold a 4 s upgrade window so only
+ * the highest multi speaks, repeats are damped per line (mode 30 s, lead
+ * 25 s, foreign streaks 20 s, shutdowns 15 s), foreign multis are always
+ * subtitle-only, a 2.2 s global pacing gap
+ * separates announcer voices (result cuts through), and whatever loses is
+ * subtitle-only. Foreign streaks/multis/shutdowns and damped repeats never take the
+ * voice. Priority: result (5) > multi (4) = clock (4) > streak/mode (3) >
+ * lead (2) > info (1) > Kong (0).
+ *
  * Also YOUR KONG'S OWN VOICE (hive cbbuhicb): broken, Brute-style English on
  * its kills, headshots, reloads, frags, respawns and when it is hurt — `kong()`
  * — a deeper, slower beastubleed of the same voice, behind its own switch.
@@ -28,9 +39,18 @@
 import { prefs } from "./ui/prefs";
 import { ASSET_BASE, assetUrl } from "./asset-base";
 
-type Line = { text: string; prio: number; at: number; kong?: boolean; clip?: string };
+type Line = { text: string; prio: number; at: number; kong?: boolean; clip?: string; voice: boolean; coolKey?: string };
 
-const STALE_MS = 2500;
+const STALE_MS = 4000;
+/** Minimum airtime between two announcer voice lines (result cuts through). */
+const ANNOUNCE_GAP_MS = 2200;
+/** Multi-kill upgrade window: a higher multi inside it replaces the lower one. */
+const MULTI_WINDOW_MS = 4000;
+/** Repeat damping per line family (ms). */
+const MODE_COOL_MS = 30000;
+const LEAD_COOL_MS = 25000;
+const STREAK_FOREIGN_COOL_MS = 20000;
+const SHUTDOWN_COOL_MS = 15000;
 const NUM = ["", "", "DOUBLE KILL", "TRIPLE KILL", "QUAD KILL", "MEGA KILL"];
 
 /** Fixed announcer line -> clip file (under assets/audio/announcer/). */
@@ -98,6 +118,8 @@ export interface AnnounceState {
   myKills: number;
   bestOther: number;
   modeLabel: string;
+  /** Current round number (1-based) in round-based modes, 0 everywhere else. */
+  roundN: number;
 }
 
 export class Announcer {
@@ -112,6 +134,17 @@ export class Announcer {
   private lead: number | null = null;
   private kills = 0;
   private lastKong = 0;
+  /** First blood fired this match (match-scoped: exactly once per match). */
+  private bloodSeen = false;
+  /** Last announcer (non-Kong) voice start, for the global pacing gap. */
+  private lastVoiceAt = -1e9;
+  /** Last voice start per cooldown key (repeat damping). */
+  private lastVoiceByKey = new Map<string, number>();
+  /** Deferred pump while the pacing gap is still open. */
+  private gapTimer = 0;
+  /** Pending multi-kill upgrade: only the highest multi in the window speaks. */
+  private multiPending: { level: number; killer: string; mine: boolean } | null = null;
+  private multiTimer = 0;
   /** Clip cache (one <audio> per file) + the currently playing element. */
   private clips = new Map<string, HTMLAudioElement>();
   private active: HTMLAudioElement | null = null;
@@ -120,12 +153,25 @@ export class Announcer {
   /** Per frame, from Game.paintHud: GO, clock calls and lead changes. */
   tick(s: AnnounceState): void {
     if (s.live && !this.wasLive) {
-      this.kills = 0;
-      this.lead = 0;
       this.lastRemain = s.remain;
-      this.say(s.modeLabel, 3);
+      if ((s.roundN | 0) <= 1) {
+        // MATCH start (or a mode without rounds): full reset, mode call once.
+        this.kills = 0;
+        this.bloodSeen = false;
+        this.lead = 0;
+        this.clearMulti();
+        // Fresh match, fresh ears: the GO call always speaks, later repeats
+        // of the same mode line are damped for MODE_COOL_MS.
+        this.lastVoiceByKey.delete(`mode:${s.modeLabel}`);
+        this.say(s.modeLabel, 3, false, undefined, true, `mode:${s.modeLabel}`, MODE_COOL_MS);
+      } else {
+        // ROUND start (round 2+): clocks re-arm, but the mode is NOT called
+        // again and match-scoped state (first blood, streak kills) survives.
+        this.clearMulti();
+      }
     }
     if (!s.live) {
+      this.clearMulti();
       this.wasLive = false;
       return;
     }
@@ -145,35 +191,90 @@ export class Announcer {
       lead = Math.sign(d);
     } else lead = 0;
     if (this.lead !== null && lead !== this.lead && (s.ffa ? s.myKills + s.bestOther : s.score0 + s.score1) > 0) {
-      if (lead === 1) this.say(s.ffa ? "YOU HAVE TAKEN THE LEAD" : "WE HAVE TAKEN THE LEAD", 3);
-      else if (lead === -1 && this.lead === 1) this.say(s.ffa ? "YOU HAVE LOST THE LEAD" : "WE HAVE LOST THE LEAD", 3);
-      else if (lead === -1) this.say(s.ffa ? "YOU HAVE FALLEN BEHIND" : "THE ENEMY HAS TAKEN THE LEAD", 2);
-      else if (lead === 0 && this.lead !== 0) this.say("SCORES ARE TIED", 2);
+      // Lead lines are damped (25 s per line): a swingy match must not loop them.
+      if (lead === 1) this.sayLead(s.ffa ? "YOU HAVE TAKEN THE LEAD" : "WE HAVE TAKEN THE LEAD");
+      else if (lead === -1 && this.lead === 1) this.sayLead(s.ffa ? "YOU HAVE LOST THE LEAD" : "WE HAVE LOST THE LEAD");
+      else if (lead === -1) this.sayLead(s.ffa ? "YOU HAVE FALLEN BEHIND" : "THE ENEMY HAS TAKEN THE LEAD");
+      else if (lead === 0 && this.lead !== 0) this.sayLead("SCORES ARE TIED");
     }
     this.lead = lead;
+  }
+
+  /** Lead call with repeat damping (prio 2: streaks and multis outrank it). */
+  private sayLead(text: string): void {
+    this.say(text, 2, false, undefined, true, `lead:${text}`, LEAD_COOL_MS);
   }
 
   /** A kill: first blood, streaks and multi-kills, called with the player's name. */
   kill(killer: string, victim: string, mine: boolean, streak: number, multi: number, head: boolean): void {
     this.kills++;
-    if (this.kills === 1 && killer && victim) {
+    if (!this.bloodSeen && this.kills === 1 && killer && victim) {
+      this.bloodSeen = true;
       this.say(`FIRST BLOOD! ${killer} DROPS ${victim}`, 3);
       return;
     }
     if (streak === 5 || streak === 10 || streak === 15) {
-      this.say(`${killer} IS ${streak === 5 ? "ON A RAMPAGE" : streak === 10 ? "UNSTOPPABLE" : "A LIVING LEGEND"}! ${streak} IN A ROW`, 3);
+      // A streak call covers any pending multi: same killer (the streak is
+      // the bigger news) and other killers alike (no double voice right
+      // after the streak) — drop it.
+      if (this.multiPending) this.clearMulti();
+      // Player relevance: your streaks speak (3), anyone else's is damped (1)
+      // and repeats per killer at most every 20 s.
+      this.say(
+        `${killer} IS ${streak === 5 ? "ON A RAMPAGE" : streak === 10 ? "UNSTOPPABLE" : "A LIVING LEGEND"}! ${streak} IN A ROW`,
+        mine ? 3 : 1,
+        false,
+        undefined,
+        true,
+        mine ? undefined : `streak:${killer}`,
+        mine ? 0 : STREAK_FOREIGN_COOL_MS,
+      );
       return;
     }
     if (multi >= 2) {
-      this.say(mine ? NUM[Math.min(5, multi)]! : `${NUM[Math.min(5, multi)]} FOR ${killer}`, mine ? 3 : 1);
+      // No "Double... Triple... Quad..." pile-up: hold the window and speak
+      // only the highest multi reached inside it (prio 4: above streaks).
+      this.pushMulti(killer, Math.min(5, multi), mine);
       return;
     }
     if (mine && head) this.say("HEADSHOT", 1);
   }
 
   /** Someone with a streak went down. */
-  shutdown(killer: string, victim: string, streak: number): void {
-    if (streak >= 5) this.say(`SHUTDOWN! ${killer} ENDS ${victim}'S STREAK`, 3);
+  shutdown(killer: string, victim: string, streak: number, involved = false): void {
+    // Your streaks (ended or ending) speak; strangers' shutdowns are subtitles.
+    if (streak >= 5)
+      this.say(`SHUTDOWN! ${killer} ENDS ${victim}'S STREAK`, involved ? 3 : 1, false, undefined, involved, `shutdown:${victim}`, SHUTDOWN_COOL_MS);
+  }
+
+  /** Hold a multi-kill for the upgrade window; only the highest speaks. */
+  private pushMulti(killer: string, level: number, mine: boolean): void {
+    // Highest wins across killers: replace only for the same killer (higher
+    // level) or when the new level beats the pending one — a pending Quad
+    // for A must survive a Double for B.
+    if (this.multiPending && (killer === this.multiPending.killer ? level <= this.multiPending.level : level < this.multiPending.level)) return;
+    this.multiPending = { level, killer, mine };
+    if (typeof window !== "undefined") {
+      clearTimeout(this.multiTimer);
+      this.multiTimer = window.setTimeout(() => this.fireMulti(), MULTI_WINDOW_MS);
+    } else this.fireMulti();
+  }
+
+  private fireMulti(): void {
+    const p = this.multiPending;
+    this.multiPending = null;
+    this.multiTimer = 0;
+    if (!p || !this.wasLive) return;
+    // Your multis speak (prio 4); anyone else's is always subtitle-only and
+    // never takes the voice (like foreign shutdowns).
+    if (p.mine) this.say(NUM[p.level]!, 4);
+    else this.say(`${NUM[p.level]} FOR ${p.killer}`, 1, false, undefined, false);
+  }
+
+  private clearMulti(): void {
+    this.multiPending = null;
+    if (typeof window !== "undefined" && this.multiTimer) clearTimeout(this.multiTimer);
+    this.multiTimer = 0;
   }
 
   end(win: boolean, draw: boolean): void {
@@ -187,7 +288,8 @@ export class Announcer {
     if (!prefs().kongVoice) return;
     const now = performance.now();
     const kill = kind === "kill" || kind === "head";
-    if (now - this.lastKong < (kill ? 1200 : 5000)) return;
+    // Damped: no endless roaring — a kill line every few seconds at most.
+    if (now - this.lastKong < (kill ? 4000 : 8000)) return;
     // the chatter stays a spice: every kill gets a line, the rest only sometimes
     if (!kill && Math.random() < 0.5) return;
     this.lastKong = now;
@@ -198,11 +300,22 @@ export class Announcer {
 
   // ---------------------------------------------------------------- output
 
-  private say(text: string, prio: number, kong = false, clip?: string): void {
+  /**
+   * Queue a line. `voice=false` (repeat-damped or foreign lines) shows only
+   * the subtitle. `coolKey`/`coolMs` damp repeats: a line heard recently is
+   * demoted to subtitle-only instead of looping. Priority order: result (5) >
+   * multi-kill (4) = clock (4) > streak (3) = mode (3) > lead (2) > info (1) >
+   * Kong (0).
+   */
+  private say(text: string, prio: number, kong = false, clip?: string, voice = true, coolKey?: string, coolMs = 0): void {
     if (!kong && !prefs().announcer) return;
     const now = performance.now();
+    if (voice && !kong && coolKey && coolMs > 0) {
+      const last = this.lastVoiceByKey.get(coolKey) ?? -1e12;
+      if (now - last < coolMs) voice = false;
+    }
     this.queue = this.queue.filter((l) => now - l.at < STALE_MS && l.prio >= prio);
-    this.queue.push({ text, prio, at: now, kong, clip: clip ?? (!kong ? clipFor(text) : undefined) });
+    this.queue.push({ text, prio, at: now, kong, clip: clip ?? (!kong ? clipFor(text) : undefined), voice, coolKey });
     this.queue.sort((a, b) => b.prio - a.prio);
     if (this.queue.length > 2) this.queue.length = 2;
     this.pump();
@@ -227,12 +340,35 @@ export class Announcer {
   private pump(): void {
     if (this.speaking) return;
     const now = performance.now();
-    let line: Line | undefined;
-    while ((line = this.queue.shift()) && now - line.at > STALE_MS) {
-      /* stale */
-    }
+    while (this.queue.length && now - this.queue[0]!.at > STALE_MS) this.queue.shift(); // stale
+    const line = this.queue[0];
     if (!line) return;
+    if (!line.voice) {
+      // Subtitle-only (damped/foreign): show the text, hold the slot briefly.
+      this.queue.shift();
+      this.subtitle(line);
+      this.speaking = true;
+      setTimeout(() => {
+        this.speaking = false;
+        this.pump();
+      }, 350);
+      return;
+    }
+    if (!line.kong && line.prio < 5 && now - this.lastVoiceAt < ANNOUNCE_GAP_MS) {
+      // Global pacing: at most one announcer voice per gap (result cuts through).
+      if (!this.gapTimer && typeof window !== "undefined") {
+        const wait = ANNOUNCE_GAP_MS - (now - this.lastVoiceAt) + 50;
+        this.gapTimer = window.setTimeout(() => {
+          this.gapTimer = 0;
+          this.pump();
+        }, wait);
+      }
+      return;
+    }
+    this.queue.shift();
     this.subtitle(line);
+    this.lastVoiceAt = performance.now();
+    if (line.coolKey) this.lastVoiceByKey.set(line.coolKey, this.lastVoiceAt);
     const vol = prefs().master * prefs().ui;
     if (line.clip && vol > 0.01 && this.playClip(line, vol)) return;
     this.synthLine(line, vol);

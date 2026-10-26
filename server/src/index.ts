@@ -1195,7 +1195,22 @@ class Room {
     this.stepInputs();
     this.session.step(dt);
     // Match finished → roll over fresh / return to lobby after a delay.
-    if (this.session.over && this.overAt === 0) this.overAt = Date.now();
+    // END-OF-MATCH FLUSH. step() opens with `if (this.over) return`, so the
+    // tick freezes the instant the match ends — and snapshots below only go
+    // out on even ticks (SNAP_EVERY). Without this flush, a match that ends
+    // on an odd tick publishes NOTHING for the whole rollover wait: the
+    // match-end event sits undrained in session.events, the clients never see
+    // remain<=0, finish() never runs, no endcard appears and neither the next
+    // match nor the lobby return visibly starts. Flush once, on the exact tick
+    // the end lands, so delivery no longer depends on tick parity. Flushed
+    // this tick means the regular even-tick snapshot below is skipped once —
+    // on an even tick it would otherwise snap a second time with drained
+    // (empty) events.
+    const flushed = this.session.over && this.overAt === 0;
+    if (flushed) {
+      this.overAt = Date.now();
+      this.broadcastSnaps();
+    }
     if (this.session.over && this.overAt !== 0) {
       const wait = this.kind === "yard" ? YARD_ROLLOVER_MS : LOBBY_RETURN_MS;
       if (Date.now() - this.overAt >= wait) {
@@ -1233,7 +1248,7 @@ class Room {
         }
       }
     }
-    if (this.session.tick % SNAP_EVERY === 0) this.broadcastSnaps();
+    if (!flushed && this.session.tick % SNAP_EVERY === 0) this.broadcastSnaps();
     // LOBBY PING, LIVE: seats report rtt ~1/s (the ping handler stores it on
     // the seat), but the lobby only broadcasts on roster changes — so the
     // ms badges would freeze at 0. Re-push at most every 5 s, and only when

@@ -3306,8 +3306,8 @@ export class Game {
           // The announcer calls first blood, streaks, multi-kills and shutdowns by name.
           if (e.src !== e.dst && !this.ended) {
             const kn = killer?.name ?? "", vn = victim?.name ?? "";
-            const multi = e.src === this.you ? Math.max(0, ...earned.map((m) => (m.id === "double" ? 2 : m.id === "triple" ? 3 : m.id === "quad" ? 4 : m.id === "rampage" ? 5 : 0))) : 0;
-            if (vStreak >= 5) this.announcer.shutdown(kn, vn, vStreak);
+            const multi = Math.max(0, ...earned.map((m) => (m.id === "double" ? 2 : m.id === "triple" ? 3 : m.id === "quad" ? 4 : m.id === "rampage" ? 5 : 0)));
+            if (vStreak >= 5) this.announcer.shutdown(kn, vn, vStreak, e.src === this.you || e.dst === this.you);
             else this.announcer.kill(kn, vn, e.src === this.you, this.accolades.streakOf(e.src), multi, e.head);
           }
           if (e.src === this.you && e.dst !== this.you) {
@@ -4560,6 +4560,7 @@ export class Game {
         myKills: num(me.kills),
         bestOther,
         modeLabel: this.gunGame ? "GUN GAME" : ffa ? "FREE FOR ALL" : round ? "ELIMINATION" : "TEAM DEATHMATCH",
+        roundN: round ? round.n : 0,
       });
     }
     this.onHud({

@@ -11,9 +11,9 @@
  "bitrate": {
   "mono": "64k"
  },
- "bytes": 664610,
+ "bytes": 704841,
  "fileCount": 49,
- "note": "Match announcer + Kong voice. Qwen3-TTS-1.7B Q8_0 voice-clone of hartmann ref (365days qa/audio_cpp_voice_refs), English lines; announcer rubberband pitch 0.85, Kong tempo 0.95 + pitch 0.72, loudnorm -16 LUFS. Played by client/src/announcer.ts as <audio> one-shots; speechSynthesis stays as fallback.",
+ "note": "Match announcer + Kong voice. Warlord pro clips (VoiceBosch/SoundBiter, 14 lines: mode/duel/streak/result) + Qwen3-TTS-1.7B Q8_0 Warlord-voice clones (13 announcer: modes/clock/lead/draw; 22 Kong) via audio.cpp cuda; Kong rubberband tempo 0.95 + pitch 0.72. Warm master on all: highpass 50Hz, lowshelf 180Hz +4dB, EQ dip 2.2kHz Q1 -4dB, lowpass 6.8k, loudnorm -16 LUFS. Opus/ogg mono 48k 64k. Played by client/src/announcer.ts as <audio> one-shots; speechSynthesis stays as fallback.",
  "events": {
   "mode-gun-game.ogg": {
    "files": [
