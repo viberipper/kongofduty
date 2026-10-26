@@ -36,6 +36,7 @@ export type Action =
   | "secondary"
   | "swap"
   | "scoreboard"
+  | "chat"
   | "spray";
 
 export type Binds = Record<Action, [string, string]>;
@@ -58,6 +59,7 @@ export const ACTIONS: { id: Action; label: string; group: string; desc: string }
   { id: "secondary", label: "Secondary Weapon", group: "WEAPONS", desc: "Switch to your pistol." },
   { id: "swap", label: "Swap Weapon", group: "WEAPONS", desc: "Switch between your two weapons." },
   { id: "scoreboard", label: "Scoreboard", group: "INTERFACE", desc: "Hold to show the scoreboard." },
+  { id: "chat", label: "Text Chat", group: "INTERFACE", desc: "Open the chat line. ENTER sends, ESC closes." },
   { id: "spray", label: "Spray Paint", group: "INTERFACE", desc: "Spray your tag on the wall, crate or floor in front of you (within 4 m). Everyone sees it; a new spray replaces your last. Pick the tag under GAMEPLAY." },
 ];
 
@@ -78,6 +80,7 @@ export const DEFAULT_BINDS: Readonly<Binds> = {
   secondary: ["Digit2", "Numpad2"],
   swap: ["KeyY", "Wheel"],
   scoreboard: ["Tab", ""],
+  chat: ["KeyT", ""],
   spray: ["KeyB", ""],
 };
 

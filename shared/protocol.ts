@@ -565,6 +565,12 @@ export type ServerMsg =
   | { t: "auxok" }
   | { t: "pong"; t0: number; t1: number }
   | { t: "err"; msg: string }
+  /**
+   * PRIVATE server notice to one seat only (never broadcast): currently the
+   * chat filter's answer when a line is blocked. The client renders it as a
+   * "SERVER:" system line in the chat log (text-only, like every chat line).
+   */
+  | { t: "notice"; text: string }
   | LobbyState
   | NameCheck
   /** shared/matchphase.ts StartMsg — the match-start handshake. */

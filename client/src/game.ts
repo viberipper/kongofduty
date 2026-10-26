@@ -114,6 +114,7 @@ import { GUN_KILLS_PER_TIER, asGunKills, gunGoal } from "@shared/gungame";
 import { Announcer } from "./announcer"; // match announcer (voice + subtitles)
 import { Sprays, sprayHit } from "./sprays"; // spray paint
 import { medalLabel, killHow } from "./ui/labels";
+import { uiSfx } from "./ui/sfx"; // text chat: one tick per incoming line
 import { actionOf, keyboardCodes, wheelCodes, type Action } from "./ui/keybinds"; // feel stream: rebindable controls
 // gamepad stream: standard controller mapping, sticks, rumble, aim-assist math (ui/gamepad.ts).
 import {
@@ -1732,6 +1733,11 @@ export class Game {
           const ping = Math.max(0, Date.now() - msg.t0);
           if (this.ghost) this.ghost.ping = ping;
         }
+        // A private server notice (e.g. the chat filter): rendered as a
+        // system line in the chat log, never as a connection state.
+        if (msg.t === "notice") {
+          this.chatLine("SERVER", String(msg.text ?? ""), true);
+        }
         if (msg.t === "snap") {
           if (!ready) {
             ready = true;
@@ -1968,7 +1974,23 @@ export class Game {
       if (e.code === "Enter" || e.code === "NumpadEnter") this.killcamSkip();
       act(a, true);
     };
-    const up = (e: KeyboardEvent) => act(actionOf(e.code), false);
+    const up = (e: KeyboardEvent) => {
+      if (!this.running || !this.locked || (e.target instanceof HTMLElement && e.target.closest("input,textarea,[contenteditable=true]"))) return;
+      act(actionOf(e.code), false);
+    };
+    const chatIn = document.getElementById("chat-input") as HTMLInputElement | null;
+    chatIn?.addEventListener("keydown", (e) => {
+      // The line owns its keys: nothing typed here reaches the window's game handler.
+      e.stopPropagation();
+      if (e.code === "Enter" || e.code === "NumpadEnter") {
+        e.preventDefault();
+        this.sendChat(chatIn.value);
+        this.closeChat();
+      } else if (e.code === "Escape") {
+        this.closeChat();
+      }
+    });
+    chatIn?.addEventListener("blur", () => this.closeChat());
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     // The SKIP button is a real button for anyone with a cursor; with the
@@ -2106,6 +2128,9 @@ export class Game {
         else if (!document.getElementById("hud")?.classList.contains("hidden")) sb?.classList.remove("hidden");
         break;
       }
+      // TEXT CHAT. The input field takes the keyboard from here on (the guard
+      // in `down` skips form targets) until ENTER or ESC.
+      case "chat": if (on && !document.getElementById("hud")?.classList.contains("hidden")) this.openChat(); break;
       default:
         break;
     }
@@ -2398,6 +2423,60 @@ export class Game {
 
   me(): PlayerSnap | undefined {
     return this.players.get(this.you);
+  }
+
+  /** Open the chat line. Held movement is let go so you stop while typing. */
+  openChat(): void {
+    const box = document.getElementById("chat-input") as HTMLInputElement | null;
+    if (!box || !this.running) return;
+    this.clearInput();
+    box.value = "";
+    box.classList.remove("hidden");
+    document.getElementById("chat")?.classList.add("open");
+    box.focus();
+  }
+
+  closeChat(): void {
+    const box = document.getElementById("chat-input") as HTMLInputElement | null;
+    if (!box || box.classList.contains("hidden")) return;
+    box.classList.add("hidden");
+    document.getElementById("chat")?.classList.remove("open");
+    box.blur();
+  }
+
+  /** Online the server cleans the line and echoes it back to everyone; vs bots it is only ours. */
+  sendChat(raw: string): void {
+    const text = raw.replace(/\s+/g, " ").trim().slice(0, 80);
+    if (!text) return;
+    if (this.net?.readyState === 1) this.net.send(JSON.stringify({ t: "chat", text }));
+    else this.chatLine(this.me()?.name ?? this.opts?.name ?? "YOU", text);
+  }
+
+  /** One line in the chat log: name in team colour, text as plain text (never HTML).
+   *  System lines (server notices) render in their own neutral style, never in
+   *  a player's team colour, so a callsign can never impersonate them. */
+  chatLine(name: string, text: string, sys = false): void {
+    const log = document.getElementById("chat-log");
+    if (!log) return;
+    const row = document.createElement("div");
+    const who = document.createElement("b");
+    if (sys) {
+      row.classList.add("is-system");
+      who.className = "kf-system";
+    } else {
+      const myTeam = this.me()?.team;
+      const from = [...this.players.values()].find((p) => p.name === name);
+      const ffa = this.opts?.mode === "ffa";
+      who.className = from?.id === this.you ? "kf-you" : !ffa && from?.team === myTeam ? "kf-ally" : "kf-enemy";
+    }
+    who.textContent = `${name}:`;
+    const said = document.createElement("span");
+    said.textContent = text;
+    row.append(who, said);
+    log.append(row);
+    while (log.children.length > 5) log.firstChild?.remove();
+    setTimeout(() => row.remove(), 10000);
+    uiSfx("tick");
   }
 
   /** F8 — copy where you stand and look (plus map, mode, build) for a bug report. */
@@ -3120,6 +3199,7 @@ export class Game {
 
   handleEvents(ev: NetEvent[]): void {
     for (const e of ev) {
+      if (e.t === "chat") this.chatLine(e.name, e.text);
       // feel stream R2: map modules (Nuketown's mannequin heads, breakable glass) hear every server shot and blast
       if ((e.t === "shot" || e.t === "boom") && this.worldEvents.length) for (const f of this.worldEvents) f(e);
       if (e.t === "shot") {

@@ -29,6 +29,17 @@
  * voice. Priority: result (5) > multi (4) = clock (4) > streak/mode (3) >
  * lead (2) > info (1) > Kong (0).
  *
+ * KILL VOICE EXCLUSION: a kill-related announcer voice for YOUR kill (first
+ * blood, your streak, your multi-kill incl. its pending upgrade window, or a
+ * shutdown you are involved in) and your Kong's kill line ("Kong smash!") are
+ * mutually exclusive — the announcer wins, the Kong line for that kill is
+ * dropped. The Kong still talks on kills the announcer leaves alone (plain
+ * singles) and always on reload/hurt/spawn/frag. Implemented as a shared kill
+ * stamp (killSeq/killVoiceSeq, no timers): every kill() / shutdown() call takes
+ * the next sequence number, voice paths for your kills stamp it, and kong()
+ * stays silent for kill/head cues when the stamp matches the latest kill — so
+ * rapid follow-up kills can never inherit a stale stamp.
+ *
  * Also YOUR KONG'S OWN VOICE (hive cbbuhicb): broken, Brute-style English on
  * its kills, headshots, reloads, frags, respawns and when it is hurt — `kong()`
  * — a deeper, slower beastubleed of the same voice, behind its own switch.
@@ -143,8 +154,15 @@ export class Announcer {
   /** Deferred pump while the pacing gap is still open. */
   private gapTimer = 0;
   /** Pending multi-kill upgrade: only the highest multi in the window speaks. */
-  private multiPending: { level: number; killer: string; mine: boolean } | null = null;
+  private multiPending: { level: number; killer: string; mine: boolean; kid: number } | null = null;
   private multiTimer = 0;
+  /** Kill-voice exclusion stamp: sequence number of the latest kill() /
+   *  shutdown() call, and of the latest of those calls whose announcer line
+   *  for YOUR kill takes (or, for a pending multi, will take) the voice.
+   *  kong() drops kill/head lines while both match — the announcer owns that
+   *  kill, so the Kong stays silent instead of doubling it. */
+  private killSeq = 0;
+  private killVoiceSeq = -1;
   /** Clip cache (one <audio> per file) + the currently playing element. */
   private clips = new Map<string, HTMLAudioElement>();
   private active: HTMLAudioElement | null = null;
@@ -207,9 +225,16 @@ export class Announcer {
 
   /** A kill: first blood, streaks and multi-kills, called with the player's name. */
   kill(killer: string, victim: string, mine: boolean, streak: number, multi: number, head: boolean): void {
+    // Kill-voice exclusion stamp (see kong()): every kill takes the next
+    // sequence number. Only your kills can collide with your Kong, and only
+    // while the announcer itself is switched on — with it off there is no
+    // voice to defer to, so nothing is stamped.
+    const kid = ++this.killSeq;
+    const ownVoice = mine && prefs().announcer;
     this.kills++;
     if (!this.bloodSeen && this.kills === 1 && killer && victim) {
       this.bloodSeen = true;
+      if (ownVoice) this.killVoiceSeq = kid;
       this.say(`FIRST BLOOD! ${killer} DROPS ${victim}`, 3);
       return;
     }
@@ -220,6 +245,7 @@ export class Announcer {
       if (this.multiPending) this.clearMulti();
       // Player relevance: your streaks speak (3), anyone else's is damped (1)
       // and repeats per killer at most every 20 s.
+      if (ownVoice) this.killVoiceSeq = kid;
       this.say(
         `${killer} IS ${streak === 5 ? "ON A RAMPAGE" : streak === 10 ? "UNSTOPPABLE" : "A LIVING LEGEND"}! ${streak} IN A ROW`,
         mine ? 3 : 1,
@@ -234,26 +260,54 @@ export class Announcer {
     if (multi >= 2) {
       // No "Double... Triple... Quad..." pile-up: hold the window and speak
       // only the highest multi reached inside it (prio 4: above streaks).
-      this.pushMulti(killer, Math.min(5, multi), mine);
+      // Stamped now, not when the window fires — the Kong line for this kill
+      // is decided at kill time, while the announcer line is still pending.
+      // If the pending is discarded before it speaks (clearMulti/pushMulti
+      // take the stamp back), the Kong must not stay silent for a voiceless kill.
+      if (ownVoice) this.killVoiceSeq = kid;
+      this.pushMulti(killer, Math.min(5, multi), mine, kid);
       return;
     }
-    if (mine && head) this.say("HEADSHOT", 1);
+    if (mine && head) {
+      // Kill-voice stamp like every other voiced own-kill path above: without
+      // it kong("head") fires for the same kill and the voice doubles.
+      if (ownVoice) this.killVoiceSeq = kid;
+      this.say("HEADSHOT", 1);
+    }
   }
 
   /** Someone with a streak went down. */
   shutdown(killer: string, victim: string, streak: number, involved = false): void {
+    const kid = ++this.killSeq;
     // Your streaks (ended or ending) speak; strangers' shutdowns are subtitles.
-    if (streak >= 5)
+    if (streak >= 5) {
+      // Kill-voice stamp: only a shutdown that really takes the voice counts —
+      // a repeat inside the 15 s damping window is subtitle-only, so the Kong
+      // keeps that kill. Mirrors the coolKey/coolMs check in say().
+      if (involved && prefs().announcer && performance.now() - (this.lastVoiceByKey.get(`shutdown:${victim}`) ?? -1e12) >= SHUTDOWN_COOL_MS)
+        this.killVoiceSeq = kid;
       this.say(`SHUTDOWN! ${killer} ENDS ${victim}'S STREAK`, involved ? 3 : 1, false, undefined, involved, `shutdown:${victim}`, SHUTDOWN_COOL_MS);
+    }
   }
 
   /** Hold a multi-kill for the upgrade window; only the highest speaks. */
-  private pushMulti(killer: string, level: number, mine: boolean): void {
+  private pushMulti(killer: string, level: number, mine: boolean, kid: number): void {
     // Highest wins across killers: replace only for the same killer (higher
     // level) or when the new level beats the pending one — a pending Quad
     // for A must survive a Double for B.
-    if (this.multiPending && (killer === this.multiPending.killer ? level <= this.multiPending.level : level < this.multiPending.level)) return;
-    this.multiPending = { level, killer, mine };
+    if (this.multiPending && (killer === this.multiPending.killer ? level <= this.multiPending.level : level < this.multiPending.level)) {
+      if (this.killVoiceSeq === kid) this.killVoiceSeq = -1;
+      return;
+    }
+    const old = this.multiPending;
+    this.multiPending = { level, killer, mine, kid };
+    // A displaced pending never speaks, so its optimistic kill-voice stamp
+    // goes back — else the Kong stays silent for a voice that never comes
+    // (an own pending displaced by a foreign higher multi). A no-op unless
+    // the stamp still points at the displaced pending: own upgrades already
+    // restamped the new kill above, and foreign pendings were never stamped
+    // (stamps only ever point at own kills, so === is exact).
+    if (old && this.killVoiceSeq === old.kid) this.killVoiceSeq = -1;
     if (typeof window !== "undefined") {
       clearTimeout(this.multiTimer);
       this.multiTimer = window.setTimeout(() => this.fireMulti(), MULTI_WINDOW_MS);
@@ -272,6 +326,11 @@ export class Announcer {
   }
 
   private clearMulti(): void {
+    // Same retraction as in pushMulti: a discarded own pending (round/match
+    // end, streak cover) never speaks, so its stamp goes back. A no-op unless
+    // the stamp still points at the discarded pending (a newer own kill
+    // restamped since, or the pending was foreign and never stamped).
+    if (this.multiPending && this.killVoiceSeq === this.multiPending.kid) this.killVoiceSeq = -1;
     this.multiPending = null;
     if (typeof window !== "undefined" && this.multiTimer) clearTimeout(this.multiTimer);
     this.multiTimer = 0;
@@ -286,6 +345,12 @@ export class Announcer {
   /** hive cbbuhicb: your Kong talks — gruff, broken gorilla English (Halo's Brutes). */
   kong(kind: KongCue): void {
     if (!prefs().kongVoice) return;
+    // KILL VOICE EXCLUSION: the announcer owns this kill (first blood, your
+    // streak, your pending multi-kill, or your shutdown all stamped killSeq) —
+    // exactly one of the two speaks, and it is not the Kong. Every other cue
+    // (reload/hurt/spawn/frag) and every kill the announcer leaves alone
+    // (plain singles) still talk.
+    if ((kind === "kill" || kind === "head") && this.killSeq > 0 && this.killVoiceSeq === this.killSeq) return;
     const now = performance.now();
     const kill = kind === "kill" || kind === "head";
     // Damped: no endless roaring — a kill line every few seconds at most.

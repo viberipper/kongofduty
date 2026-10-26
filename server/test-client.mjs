@@ -203,6 +203,42 @@ async function main() {
   for (const p of live.players) teams.set(p.team, (teams.get(p.team) ?? 0) + 1);
   console.log(`[priv] team counts: team0=${teams.get(0)} team1=${teams.get(1)}`);
 
+  // ---------- 2b) TEXT CHAT: relay, server-side name, filter, private notice ----------
+  // The room above is live with host+guest seated: a clean line from the host
+  // must reach BOTH clients' snapshot event lists carrying the SERVER's seat
+  // name (hw.name — the client sends no name, spoofing is impossible), while
+  // a blocked word must reach NOBODY as chat and only the sender as `notice`.
+  h.msgs.length = 0;
+  g.msgs.length = 0;
+  h.send({ t: "chat", text: "hello chat" });
+  const chatH = await h.waitFor((m) => m.find((x) => x.t === "snap" && x.ev?.some((e) => e.t === "chat" && e.text === "hello chat")));
+  const chatG = await g.waitFor((m) => m.find((x) => x.t === "snap" && x.ev?.some((e) => e.t === "chat" && e.text === "hello chat")));
+  const chatEv = chatH.ev.find((e) => e.t === "chat" && e.text === "hello chat");
+  console.log(`[chat] broadcast ok from=${chatEv.name} (both seats got it: ${!!chatG})`);
+  if (chatEv.name !== hw.name) throw new Error(`chat carried name=${chatEv.name}, expected server-side ${hw.name}`);
+  await sleep(1200); // past the ~1 msg/s cooldown before the next line
+  h.msgs.length = 0;
+  g.msgs.length = 0;
+  h.send({ t: "chat", text: "this is shit" });
+  const notice = await h.waitFor((m) => m.find((x) => x.t === "notice"));
+  console.log(`[chat] blocked ok, sender-only notice=${JSON.stringify(notice.text)}`);
+  if (!/blocked/i.test(notice.text ?? "")) throw new Error("notice text does not say blocked");
+  await sleep(1500); // a full snapshot cycle: a leak would have landed by now
+  const leaked = [...h.msgs, ...g.msgs].some((x) => x.t === "snap" && x.ev?.some((e) => e.t === "chat" && e.text === "this is shit"));
+  if (leaked) throw new Error("blocked chat was broadcast");
+  console.log("[chat] no broadcast of the blocked line on either seat");
+
+  // ---------- 2c) Reserved callsign: "SERVER" must never be assigned ----------
+  // System notices render as "SERVER:" lines, so joining with that name has to
+  // come back as something else (cleanName falls back, dedupe uniquifies).
+  const srv = new Fake("srv-name");
+  await srv.connect(url());
+  srv.send({ t: "join", name: "SERVER", team: -1, mode: "tdm", map: "nuketown", snapshotFormat: "compact-v1" });
+  const srvWel = await srv.waitFor((m) => m.find((x) => x.t === "welcome"));
+  console.log(`[name] reserved SERVER join got name=${srvWel.name}`);
+  if (srvWel.name.toLowerCase() === "server") throw new Error("reserved name SERVER was assigned");
+  srv.ws.close();
+
   // ---------- 3) PRIVATE MATCH on ARES — routed through the HUB ----------
   // Proves: no more map pinning — the same hub process serves nuketown
   // AND ares; the client picks the map via ?map=.

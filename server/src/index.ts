@@ -92,6 +92,40 @@ const SPRAY_MIN_GAP_MS = 1200;
 const SPRAY_REACH_OK = 6;
 /** Spray paint: room-wide cap (the client's per-src replace is the tight rule). */
 const MAX_SPRAYS = 24;
+/** Text chat: at most one accepted line per seat per second (the client's
+ *  send path has no throttle; this is the backstop against chat floods). */
+const CHAT_MIN_GAP_MS = 1000;
+/** Text chat: server-side length cap, mirroring the client's maxlength=80. */
+const CHAT_MAX_LEN = 80;
+/**
+ * Text chat: blocked words (English core profanities + slurs). Matched
+ * case-insensitively on whole words (\\b boundaries) AFTER folding the common
+ * leet substitutions (4/@→a, 3→e, 1/!/∣→i, 0→o, 5/$→s, 7→t), so "SH1T" and
+ * "$@slut" trip the same as the plain forms. Deliberately NOT covered (and
+ * documented as such): interspersed separators ("f.u.c.k"), masked letters
+ * ("f*ck"), doubled letters ("fuuuck"), non-Latin homoglyphs, and anything
+ * outside this list. A hit is never broadcast — only the sender gets a
+ * private `notice` (see the "chat" case below).
+ */
+const CHAT_BLOCKED = [
+  "fuck", "motherfucker", "fucker", "shit", "bullshit", "bitch", "asshole",
+  "bastard", "dick", "dickhead", "cock", "cunt", "pussy", "whore", "slut",
+  "twat", "wanker", "douche", "prick", "fag", "faggot", "nigga", "nigger",
+  "retard",
+];
+const CHAT_LEET: Record<string, string> = {
+  "4": "a", "@": "a", "3": "e", "1": "i", "!": "i", "|": "i", "∣": "i", "0": "o",
+  "5": "s", "$": "s", "7": "t",
+};
+function chatFold(s: string): string {
+  return s.toLowerCase().replace(/[43!1|∣05$7@]/g, (c) => CHAT_LEET[c] ?? c);
+}
+const CHAT_BLOCKED_RE = CHAT_BLOCKED.map((w) => new RegExp(`\\b${w}\\b`));
+/** TRUE when the (already sanitised) line contains a blocked word. */
+function chatBlocked(text: string): boolean {
+  const folded = chatFold(text);
+  return CHAT_BLOCKED_RE.some((re) => re.test(folded));
+}
 /** Pre-auth upgrade socket idle timeout (H4 Slowloris). */
 const UPGRADE_TIMEOUT_MS = 5000;
 /** WS payload cap (H1): protocol messages are < 4 KB; 64 KB has 16x headroom. */
@@ -500,11 +534,26 @@ function cleanName(raw: unknown): string {
     .trim()
     .slice(0, 14)
     .trim();
-  return n || "GRUNT";
+  // "server" (any case) is reserved for system lines: a callsign with that
+  // name would render next to "SERVER:" notices — as would "server 2" and
+  // friends (dedupe's "name N" fallback shape). Fall back like an empty name.
+  // Plain prefixes ("Serverus", "server2") stay legal: only bare "server"
+  // followed by end-of-name or a space is reserved.
+  if (!n || /^server( |$)/i.test(n)) return "GRUNT";
+  return n;
 }
 
 function dedupeName(name: string, taken: string[]): string {
+  // Defence in depth mirroring cleanName (callers pass cleaned names, but
+  // dedupe is also the collision fallback): the reserved "server"/"server N"
+  // pattern never assigns as-is — fall back like an empty name, then uniquify
+  // below ("Serverus" etc. pass through: end-of-name/space only).
+  if (/^server( |$)/i.test(name)) name = "GRUNT";
   const low = taken.map((t) => t.toLowerCase());
+  // Defence in depth for the reserved name (callers pass cleaned names, but
+  // dedupe is also the collision fallback): "server" is never assignable —
+  // it uniquifies exactly like a taken name.
+  if (!low.includes("server")) low.push("server");
   if (!low.includes(name.toLowerCase())) return name;
   for (let i = 2; i <= 9; i++) {
     const cand = `${name} ${i}`.slice(0, 14);
@@ -594,7 +643,8 @@ type Seat = {
   loadout: Loadout;
   slot: number;
   team: Team;
-  chatTimes: number[];
+  /** Text chat: wall-clock ms of this seat's last accepted line (rate limit). */
+  lastChat: number;
   closed: boolean;
   /** H3 sliding-window message timestamps (ms). */
   msgTimes: number[];
@@ -783,7 +833,7 @@ class Room {
       loadout: sanitizeLoadout({ primary: "ar", secondary: "pistol", lethal: "frag" }),
       slot: 0,
       team: 0,
-      chatTimes: [],
+      lastChat: 0,
       closed: false,
       msgTimes: [],
       lastPing: 0,
@@ -1088,18 +1138,26 @@ class Room {
         return;
       }
       case "chat": {
+        // TEXT CHAT relay: sanitise, rate-limit, filter, then broadcast to the
+        // room with the SERVER's seat name — the client sends no name at all,
+        // so callsign spoofing is impossible by construction.
         const text = String(m.text ?? "")
           .normalize("NFKC")
           .replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, "")
           .replace(/[\x00-\x1f\x7f]/g, " ")
           .replace(/<|>/g, "")
           .trim()
-          .slice(0, 80);
+          .slice(0, CHAT_MAX_LEN);
         if (!text) return;
         const now = Date.now();
-        seat.chatTimes = seat.chatTimes.filter((t) => now - t < 3000);
-        if (seat.chatTimes.length >= 8) return;
-        seat.chatTimes.push(now);
+        if (now - seat.lastChat < CHAT_MIN_GAP_MS) return;
+        seat.lastChat = now;
+        // Blocked word: never broadcast — only the sender gets the private
+        // system notice (a `notice` ServerMsg, rendered as a "SERVER:" line).
+        if (chatBlocked(text)) {
+          this.send(seat, { t: "notice", text: "Blocked: message contains a blocked word." });
+          return;
+        }
         this.session.events.push({ t: "chat", name: seat.name, text });
         return;
       }
