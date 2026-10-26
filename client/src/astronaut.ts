@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { teamColors } from "./ui/prefs";
 
 /**
  * ARES EVA equipment is attached to the actual, skinned Kong. The face, fur,
@@ -13,28 +14,28 @@ const seam = new THREE.MeshStandardMaterial({ color: 0x14222b, roughness: 0.58, 
 const titanium = new THREE.MeshStandardMaterial({ color: 0x637a86, roughness: 0.31, metalness: 0.8 });
 const copper = new THREE.MeshStandardMaterial({ color: 0xe49b43, roughness: 0.34, metalness: 0.64 });
 const glow = new THREE.MeshStandardMaterial({ color: 0x9ceff3, emissive: 0x46d9e7, emissiveIntensity: 1.5, roughness: 0.3 });
+/**
+ * TEAM HARDWARE. Slot 0 dresses allies, slot 1 enemies — the same ally/enemy
+ * pair the chevrons and nameplates use (ui/prefs teamColors, so the
+ * colour-vision modes repaint these too). Refreshed from teamColors() on every
+ * attach/relation change; the materials are shared, so one refresh repaints
+ * every suited actor at once.
+ */
 const teams = [
-  new THREE.MeshStandardMaterial({ color: 0x2f9c97, roughness: 0.5, metalness: 0.1 }),
-  new THREE.MeshStandardMaterial({ color: 0xd0603f, roughness: 0.5, metalness: 0.1 }),
+  new THREE.MeshStandardMaterial({ color: 0x3ea6ff, roughness: 0.5, metalness: 0.1 }),
+  new THREE.MeshStandardMaterial({ color: 0xff4a3d, roughness: 0.5, metalness: 0.1 }),
 ];
+function refreshTeamMats(): void {
+  const tc = teamColors();
+  teams[0]!.color.set(tc.ally);
+  teams[1]!.color.set(tc.enemy);
+}
 const visor = new THREE.MeshStandardMaterial({
   color: 0x8fc8d0, roughness: 0.18, metalness: 0.35, transparent: true,
   opacity: 0.14, depthWrite: false, side: THREE.FrontSide,
 });
-// One opaque draw per animated bone. Vertex emission keeps tiny status lights
-// luminous without another material or a light affecting the whole scene.
-const evaSurface = new THREE.MeshStandardMaterial({
-  color: 0xffffff, roughness: 0.48, metalness: 0.38, vertexColors: true,
-  emissive: 0xffffff, emissiveIntensity: 1,
-});
-evaSurface.onBeforeCompile = (shader) => {
-  shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nattribute float evaGlow;\nvarying float vEvaGlow;");
-  shader.vertexShader = shader.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\nvEvaGlow = evaGlow;");
-  shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nvarying float vEvaGlow;");
-  shader.fragmentShader = shader.fragmentShader.replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance *= vColor * vEvaGlow;");
-};
-evaSurface.customProgramCacheKey = () => "ares-eva-vertex-emission-v1";
-const teamVariants = new WeakMap<THREE.BufferGeometry, [THREE.BufferGeometry, THREE.BufferGeometry]>();
+// One opaque draw per animated bone. Tiny status lights stay luminous via the
+// shared glow material, without another light affecting the whole scene.
 const unitBox = new THREE.BoxGeometry(1, 1, 1);
 const unitRound = new RoundedBoxGeometry(1, 1, 1, 2, 0.13);
 const unitSphere = new THREE.SphereGeometry(1, 18, 12);
@@ -64,31 +65,14 @@ function ball(g: THREE.Group, mat: THREE.Material, x: number, y: number, z: numb
 }
 
 /** Merge rigid hardware by material: dozens of authored details, a few draws. */
-function bake(g: THREE.Group, compact = false): THREE.Group {
+function bake(g: THREE.Group): THREE.Group {
   const bins = new Map<THREE.Material, THREE.BufferGeometry[]>();
   for (const o of [...g.children]) {
     const m = o as THREE.Mesh;
     if (!m.isMesh) continue;
     m.updateMatrix();
     const geo = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()).applyMatrix4(m.matrix);
-    const source = m.material as THREE.MeshStandardMaterial;
-    const mat = compact && source !== visor ? evaSurface : source;
-    if (mat === evaSurface) {
-      const count = geo.attributes.position!.count;
-      const colors = new Float32Array(count * 3);
-      const light = new Float32Array(count);
-      const team = new Float32Array(count);
-      for (let i = 0; i < count; i++) {
-        colors[i * 3] = source.color.r;
-        colors[i * 3 + 1] = source.color.g;
-        colors[i * 3 + 2] = source.color.b;
-        light[i] = source === glow ? 1.45 : 0;
-        team[i] = source === teams[0] ? 1 : 0;
-      }
-      geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-      geo.setAttribute("evaGlow", new THREE.BufferAttribute(light, 1));
-      geo.setAttribute("evaTeam", new THREE.BufferAttribute(team, 1));
-    }
+    const mat = m.material as THREE.Material;
     const bin = bins.get(mat) ?? [];
     bin.push(geo);
     bins.set(mat, bin);
@@ -99,24 +83,9 @@ function bake(g: THREE.Group, compact = false): THREE.Group {
     for (const item of geos) item.dispose();
     const m = new THREE.Mesh(geo, mat);
     // The original skinned body already casts the complete silhouette.
-    m.castShadow = !compact && mat !== visor && mat !== glow;
+    m.castShadow = mat !== visor && mat !== glow;
     m.receiveShadow = true;
-    if (mat === evaSurface) {
-      const markers = geo.attributes.evaTeam!;
-      let hasTeam = false;
-      for (let i = 0; i < markers.count; i++) if (markers.getX(i) > 0.5) { hasTeam = true; break; }
-      if (hasTeam) {
-        const alt = new THREE.BufferGeometry();
-        for (const [name, attr] of Object.entries(geo.attributes)) alt.setAttribute(name, attr);
-        const color = geo.attributes.color!.clone();
-        for (let i = 0; i < markers.count; i++) if (markers.getX(i) > 0.5) color.setXYZ(i, teams[1]!.color.r, teams[1]!.color.g, teams[1]!.color.b);
-        alt.setAttribute("color", color);
-        const variants: [THREE.BufferGeometry, THREE.BufferGeometry] = [geo, alt];
-        teamVariants.set(geo, variants);
-        teamVariants.set(alt, variants);
-        m.userData.evaTeam = true;
-      }
-    } else if (mat === teams[0]) m.userData.evaTeam = true;
+    if (mat === teams[0]) m.userData.evaTeam = true;
     g.add(m);
   }
   return g;
@@ -151,7 +120,7 @@ function region(root: THREE.Object3D, names: string[]): THREE.Box3 {
   return result;
 }
 
-export type AstronautRig = { setTeam(team: number): void };
+export type AstronautRig = { setAlly(ally: boolean): void };
 
 // ---------------------------------------------------------------- suit skin
 /**
@@ -167,7 +136,15 @@ const SUIT = {
   base: new THREE.Color(0xe9e6df), glove: new THREE.Color(0xa9aeb4), boot: new THREE.Color(0x4a4f56),
   belt: new THREE.Color(0x6c7178), cuff: new THREE.Color(0xc9ccd0),
 };
-export const SUIT_TEAM = [new THREE.Color(0x2f9c97), new THREE.Color(0xd0603f)];
+/**
+ * THE SUIT'S TEAM BANDS (upper-arm / thigh stripes, see suitAttributes).
+ * Slot 0 = ally, slot 1 = enemy — read live off teamColors() so a
+ * colour-vision change repaints them with everything else team-coloured.
+ */
+export function suitTeamColors(): [THREE.Color, THREE.Color] {
+  const tc = teamColors();
+  return [new THREE.Color(tc.ally), new THREE.Color(tc.enemy)];
+}
 const suitAttrCache = new WeakMap<THREE.BufferGeometry, true>();
 
 function suitAttributes(mesh: THREE.SkinnedMesh): void {
@@ -244,8 +221,10 @@ const shellWhite = new THREE.MeshStandardMaterial({ color: 0xe8e5de, roughness: 
 const shellDark = new THREE.MeshStandardMaterial({ color: 0x3b4047, roughness: 0.55, metalness: 0.3 });
 const lamp = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff1d6, emissiveIntensity: 2.0, roughness: 0.3 });
 
-export function attachAstronaut(root: THREE.Object3D, bones: Record<string, THREE.Object3D>, team: number): AstronautRig {
-  const teamU = { value: SUIT_TEAM[team === 1 ? 1 : 0]!.clone() };
+export function attachAstronaut(root: THREE.Object3D, bones: Record<string, THREE.Object3D>, ally = false): AstronautRig {
+  refreshTeamMats();
+  const [allyCol, enemyCol] = suitTeamColors();
+  const teamU = { value: (ally ? allyCol : enemyCol).clone() };
   // 1) the suit skin, on this actor's own (already cloned) materials
   root.traverse((o) => {
     const m = o as THREE.SkinnedMesh;
@@ -263,7 +242,7 @@ export function attachAstronaut(root: THREE.Object3D, bones: Record<string, THRE
     const attach = (bone: string, g: THREE.Group, merge = true) => {
       const target = bones[bone];
       if (!target || !g.children.length) return;
-      if (merge) bake(g, false);
+      if (merge) bake(g);
       // Equipment never casts: the skinned body already supplies the shadow
       // silhouette, and every extra caster is another shadow-map draw per actor.
       g.traverse((o) => { o.castShadow = false; if ((o as THREE.Mesh).material === helmetGlass) o.renderOrder = 3; });
@@ -345,15 +324,16 @@ export function attachAstronaut(root: THREE.Object3D, bones: Record<string, THRE
     item.traverse((o) => { if (o.userData.evaTeam) panels.push(o as THREE.Mesh); });
     bones[bone]?.add(item);
   }
-  const rig = { setTeam(value: number) {
-    teamU.value.copy(SUIT_TEAM[value === 1 ? 1 : 0]!);
-    for (const panel of panels) {
-      const variants = teamVariants.get(panel.geometry);
-      if (variants) panel.geometry = variants[value === 1 ? 1 : 0];
-      else panel.material = teams[value === 1 ? 1 : 0]!;
-    }
+  const rig = { setAlly(ally: boolean) {
+    // A colour-vision change repaints through here (BruiserActor.setRelation
+    // re-runs on prefs().colorMode), so both the fabric uniform and the shared
+    // hardware materials are refreshed off teamColors() every time.
+    refreshTeamMats();
+    const [allyCol, enemyCol] = suitTeamColors();
+    teamU.value.copy(ally ? allyCol : enemyCol);
+    for (const panel of panels) panel.material = teams[ally ? 0 : 1]!;
   } };
-  rig.setTeam(team);
+  rig.setAlly(ally);
   return rig;
 }
 

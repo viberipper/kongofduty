@@ -291,6 +291,152 @@ function chevronTexture(ally: boolean): THREE.Texture {
 }
 
 /**
+ * TEAM SHORTS. The authored Kong wears red trunks, baked into the GLB's single
+ * base-colour texture (there is no shorts mesh or material — the red islands in
+ * the texture ARE the garment, belt loops and cargo pockets included). Allies
+ * wear the ally colour instead: a per-ally-colour texture variant built once
+ * from the template map — red texels hue-shifted to the team colour, shading
+ * kept — and swapped per actor in setRelation. Enemies keep the authored map.
+ * One variant per (source texture, ally hex), cached; actors only swap the map
+ * reference, so no actor ever repaints another. FFA needs no special case: the
+ * only ally there is the local player, who has no 3P actor in live play
+ * (game.ts), so every visible body stays red.
+ */
+const shortsVariants = new WeakMap<THREE.Texture, Map<string, THREE.Texture>>();
+
+/** sRGB 0..255 test for "authored shorts red". Tuned off the shipped texture:
+ * shorts texels sit at r 70..115, g 16..42, b 0..8; yellow fur always carries
+ * far more green, brown fur and skin fail the dominance gaps. */
+function isShortsTexel(r: number, g: number, b: number): boolean {
+  return r >= 60 && g <= 60 && b <= 25 && r - g >= 40 && r - b >= 50;
+}
+
+function rgbToHsv(r: number, g: number, b: number): [number, number, number] {
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  let h = 0;
+  if (d > 0) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h /= 6;
+    if (h < 0) h += 1;
+  }
+  return [h, max > 0 ? d / max : 0, max];
+}
+
+function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
+  const i = Math.floor(h * 6);
+  const f = h * 6 - i;
+  const p = v * (1 - s);
+  const q = v * (1 - f * s);
+  const t = v * (1 - (1 - f) * s);
+  switch (i % 6) {
+    case 0: return [v, t, p];
+    case 1: return [q, v, p];
+    case 2: return [p, v, t];
+    case 3: return [p, q, v];
+    case 4: return [t, p, v];
+    default: return [v, p, q];
+  }
+}
+
+function shortsTextureFor(map: THREE.Texture, allyHex: string): THREE.Texture {
+  let perMap = shortsVariants.get(map);
+  if (!perMap) {
+    perMap = new Map();
+    shortsVariants.set(map, perMap);
+  }
+  const hit = perMap.get(allyHex);
+  if (hit) return hit;
+  // The variant starts as an exact copy; only classified texels change.
+  const src = map.image as unknown as { width: number; height: number } | null;
+  if (!src || !src.width || !src.height) return map;
+  const w = src.width;
+  const h = src.height;
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d", { willReadFrequently: true })!;
+  ctx.drawImage(map.image as unknown as CanvasImageSource, 0, 0);
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  // Pass 1: classify. Pass 2 drops speckle components (< 25 px): painted seam
+  // strokes on the fur classify too, and a 1 px blue scratch on yellow fur is
+  // the only visible artefact this whole feature can produce. The flood fill
+  // uses 8-neighbourhood so diagonally bridged shorts islands (belt loops,
+  // pocket edges) stay one component instead of shattering into speckle.
+  const mask = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    if (isShortsTexel(d[i * 4]!, d[i * 4 + 1]!, d[i * 4 + 2]!)) mask[i] = 1;
+  }
+  const seen = new Uint8Array(w * h);
+  const stack: number[] = [];
+  for (let i = 0; i < w * h; i++) {
+    if (!mask[i] || seen[i]) continue;
+    stack.length = 0;
+    stack.push(i);
+    seen[i] = 1;
+    const comp: number[] = [];
+    while (stack.length) {
+      const j = stack.pop()!;
+      comp.push(j);
+      const x = j % w;
+      const y = (j / w) | 0;
+      const hasL = x > 0;
+      const hasR = x < w - 1;
+      const hasU = y > 0;
+      const hasD = y < h - 1;
+      if (hasL && mask[j - 1] && !seen[j - 1]) { seen[j - 1] = 1; stack.push(j - 1); }
+      if (hasR && mask[j + 1] && !seen[j + 1]) { seen[j + 1] = 1; stack.push(j + 1); }
+      if (hasU && mask[j - w] && !seen[j - w]) { seen[j - w] = 1; stack.push(j - w); }
+      if (hasD && mask[j + w] && !seen[j + w]) { seen[j + w] = 1; stack.push(j + w); }
+      if (hasL && hasU && mask[j - w - 1] && !seen[j - w - 1]) { seen[j - w - 1] = 1; stack.push(j - w - 1); }
+      if (hasR && hasU && mask[j - w + 1] && !seen[j - w + 1]) { seen[j - w + 1] = 1; stack.push(j - w + 1); }
+      if (hasL && hasD && mask[j + w - 1] && !seen[j + w - 1]) { seen[j + w - 1] = 1; stack.push(j + w - 1); }
+      if (hasR && hasD && mask[j + w + 1] && !seen[j + w + 1]) { seen[j + w + 1] = 1; stack.push(j + w + 1); }
+    }
+    if (comp.length < 25) for (const j of comp) mask[j] = 0;
+  }
+  // Target hue/saturation off the ally hex; per-texel VALUE keeps the folds.
+  // Guarded: an unexpected format keeps the authored red instead of NaN-black.
+  let th = 0;
+  let ts = 1;
+  try {
+    const parsed = new THREE.Color(allyHex);
+    if (/^#[0-9a-fA-F]{6}$/.test(allyHex) && Number.isFinite(parsed.r) && Number.isFinite(parsed.g) && Number.isFinite(parsed.b)) {
+      [th, ts] = rgbToHsv(parsed.r, parsed.g, parsed.b);
+    }
+  } catch {
+    /* keep default red */
+  }
+  for (let i = 0; i < w * h; i++) {
+    if (!mask[i]) continue;
+    const [, , v] = rgbToHsv(d[i * 4]! / 255, d[i * 4 + 1]! / 255, d[i * 4 + 2]! / 255);
+    const [nr, ng, nb] = hsvToRgb(th, ts, v);
+    d[i * 4] = Math.round(nr * 255);
+    d[i * 4 + 1] = Math.round(ng * 255);
+    d[i * 4 + 2] = Math.round(nb * 255);
+  }
+  ctx.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = map.colorSpace;
+  t.wrapS = map.wrapS;
+  t.wrapT = map.wrapT;
+  t.repeat.copy(map.repeat);
+  t.offset.copy(map.offset);
+  t.anisotropy = map.anisotropy;
+  t.minFilter = map.minFilter;
+  t.magFilter = map.magFilter;
+  t.generateMipmaps = map.generateMipmaps;
+  t.flipY = map.flipY;
+  t.mapping = map.mapping;
+  perMap.set(allyHex, t);
+  return t;
+}
+
+/**
  * Per-actor name tag (allies only). One canvas per actor — names differ — but
  * built once at construction, never per frame.
  */
@@ -981,6 +1127,24 @@ export async function loadBruiserTemplate(lowDetail = false): Promise<BruiserTem
   const hull = calibrateHull(scene, bones);
   scene.scale.setScalar(1);
   scene.updateMatrixWorld(true);
+  // Pre-warm the ally-shorts texture for the current colour-vision mode while
+  // the loading screen is up, so the first ally sighting never hitches on the
+  // one-time 1 MPixel recolour (a later mode change rebuilds once, in the
+  // settings menu, via setRelation).
+  try {
+    const allyHex = teamColors().ally;
+    scene.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh || !mesh.material) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const mat of mats) {
+        const std = mat as THREE.MeshStandardMaterial;
+        if (std?.isMeshStandardMaterial && std.map) shortsTextureFor(std.map, allyHex);
+      }
+    });
+  } catch {
+    /* variant builds lazily on first ally instead */
+  }
 
   template = {
     scene,
@@ -1352,7 +1516,8 @@ export class BruiserActor {
   /** Claim a freshly prepared actor; never used to recycle a played skeleton. */
   claim(p: PlayerSnap): void {
     this.id = p.id;
-    this.eva?.setTeam(p.team);
+    // Team dressing (shorts, EVA bands) follows the relation, re-asserted every
+    // frame by setRelation — no team-number paint here to go stale.
     this.yawVis = p.yaw;
     const texture = (this.nameTag.material as THREE.SpriteMaterial).map!;
     this.tagName = p.name;
@@ -1554,6 +1719,9 @@ export class BruiserActor {
   private relationMode = "";
   /** Per-actor material clones setRelation tints (see constructor). */
   private tintMats: { material: THREE.MeshStandardMaterial | THREE.MeshBasicMaterial; base: THREE.Color }[] = [];
+  /** Cloned body materials carrying the authored map, with that map kept so
+   * setRelation can swap the team-shorts variant back to red. */
+  private shortsMats: { material: THREE.MeshStandardMaterial; orig: THREE.Texture }[] = [];
   private nameTag!: THREE.Sprite;
 
   /**
@@ -1596,6 +1764,16 @@ export class BruiserActor {
         m.color.copy(base).lerp(new THREE.Color(ally ? 0xffb830 : 0xff2a18), ally ? 0.05 : 0.1);
       }
     }
+    // TEAM DRESSING, same relation as the chevron above: blue shorts for the
+    // own team (enemies keep the authored red map), EVA bands in the
+    // colour-vision-aware ally/enemy pair. Runs on every real relation or
+    // colour-mode change — respawns, team switches and spectate re-resolve
+    // through the per-frame call in game.ts.
+    const tc = teamColors();
+    for (const s of this.shortsMats) {
+      s.material.map = ally ? shortsTextureFor(s.orig, tc.ally) : s.orig;
+    }
+    this.eva?.setAlly(ally);
   }
 
   /** Brief flinch when this character takes a hit. */
@@ -1672,6 +1850,7 @@ export class BruiserActor {
     const cloneMaterial = (m: THREE.Material): THREE.Material => {
       const c = m.clone();
       if (c instanceof THREE.MeshStandardMaterial || c instanceof THREE.MeshBasicMaterial) this.tintMats.push({ material: c, base: c.color.clone() });
+      if (c instanceof THREE.MeshStandardMaterial && c.map) this.shortsMats.push({ material: c, orig: c.map });
       return c;
     };
     this.body.traverse((o) => {
@@ -1684,8 +1863,9 @@ export class BruiserActor {
       }
     });
     // ARES dresses the same operator in an EVA suit; the weapons are the same
-    // everywhere.
-    if (activeMap().id === "ares") this.eva = attachAstronaut(this.body, this.bones, p.team);
+    // everywhere. Team bands follow the relation via setRelation (initially
+    // the enemy default, corrected on the first per-frame call in game.ts).
+    if (activeMap().id === "ares") this.eva = attachAstronaut(this.body, this.bones, false);
     // THE GUN MOUNT: a frame on R_Hand whose local space IS gun space (metres),
     // so the operator's gun — whichever it is — just sits at its origin.
     const m = tpl.gunMount;
