@@ -30,6 +30,19 @@
  * foreign multis stay silent, and damped repeats, never take the voice. Priority: result (5) > multi (4) = clock (4) > streak/mode (3) >
  * lead (2) > info (1) > Kong (0).
  *
+ * KILLSTREAK ESCALATION (own calls only, match-scoped): your multi-kills and
+ * your streaks announce strictly ascending — the first Double Kill speaks, a
+ * second Double stays fully silent (no voice, no subtitle); Triple speaks,
+ * then Quad, then Mega, each only the first time. Same for streaks: Rampage
+ * (5) speaks, a second Rampage stays silent, Unstoppable (10) speaks, Legend
+ * (15) speaks, each only the first time. Tracked as two high-water marks
+ * (multiHigh / streakHigh, highest announced own level), reset at match start
+ * alongside bloodSeen. Already-heard levels are dropped entirely so the Kong
+ * is free to talk those kills. Foreign streak subtitles keep only their 20 s
+ * damping (no escalation). Killstreak-toggle OFF announces nothing and marks
+ * nothing; toggling never resets the marks. Shutdowns, first blood and the
+ * result are untouched (one-shot events, no levels).
+ *
  * KILL VOICE EXCLUSION: a kill-related announcer voice for YOUR kill (first
  * blood, your streak, your multi-kill incl. its pending upgrade window, or a
  * shutdown you are involved in) and your Kong's kill line ("Kong smash!") are
@@ -51,7 +64,7 @@
 import { prefs } from "./ui/prefs";
 import { ASSET_BASE, assetUrl } from "./asset-base";
 
-type Line = { text: string; prio: number; at: number; kong?: boolean; clip?: string; voice: boolean; coolKey?: string; cutGap?: boolean };
+type Line = { text: string; prio: number; at: number; kong?: boolean; clip?: string; voice: boolean; coolKey?: string; cutGap?: boolean; escalate?: { kind: "multi" | "streak"; level: number } };
 
 const STALE_MS = 4000;
 /** Minimum airtime between two announcer voice lines (result cuts through, multis cut through too). */
@@ -168,6 +181,13 @@ export class Announcer {
   /** Fixed chain deadline (performance.now()), anchored at the first multi of
    *  the chain — the idle hold below is never armed past it. */
   private multiDeadline = 0;
+  /** Killstreak escalation (match-scoped, own calls only): highest announced
+   *  own multi level (2 Double … 5 Mega) and highest announced own streak
+   *  count (5 Rampage / 10 Unstoppable / 15 Legend). Already-reached levels
+   *  stay fully silent (no voice, no subtitle); only strictly higher levels
+   *  speak. Reset at match start; toggling never resets. */
+  private multiHigh = 0;
+  private streakHigh = 0;
   /** Kill-voice exclusion stamp: sequence number of the latest kill() /
    *  shutdown() call, and of the latest of those calls whose announcer line
    *  for YOUR kill takes (or, for a pending multi, will take) the voice.
@@ -188,6 +208,8 @@ export class Announcer {
         // MATCH start (or a mode without rounds): full reset, mode call once.
         this.kills = 0;
         this.bloodSeen = false;
+        this.multiHigh = 0;
+        this.streakHigh = 0;
         this.lead = 0;
         this.leadScore = 0;
         this.clearMulti();
@@ -267,6 +289,11 @@ export class Announcer {
     // those kills). Shutdowns stay outside the toggle (shutdown(), unchanged).
     const ks = prefs().killstreaks;
     if ((streak === 5 || streak === 10 || streak === 15) && ks) {
+      // Killstreak escalation (own calls only): an already-announced streak
+      // level stays fully silent (no voice, no subtitle, no stamp — the Kong
+      // is free to talk the kill). A suppressed streak also covers nothing:
+      // a pending multi survives and fires under its own escalation rule.
+      if (mine && streak <= this.streakHigh) return;
       // A streak call covers any pending multi: same killer (the streak is
       // the bigger news) and other killers alike (no double voice right
       // after the streak) — drop it.
@@ -282,6 +309,11 @@ export class Announcer {
         mine,
         mine ? undefined : `streak:${killer}`,
         mine ? 0 : STREAK_FOREIGN_COOL_MS,
+        false,
+        // Escalation mark travels with the line and is set at voice start in
+        // pump(), not here: displaced / never-played / muted lines must not
+        // count. Foreign and announcer-off lines never carry a mark.
+        mine && ownVoice ? { kind: "streak", level: streak } : undefined,
       );
       return;
     }
@@ -370,6 +402,15 @@ export class Announcer {
       if (this.killVoiceSeq === p.kid) this.killVoiceSeq = -1;
       return;
     }
+    // Killstreak escalation (own multis only): an already-announced level
+    // stays fully silent (no voice, no subtitle) and frees the Kong — only a
+    // strictly higher level speaks. Checked here at fire time, not at push
+    // time, so a chain starting on an old level can still climb to a new one
+    // (Double → Triple with Double heard announces Triple).
+    if (p.mine && p.level <= this.multiHigh) {
+      if (this.killVoiceSeq === p.kid) this.killVoiceSeq = -1;
+      return;
+    }
     // Your multis speak (prio 4) and cut through the pacing gap: they already
     // waited out the upgrade hold, and holding them another 2.2 s behind a
     // just-played line is exactly the lag being fixed. They still wait for a
@@ -377,8 +418,14 @@ export class Announcer {
     // Anyone else's stays silent — game.ts gates
     // multi to 0 for foreign kills, so foreign multis never enter the window
     // and the else branch below is unreachable via game.ts (kept, not removed).
-    if (p.mine) this.say(NUM[p.level]!, 4, false, undefined, true, undefined, 0, true);
-    else this.say(`${NUM[p.level]} FOR ${p.killer}`, 1, false, undefined, false);
+    if (p.mine) {
+      this.say(NUM[p.level]!, 4, false, undefined, true, undefined, 0, true,
+        // Escalation mark travels with the line and is set at voice start in
+        // pump(), not here: queued-but-displaced / never-played / muted lines
+        // must not count. Announcer-off lines never carry a mark (say drops
+        // them); toggling never resets it.
+        prefs().announcer ? { kind: "multi", level: p.level } : undefined);
+    } else this.say(`${NUM[p.level]} FOR ${p.killer}`, 1, false, undefined, false);
   }
 
   private clearMulti(): void {
@@ -433,7 +480,7 @@ export class Announcer {
    * multi-kill (4) = clock (4) > streak (3) = mode (3) > lead (2) > info (1) >
    * Kong (0).
    */
-  private say(text: string, prio: number, kong = false, clip?: string, voice = true, coolKey?: string, coolMs = 0, cutGap = false): void {
+  private say(text: string, prio: number, kong = false, clip?: string, voice = true, coolKey?: string, coolMs = 0, cutGap = false, escalate?: { kind: "multi" | "streak"; level: number }): void {
     if (!kong && !prefs().announcer) return;
     const now = performance.now();
     if (voice && !kong && coolKey && coolMs > 0) {
@@ -441,7 +488,7 @@ export class Announcer {
       if (now - last < coolMs) voice = false;
     }
     this.queue = this.queue.filter((l) => (now - l.at < STALE_MS || l.cutGap) && l.prio >= prio);
-    this.queue.push({ text, prio, at: now, kong, clip: clip ?? (!kong ? clipFor(text) : undefined), voice, coolKey, cutGap });
+    this.queue.push({ text, prio, at: now, kong, clip: clip ?? (!kong ? clipFor(text) : undefined), voice, coolKey, cutGap, escalate });
     this.queue.sort((a, b) => b.prio - a.prio);
     if (this.queue.length > 2) this.queue.length = 2;
     this.pump();
@@ -493,9 +540,21 @@ export class Announcer {
     }
     this.queue.shift();
     this.subtitle(line);
+    const vol = prefs().master * prefs().ui;
+    // Killstreak escalation mark: only what is really heard counts. Set here
+    // at voice start — never optimistically at say() — so lines displaced
+    // from the queue (prio filter, length cap, stale drop), cleared by end(),
+    // or cut by hush() before they start never count. Muted output
+    // (vol <= 0.01: subtitle only, no voice) never marks either, so the repeat
+    // comes back — as a subtitle while muted, as voice once loud again.
+    // Foreign / announcer-off / toggle-off lines carry no mark (see kill() /
+    // fireMulti()), re-checked here for races; toggling never resets the marks.
+    if (line.escalate && vol > 0.01 && prefs().announcer && prefs().killstreaks) {
+      if (line.escalate.kind === "multi") this.multiHigh = Math.max(this.multiHigh, line.escalate.level);
+      else this.streakHigh = Math.max(this.streakHigh, line.escalate.level);
+    }
     this.lastVoiceAt = performance.now();
     if (line.coolKey) this.lastVoiceByKey.set(line.coolKey, this.lastVoiceAt);
-    const vol = prefs().master * prefs().ui;
     if (line.clip && vol > 0.01 && this.playClip(line, vol)) return;
     this.synthLine(line, vol);
   }
