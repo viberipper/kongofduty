@@ -1,0 +1,23 @@
+{
+  "pack": "menu-music",
+  "title": "MENU MUSIC",
+  "codec": "opus/ogg primary, mp3 fallback",
+  "sourceFormat": {
+    "sampleRate": 48000,
+    "channels": "stereo",
+    "container": "ogg"
+  },
+  "encodedAt": "2026-10-26",
+  "bitrate": {
+    "stereo": "96k"
+  },
+  "bytes": 3739005,
+  "fileCount": 8,
+  "note": "Per-map main-menu / private-lobby background music, 60 s seamless loops. Procedural v1 (debug/menu-music-preview/gen.py --long, numpy, deterministic seed): shipment 92 BPM D minor industrial taikos; dust2 80 BPM E phrygian frame drums + duduk lead; ares 100 BPM A minor pulsing synthbass + glassy pads; nuketown 112 BPM ironic twang with dark Ab turn. Drop-in replacement path: audio.cpp ace_step / stable_audio renders with the prompts in docs/menu-music-prompts.md, mastered to the same loudness, same filenames. Played by client/src/menu-music.ts as looped <audio> with 1.5 s crossfade on map change; passive bed at MASTER x MUSIC x 0.25.",
+  "events": {
+    "shipment": { "files": ["menu-shipment.ogg", "menu-shipment.mp3"] },
+    "dust2": { "files": ["menu-dust2.ogg", "menu-dust2.mp3"] },
+    "ares": { "files": ["menu-ares.ogg", "menu-ares.mp3"] },
+    "nuketown": { "files": ["menu-nuketown.ogg", "menu-nuketown.mp3"] }
+  }
+}

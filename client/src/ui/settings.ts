@@ -173,6 +173,7 @@ const ROWS: Record<Exclude<Tab, "controls">, Row[]> = {
     { key: "effects", label: "Effects Volume", desc: "Gunfire, footsteps, grenades, impacts.", kind: "slider", min: 0, max: 1, step: 0.01, fmt: pct },
     { key: "ui", label: "Interface Volume", desc: "Menu sounds, hitmarkers, medals and the countdown.", kind: "slider", min: 0, max: 1, step: 0.01, fmt: pct },
     { key: "ambience", label: "Ambience Volume", desc: "The map's background bed.", kind: "slider", min: 0, max: 1, step: 0.01, fmt: pct },
+    { key: "music", label: "Menu Music Volume", desc: "Passive background music over the main menu and the private lobby — one 60-second theme per map, switching with a crossfade when the picked map changes. 0 (or near 0) mutes it.", kind: "slider", min: 0, max: 1, step: 0.01, fmt: pct },
     {
       key: "announcer",
       label: "Announcer",

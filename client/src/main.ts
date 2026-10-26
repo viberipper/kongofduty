@@ -45,6 +45,7 @@ import { hudState, markBenchAttached, paintHud, resetHud } from "./ui/hud";
 import { hideEndcard, showEndcard, type EndKind } from "./ui/endcard";
 import { goToMap, mapCardUrl, mapIds, mapLabel, stripTransientParams, takeIntent } from "./ui/flow";
 import { uiSfx, wireSfx } from "./ui/sfx";
+import { initMenuMusic, selectMenuMusic, startMenuMusic, stopMenuMusic } from "./menu-music";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -258,6 +259,7 @@ function toMenu(): void {
   show("menu", true);
   menuBusy(false);
   setCallsignChip(rememberedCallsign());
+  startMenuMusic(menuSelection().map);
   stripTransientParams(PAGE_MAP);
   if (document.pointerLockElement) document.exitPointerLock();
 }
@@ -388,6 +390,12 @@ async function deploy(online: boolean, phase: MatchPhase | null = null, spectate
   show("menu", false);
   hideEndcard();
   resetHud();
+  // The bed plays over menus and the pre-game lobby, never over a live match:
+  // a bot match or a phaseless deploy goes quiet now, a pre-game lobby keeps
+  // its map's theme until the host starts (attachLobby onStart parks it).
+  // The lobby runs the room's map (PAGE_MAP), not the menu card's.
+  if (phase === "pregame") selectMenuMusic(PAGE_MAP);
+  else stopMenuMusic();
   try {
     bootStage("AUDIO");
     await Promise.all([game.init(), game.audio.boot()]);
@@ -431,6 +439,7 @@ async function deploy(online: boolean, phase: MatchPhase | null = null, spectate
           // The 3-2-1 is drawn over the live map by the countdown layer.
           onStart: () => {
             if (settingsOpen()) closeSettings();
+            stopMenuMusic();
             show("hud", true);
             hideEndcard();
           },
@@ -450,6 +459,7 @@ async function deploy(online: boolean, phase: MatchPhase | null = null, spectate
             hideEndcard();
             closePause();
             show("hud", false);
+            startMenuMusic(PAGE_MAP);
             if (document.pointerLockElement) document.exitPointerLock();
           },
           sfx,
@@ -691,10 +701,15 @@ async function boot(): Promise<void> {
       if (menuHomeVisible()) fireMenuPad("map-next");
     },
   });
-  initMenu(PAGE_MAP, () => undefined);
+  initMenu(PAGE_MAP, (s) => selectMenuMusic(s.map));
+  initMenuMusic(menuSelection().map);
   setCallsignChip(rememberedCallsign());
   show("boot", false);
   show("menu", true);
+  // Re-evaluate now the menu is actually visible: the init-time sync above
+  // ran while #menu still had `hidden` and parked. Pre-gesture this only
+  // arms the track; the first real press starts it.
+  startMenuMusic();
 
   // RESUME WHAT THE PLAYER WAS DOING across a map-change reload.
   const intent = takeIntent(PAGE_MAP);

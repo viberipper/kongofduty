@@ -62,6 +62,8 @@ export interface Prefs {
   effects: number;
   ui: number;
   ambience: number;
+  /** Passive per-map menu/lobby background music (client/src/menu-music.ts). 0 mutes it. */
+  music: number;
   /** The match announcer (client/src/announcer.ts) — voice + subtitles. */
   announcer: boolean;
   /** Your Kong's own gruff voice lines (announcer.ts kong()). */
@@ -147,6 +149,7 @@ export const DEFAULT_PREFS: Readonly<Prefs> = {
   effects: 1,
   ui: 0.8,
   ambience: 0.8,
+  music: 0.35,
   announcer: true,
   kongVoice: true,
   killstreaks: false,
@@ -227,6 +230,7 @@ export function sanitizePrefs(x: unknown): Prefs {
     effects: clamp(o.effects, 0, 1, d.effects),
     ui: clamp(o.ui, 0, 1, d.ui),
     ambience: clamp(o.ambience, 0, 1, d.ambience),
+    music: clamp(o.music, 0, 1, d.music),
     announcer: bool(o.announcer, d.announcer),
     kongVoice: bool(o.kongVoice, d.kongVoice),
     killstreaks: bool(o.killstreaks, d.killstreaks),

@@ -47,6 +47,7 @@ import { asModeId, modeInfo, modesFor, type ModeId } from "@shared/modes";
 import { GUN_KILL_OPTIONS, asGunKills, gunGoal } from "@shared/gungame";
 import { goToMap, mapCardUrl, mapLabel, type Intent } from "./ui/flow";
 import { uiSfx, wireSfx } from "./ui/sfx";
+import { selectMenuMusic } from "./menu-music";
 import { renderKeyline } from "./ui/keys";
 import { actionOf } from "./ui/keybinds";
 import { closeSettings, settingsOpen } from "./ui/settings";
@@ -1608,6 +1609,11 @@ function paint(): void {
   const key = JSON.stringify([s, teams, link]);
   if (key === paintKey) return;
   paintKey = key;
+  // The room's map owns the bed. Gated behind the paint dedupe above (plus
+  // select's own same-target no-op), so the 500 ms watchdog and roster ticks
+  // can never restart an in-flight crossfade; a real map change still
+  // crossfades immediately, before the reload it triggers.
+  selectMenuMusic(s.map);
 
   d.lobbyEyebrow.textContent = `${info.label} · ${info.size} · ${mapName}`;
   (d.mapCard.querySelector(".nana-eyebrow") as HTMLElement).textContent = `${info.label} · ${info.size}`;
