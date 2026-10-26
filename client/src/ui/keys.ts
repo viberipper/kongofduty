@@ -23,6 +23,8 @@ export function keyline(): [string, string][] {
     [keyFor("frag"), "FRAG"],
     [keyFor("scoreboard"), "SCORES"],
     ["ESC", "MENU"],
+    [keyFor("spray"), "SPRAY"],
+    [keyFor("chat"), "CHAT"],
   ];
 }
 
