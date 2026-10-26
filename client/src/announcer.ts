@@ -143,6 +143,8 @@ export class Announcer {
   private lastRemain = Infinity;
   /** -1 behind, 0 tied, 1 ahead (from your side), or null before the first call. */
   private lead: number | null = null;
+  /** Own-side score at the last tick (TDM: your team's score, FFA: your kills). */
+  private leadScore = 0;
   private kills = 0;
   private lastKong = 0;
   /** First blood fired this match (match-scoped: exactly once per match). */
@@ -177,6 +179,7 @@ export class Announcer {
         this.kills = 0;
         this.bloodSeen = false;
         this.lead = 0;
+        this.leadScore = 0;
         this.clearMulti();
         // Fresh match, fresh ears: the GO call always speaks, later repeats
         // of the same mode line are damped for MODE_COOL_MS.
@@ -208,14 +211,23 @@ export class Announcer {
       const d = s.team === 0 ? s.score0 - s.score1 : s.score1 - s.score0;
       lead = Math.sign(d);
     } else lead = 0;
-    if (this.lead !== null && lead !== this.lead && (s.ffa ? s.myKills + s.bestOther : s.score0 + s.score1) > 0) {
-      // Lead lines are damped (25 s per line): a swingy match must not loop them.
-      if (lead === 1) this.sayLead(s.ffa ? "YOU HAVE TAKEN THE LEAD" : "WE HAVE TAKEN THE LEAD");
-      else if (lead === -1 && this.lead === 1) this.sayLead(s.ffa ? "YOU HAVE LOST THE LEAD" : "WE HAVE LOST THE LEAD");
-      else if (lead === -1) this.sayLead(s.ffa ? "YOU HAVE FALLEN BEHIND" : "THE ENEMY HAS TAKEN THE LEAD");
-      else if (lead === 0 && this.lead !== 0) this.sayLead("SCORES ARE TIED");
+    const myScore = s.ffa ? s.myKills : s.team === 0 ? s.score0 : s.team === 1 ? s.score1 : 0;
+    const total = s.ffa ? s.myKills + s.bestOther : s.score0 + s.score1;
+    if (this.lead !== null && total > 0) {
+      // Lead-taken only from the leading side's 3rd point: 1:0 and 2:0 stay
+      // fully silent (no voice, no subtitle). Fires on the lead change into a
+      // 3+ lead, or when a still-unannounced lead grows to 3 (lead unchanged).
+      if (lead === 1 && myScore >= 3 && (this.lead !== 1 || this.leadScore < 3)) {
+        // Lead lines are damped (25 s per line): a swingy match must not loop them.
+        this.sayLead(s.ffa ? "YOU HAVE TAKEN THE LEAD" : "WE HAVE TAKEN THE LEAD");
+      } else if (lead !== this.lead) {
+        if (lead === -1 && this.lead === 1) this.sayLead(s.ffa ? "YOU HAVE LOST THE LEAD" : "WE HAVE LOST THE LEAD");
+        else if (lead === -1) this.sayLead(s.ffa ? "YOU HAVE FALLEN BEHIND" : "THE ENEMY HAS TAKEN THE LEAD");
+        else if (lead === 0 && this.lead !== 0) this.sayLead("SCORES ARE TIED");
+      }
     }
     this.lead = lead;
+    this.leadScore = myScore;
   }
 
   /** Lead call with repeat damping (prio 2: streaks and multis outrank it). */
