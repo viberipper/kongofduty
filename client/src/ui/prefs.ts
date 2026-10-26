@@ -53,11 +53,19 @@ export interface Prefs {
   tacSprint: boolean;
   /** Floating damage numbers over hit targets. */
   damageNumbers: boolean;
+  /** GUN GAME kills per gun in bot matches (and a new lobby's default). */
+  gunKills: number;
+  /** Which spray tag (client/src/sprays.ts SPRAY_NAMES). */
+  spray: number;
   // AUDIO (0..1)
   master: number;
   effects: number;
   ui: number;
   ambience: number;
+  /** The match announcer (client/src/announcer.ts) — voice + subtitles. */
+  announcer: boolean;
+  /** Your Kong's own gruff voice lines (announcer.ts kong()). */
+  kongVoice: boolean;
   // GRAPHICS
   renderScale: RenderScaleMode;
   showFps: boolean;
@@ -131,10 +139,14 @@ export const DEFAULT_PREFS: Readonly<Prefs> = {
   adsMode: "hold",
   tacSprint: true,
   damageNumbers: true,
+  gunKills: 3,
+  spray: 0,
   master: 0.85,
   effects: 1,
   ui: 0.8,
   ambience: 0.8,
+  announcer: true,
+  kongVoice: true,
   renderScale: "auto",
   showFps: false,
   hudScale: 1,
@@ -206,10 +218,14 @@ export function sanitizePrefs(x: unknown): Prefs {
     adsMode: pick(o.adsMode, ["hold", "toggle"] as const, d.adsMode),
     tacSprint: bool(o.tacSprint, d.tacSprint),
     damageNumbers: bool(o.damageNumbers, d.damageNumbers),
+    gunKills: [1, 2, 3, 5].includes(o.gunKills as number) ? (o.gunKills as number) : d.gunKills,
+    spray: [0, 1, 2, 3].includes(o.spray as number) ? (o.spray as number) : d.spray,
     master: clamp(o.master, 0, 1, d.master),
     effects: clamp(o.effects, 0, 1, d.effects),
     ui: clamp(o.ui, 0, 1, d.ui),
     ambience: clamp(o.ambience, 0, 1, d.ambience),
+    announcer: bool(o.announcer, d.announcer),
+    kongVoice: bool(o.kongVoice, d.kongVoice),
     renderScale: pick(o.renderScale, ["auto", "native"] as const, d.renderScale),
     showFps: bool(o.showFps, d.showFps),
     hudScale: clamp(o.hudScale, RANGES.hudScale[0], RANGES.hudScale[1], d.hudScale),

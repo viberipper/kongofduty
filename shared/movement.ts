@@ -21,10 +21,10 @@ export const STAND_H = 1.74;
 export const CROUCH_H = 1.18;
 export const SLIDE_H = 0.82;
 
-export const WALK = 2.65;
-export const RUN = 4.35;
-export const SPRINT = 5.92;
-export const TAC = 6.45;
+export const WALK = 3.1;
+export const RUN = 4.85;
+export const SPRINT = 6.85;
+export const TAC = 7.7;
 export const TAC_FUEL = 2.0;
 export const CROUCH_SPD = 2.05;
 export const ADS_MUL = 0.68;

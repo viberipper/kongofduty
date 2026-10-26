@@ -23,7 +23,7 @@ import {
   type WeaponDef,
 } from "./weapons";
 import { DEFAULT_LOADOUT, sanitizeLoadout, type Loadout } from "./loadout";
-import { GUN_GOAL, gunFor } from "./gungame";
+import { GUN_KILLS_PER_TIER, asGunKills, gunFor, gunGoal } from "./gungame";
 import { bulletPath, keepAt } from "./penetration";
 import { COUNTDOWN_MS, inputLocked, type MatchPhase } from "./matchphase";
 import {
@@ -34,10 +34,10 @@ import {
   INTERP_MS,
   SPAWN_PROTECT,
   RESPITE,
-  SCORE_LIMIT,
   FFA_KILL_LIMIT,
   TDM_MATCH_TIME,
   matchTimeFor,
+  scoreLimit,
   ROUNDS_TOTAL,
   ROUNDS_TO_WIN,
   ROUND_TIME,
@@ -1376,6 +1376,8 @@ export class GameSession {
   mode: Mode = "tdm";
   /** GUN GAME: an FFA room whose guns come off the ladder (shared/gungame.ts), set before anyone joins. */
   gunGame = false;
+  /** GUN GAME kills per gun (shared/gungame.ts GUN_KILL_OPTIONS). */
+  gunKills = GUN_KILLS_PER_TIER;
   score0 = 0;
   score1 = 0;
   remain = TDM_MATCH_TIME;
@@ -1732,6 +1734,12 @@ export class GameSession {
    * THE LOBBY CHANGED MODE before the match. Every body is re-armed for it:
    * the ladder's gun in GUN GAME, its own loadout otherwise.
    */
+  /** GUN GAME kills per gun. Everyone goes back to the first rung. */
+  setGunKills(n: number): void {
+    this.gunKills = asGunKills(n);
+    for (const p of this.players.values()) this.setGun(p, 0);
+  }
+
   setMode(mode: "tdm" | "ffa", gunGame: boolean): void {
     this.mode = mode;
     this.gunGame = mode === "ffa" && gunGame;
@@ -2732,9 +2740,9 @@ export class GameSession {
 
     const limitHit =
       this.mode !== "ffa"
-        ? !this.roundBased && (this.score0 >= SCORE_LIMIT || this.score1 >= SCORE_LIMIT)
+        ? !this.roundBased && (this.score0 >= scoreLimit(MAP.id) || this.score1 >= scoreLimit(MAP.id))
         : this.gunGame
-          ? src.gun >= GUN_GOAL
+          ? src.gun >= gunGoal(this.gunKills)
           : src.kills >= FFA_KILL_LIMIT;
     if (limitHit) {
       this.over = true;
@@ -2748,8 +2756,8 @@ export class GameSession {
    * one picks it up at its next spawn (equip).
    */
   setGun(p: SimPlayer, level: number): void {
-    p.gun = clamp(level, 0, GUN_GOAL);
-    const next = gunFor(p.gun);
+    p.gun = clamp(level, 0, gunGoal(this.gunKills));
+    const next = gunFor(p.gun, this.gunKills);
     if (next === p.gunWeapon) return;
     p.gunWeapon = next;
     if (!p.alive || p.cook > 0) return;
@@ -3578,7 +3586,7 @@ export function movePlayer(p: SimPlayer, cmd: InputCmd, dt: number): void {
     if (p.tacFuel <= 0) p.tac = false;
   } else {
     p.tac = false;
-    p.tacFuel = Math.min(TAC_FUEL, p.tacFuel + dt * 0.35);
+    p.tacFuel = Math.min(TAC_FUEL, p.tacFuel + dt * 0.5);
   }
 
   if (cmd.crouch && p.sprint && p.onGround && p.slide <= 0 && len2(p.vx, p.vz) > 4.2) {

@@ -44,6 +44,7 @@ import type { LobbyMember, LobbyState, NameCheck, ServerMsg } from "@shared/prot
 import { MAX_PLAYABLE, MAX_SPECTATORS, type MatchPhase } from "@shared/matchphase";
 import { MAP_IDS, activeMap, isMapId, readMapPref, withMapQuery } from "@shared/maps";
 import { asModeId, modeInfo, modesFor, type ModeId } from "@shared/modes";
+import { GUN_KILL_OPTIONS, asGunKills, gunGoal } from "@shared/gungame";
 import { goToMap, mapCardUrl, mapLabel, type Intent } from "./ui/flow";
 import { uiSfx, wireSfx } from "./ui/sfx";
 import { renderKeyline } from "./ui/keys";
@@ -61,6 +62,8 @@ export type GameLike = {
   keys: { fire: boolean; melee: boolean };
   /** The live roster off the snapshots — read only for team columns in the lobby. */
   players?: Map<string, { team: number }>;
+  /** The room's GUN GAME kills per gun, for the HUD. */
+  gunKills?: number;
 };
 
 export type GateResult = {
@@ -394,6 +397,8 @@ type Ui = {
   leave: HTMLButtonElement;
   setup: HTMLElement;
   modeSeg: HTMLElement;
+  gunLabel: HTMLElement;
+  gunSeg: HTMLElement;
   mapRow: HTMLElement;
   shuffle: HTMLButtonElement;
 };
@@ -546,7 +551,12 @@ function buildUi(): Ui {
   const mapRow = el("div", "nana-maps");
   mapRow.setAttribute("role", "radiogroup");
   mapRow.setAttribute("aria-label", "Map");
-  setup.append(el("span", "nana-label", "MODE"), modeSeg, el("span", "nana-label", "MAP — EVERYONE MOVES WITH THE LOBBY"), mapRow);
+  // GUN GAME kills per gun (shown while the mode is GUN GAME).
+  const gunLabel = el("span", "nana-label", "KILLS PER GUN");
+  const gunSeg = el("div", "seg seg--wide seg--sm");
+  gunSeg.setAttribute("role", "radiogroup");
+  gunSeg.setAttribute("aria-label", "Kills per gun");
+  setup.append(el("span", "nana-label", "MODE"), modeSeg, gunLabel, gunSeg, el("span", "nana-label", "MAP — EVERYONE MOVES WITH THE LOBBY"), mapRow);
   const acts = el("div", "nana-actions");
   const shuffle = el("button", "btn btn--sm nana-shuffle hidden", "SHUFFLE SEATS & TEAMS");
   shuffle.id = "nana-shuffle";
@@ -624,6 +634,8 @@ function buildUi(): Ui {
     leave,
     setup,
     modeSeg,
+    gunLabel,
+    gunSeg,
     mapRow,
     shuffle,
   };
@@ -952,6 +964,14 @@ async function runGate(opts: GateOpts): Promise<void> {
   // client read the reply and looked only at `.full`. That behaviour is still
   // reachable, on purpose, through the card's own button. Only an INVITE can be
   // stale: the public yard and the bot match name no room at all.
+  // THE LOBBY JUST MOVED MAP. Arriving mid-move used to seat this guest in
+  // the room everyone was leaving; follow it like the seated players do, and wait
+  // there for the host. A follower (waitForHost) is already on its way and never
+  // bounces, so a host who moves straight back cannot ping-pong anybody.
+  const moved = res.room?.relocated;
+  if (opts.kind === "invite" && !opts.waitForHost && moved && isMapId(moved) && moved !== activeMap().id) {
+    if (applyGateMap(moved, { kind: "invite", map: moved, room, mode: asModeId(res.room?.mode), wait: true })) return;
+  }
   if (door.needsRoom && !create && res.room && !res.room.exists) {
     // THE ROOM MAY LIVE ON ANOTHER MAP. Rooms are owned by the process that
     // simulates their map (server/hub.ts), and an invite link normally carries
@@ -1265,6 +1285,7 @@ function onServerMessage(ev: MessageEvent): void {
     const returned = msg.phase === "pregame" && diag.phase !== "pregame";
     if (state && state.mode !== msg.mode) hooks?.onMode?.(asModeId(msg.mode));
     state = msg;
+    if (bound) bound.gunKills = asGunKills(msg.gunKills); // the room's kills per gun, for the HUD
     diag.phase = msg.phase;
     if (returned) {
       startPressedAt = 0;
@@ -1431,7 +1452,7 @@ function wireButtons(): void {
 }
 
 /** HOST: ask the server for a new mode or map (lobbyset). */
-function lobbySet(change: { mode?: ModeId; map?: string }): void {
+function lobbySet(change: { mode?: ModeId; map?: string; gunKills?: number }): void {
   const ws = bound?.net;
   if (!ws || ws.readyState !== 1 || state?.phase !== "pregame") return;
   hooks?.sfx?.("ui");
@@ -1454,6 +1475,21 @@ function paintSetup(s: LobbyState, iAmHost: boolean): void {
     b.title = `${m.label} · ${m.size}`;
     b.addEventListener("click", () => m.mode !== mode && lobbySet({ mode: m.mode }));
     d.modeSeg.append(b);
+  }
+  // Kills per gun, the host's GUN GAME knob.
+  const gk = asGunKills(s.gunKills);
+  show(d.gunLabel, mode === "gun");
+  show(d.gunSeg, mode === "gun");
+  d.gunSeg.replaceChildren();
+  for (const n of GUN_KILL_OPTIONS) {
+    const b = el("button", n === gk ? "is-on" : "", String(n));
+    b.type = "button";
+    b.dataset.sfx = "off";
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", String(n === gk));
+    b.title = `${n} kill${n === 1 ? "" : "s"} per gun · ${gunGoal(n)} to win`;
+    b.addEventListener("click", () => n !== gk && lobbySet({ gunKills: n }));
+    d.gunSeg.append(b);
   }
   d.mapRow.replaceChildren();
   for (const id of MAP_IDS) {
@@ -1521,10 +1557,13 @@ function rowHtml(m: LobbyMember | null, slot: number, you: string, openLabel: st
   }
   const badges =
     (m.host ? '<i class="badge badge--accent">HOST</i>' : "") + (m.id === you ? '<i class="badge">YOU</i>' : "");
+  // The seat's ping, coloured like the scoreboard's (green / amber / red).
+  const ms = Math.max(1, Math.round(m.ping ?? 0)); // a LAN / localhost round trip rounds to 0
+  const ping = m.ping !== undefined ? `<i class="nana-ping ${ms > 150 ? "is-bad" : ms > 80 ? "is-ok" : "is-good"}" title="Ping">${ms} MS</i>` : "";
   // The row's place in ITS column (a team list reads 01, 02, 03…); a bench
   // row numbers the promotion queue.
   const num = m.spectator ? `#${slot}` : String(slot).padStart(2, "0");
-  return `<li class="nana-row taken${m.id === you ? " you" : ""}" data-taken="1"><span class="nana-slot">${num}</span><span class="nana-name">${esc(m.name)}</span><span class="nana-badges">${badges}</span></li>`;
+  return `<li class="nana-row taken${m.id === you ? " you" : ""}" data-taken="1"><span class="nana-slot">${num}</span><span class="nana-name">${esc(m.name)}</span><span class="nana-badges">${ping}${badges}</span></li>`;
 }
 
 let paintKey = "";
@@ -1574,7 +1613,8 @@ function paint(): void {
   (d.mapCard.querySelector(".nana-eyebrow") as HTMLElement).textContent = `${info.label} · ${info.size}`;
   d.mapName.textContent = mapName;
   d.mapCard.style.backgroundImage = mapCardUrl(s.map);
-  d.rules.textContent = `${info.rules}`;
+  // The host's kills per gun replaces the default "3 kills each".
+  d.rules.textContent = mode === "gun" ? info.rules.replace(/\d+ kills each/, `${asGunKills(s.gunKills)} kill${asGunKills(s.gunKills) === 1 ? "" : "s"} each`) : `${info.rules}`;
   d.code.textContent = s.room;
   if (d.link.value !== link) d.link.value = link;
   d.count.textContent = `${s.players.length} / ${s.maxPlayable} PLAYERS`;

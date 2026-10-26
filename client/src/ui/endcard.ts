@@ -13,6 +13,7 @@
  *   yard   the public match rolls into the next one — "NEXT MATCH IN", LEAVE
  */
 import type { EndRow } from "../game";
+import { gunGoal } from "@shared/gungame";
 import { RESULT_LABEL, modeInfo, type MatchResult, type ModeId } from "@shared/modes";
 import { mapLabel } from "./flow";
 import { uiSfx, wireSfx } from "./sfx";
@@ -29,6 +30,10 @@ export interface EndParams {
   kind: EndKind;
   /** Seconds until the server moves on (lobby return / next public match). */
   nextIn?: number;
+  /** Your combat stats for the match (game.ts CombatStats). */
+  combat?: { shots: number; heads: number; body: number; dmg: number; taken: number };
+  /** GUN GAME kills per gun (the ladder's length). */
+  gunKills?: number;
   onPlayAgain?: () => void;
   onMenu: () => void;
 }
@@ -119,7 +124,8 @@ export function hideEndcard(): void {
 export function showEndcard(p: EndParams): MatchResult {
   const card = $("endcard");
   wireSfx(card);
-  const info = modeInfo(p.map, p.mode);
+  const base = modeInfo(p.map, p.mode);
+  const info = p.mode === "gun" && p.gunKills ? { ...base, limit: gunGoal(p.gunKills) } : base; // kills per gun
   const r = computeResult(p);
   card.classList.remove("hidden", "is-victory", "is-defeat", "is-draw");
   card.classList.add(`is-${r.result}`);
@@ -222,6 +228,30 @@ export function showEndcard(p: EndParams): MatchResult {
       st.append(c);
     }
     side.append(st);
+  }
+  // COMBAT STATS — where your rounds went (Fortnite-style, off the authoritative hit events).
+  const cb = p.combat;
+  if (cb && (num(cb.shots) || num(cb.heads) || num(cb.body) || num(cb.taken))) {
+    side.append(h("p", "eyebrow", "COMBAT STATS"));
+    const heads = num(cb.heads);
+    const body = num(cb.body);
+    const shots = num(cb.shots);
+    const hits = heads + body;
+    const pctOf = (a: number, b: number): string => (b > 0 ? `${Math.round(Math.min(1, a / b) * 100)}%` : "—");
+    const grid = h("div", "ec-stat ec-stat--combat");
+    for (const [k, v] of [
+      ["HEADSHOTS", String(heads)],
+      ["BODY SHOTS", String(body)],
+      ["ACCURACY", pctOf(hits, shots)],
+      ["DAMAGE", String(Math.round(num(cb.dmg)))],
+      ["DMG TAKEN", String(Math.round(num(cb.taken)))],
+      ["HEADSHOT %", pctOf(heads, hits)],
+    ]) {
+      const c = h("div");
+      c.append(h("span", "eyebrow", k), h("b", undefined, v));
+      grid.append(c);
+    }
+    side.append(grid);
   }
   const acc = accolades(p.board);
   if (acc.length) {

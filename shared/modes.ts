@@ -32,7 +32,7 @@ import {
   ROUND_TIME,
   ROUNDS_TO_WIN,
   ROUNDS_TOTAL,
-  SCORE_LIMIT,
+  scoreLimit,
 } from "./protocol";
 
 import { GUN_GOAL, GUN_KILLS_PER_TIER, GUN_LADDER } from "./gungame";
@@ -186,9 +186,9 @@ export function modeInfo(map: string, mode: ModeId): ModeInfo {
     teamSize,
     teams: true,
     rounds: false,
-    rules: `Two teams, instant respawns. First team to ${SCORE_LIMIT} kills, or the most kills when ${mmss(TDM_MATCH_TIME)} runs out.`,
-    goal: `FIRST TO ${SCORE_LIMIT} KILLS · ${mmss(TDM_MATCH_TIME)}`,
-    limit: SCORE_LIMIT,
+    rules: `Two teams, instant respawns. First team to ${scoreLimit(map)} kills, or the most kills when ${mmss(TDM_MATCH_TIME)} runs out.`,
+    goal: `FIRST TO ${scoreLimit(map)} KILLS · ${mmss(TDM_MATCH_TIME)}`,
+    limit: scoreLimit(map),
     clock: TDM_MATCH_TIME,
     unit: "KILLS",
   };

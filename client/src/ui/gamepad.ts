@@ -221,6 +221,7 @@ export function padMapping(layout: PadButtonLayout): PadRow[] {
       : { button: "R3", action: "Melee", desc: "Stick-click knife (CoD default)." },
     { button: "D-UP", action: "Primary Weapon", desc: "Switch to your primary weapon." },
     { button: "D-DOWN", action: "Secondary Weapon", desc: "Switch to your pistol." },
+    { button: "D-RIGHT", action: "Spray Paint", desc: "Spray your tag (SETTINGS → GAMEPLAY) on the wall, crate or floor in front of you. Everyone sees it; a new spray replaces your last." },
     { button: "BACK", action: "Scoreboard", desc: "Hold to show the scoreboard." },
     { button: "START", action: "Pause", desc: "Opens the pause menu (same as ESC)." },
   ];

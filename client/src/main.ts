@@ -488,6 +488,8 @@ function onMatchEnd(s0: number, s1: number, board: EndRow[]): void {
     s1,
     board,
     kind,
+    gunKills: game.gunKills,
+    combat: { ...game.combat }, // combat stats panel
     // feel stream: the server's clock started at the match end, before the final killcam played.
     nextIn: Math.max(1, (kind === "lobby" ? LOBBY_RETURN_S : PUBLIC_ROLLOVER_S) - game.sinceEndS()),
     onPlayAgain: () => {

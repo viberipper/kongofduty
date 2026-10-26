@@ -40,6 +40,15 @@ export const MAX_PLAYERS = 16;
 /** Team modes end at this many TEAM kills — same 25 the FFA limit uses, so
  *  every mode is "first to 25 or the clock", whichever lands first. */
 export const SCORE_LIMIT = 25;
+/**
+ * TEAM KILL LIMIT PER MAP. Nuketown's team deathmatch runs to 100 — a
+ * twelve-body cul-de-sac is a meat grinder, and 25 was over in minutes. Every
+ * other map keeps SCORE_LIMIT.
+ */
+export const MAP_SCORE_LIMIT: Readonly<Record<string, number>> = { nuketown: 100 };
+export function scoreLimit(mapId: string): number {
+  return MAP_SCORE_LIMIT[mapId] ?? SCORE_LIMIT;
+}
 /** FFA ends the moment any single player reaches this many kills. */
 export const FFA_KILL_LIMIT = 25;
 /** Team deathmatch match clock, seconds: 8 min. */
@@ -301,6 +310,8 @@ export type NetEvent =
   | { t: "uav"; team: Team }
   | { t: "strike"; x: number; z: number; team: Team }
   | { t: "chat"; name: string; text: string }
+  /** A spray tag on a surface (client/src/sprays.ts). */
+  | { t: "spray"; src: string; tag: number; x: number; y: number; z: number; nx: number; ny: number; nz: number }
   | { t: "match"; state: "live" | "end"; score0: number; score1: number }
   /**
    * Round-based TDM only. "end": round `round` just finished, `winner` took it
@@ -403,6 +414,8 @@ export type LobbyMember = {
   spectator: boolean;
   /** Server-clock ms the seat joined. Orders the promotion + host queues. */
   since: number;
+  /** The seat's round-trip time in ms (its own measurement), 0 = not yet known. */
+  ping?: number;
 };
 
 /**
@@ -430,6 +443,8 @@ export type LobbyState = {
   spectators: LobbyMember[];
   /** Bots that will fill the empty playable seats when the host starts. */
   botFill: number;
+  /** GUN GAME kills per gun (host's choice). */
+  gunKills?: number;
 };
 
 /**
@@ -466,6 +481,12 @@ export type NameCheck = {
      * being allowed to create a lobby that silently runs something else.
      */
     map?: string;
+    /**
+     * THE HOST JUST MOVED THIS LOBBY to another map (within the last
+     * minute). A guest arriving at the old address follows it there instead of
+     * being seated alone in the room everyone is leaving.
+     */
+    relocated?: string;
     players: number;
     spectators: number;
     maxPlayable: number;
@@ -504,7 +525,7 @@ export type ClientMsg =
    * map (the room moves: every seat is sent `relocate`). Anyone else, or a
    * room that is counting down or live, is ignored.
    */
-  | { t: "lobbyset"; mode?: "tdm" | "ffa" | "gun"; map?: string }
+  | { t: "lobbyset"; mode?: "tdm" | "ffa" | "gun"; map?: string; gunKills?: number }
   /**
    * HOST, PRE-GAME ONLY, and only with every seat taken and someone on the
    * bench: re-deal every seat but the host's at random — who plays, who
@@ -524,6 +545,7 @@ export type ClientMsg =
   | { t: "inb"; c: InputCmd[] }
   | { t: "ping"; t0: number; rtt?: number }
   | { t: "chat"; text: string }
+  | { t: "spray"; tag: number; x: number; y: number; z: number; nx: number; ny: number; nz: number }
   /**
    * NAME GATE. Sent on a throwaway socket before the client boots a game, so a
    * refused callsign costs a round trip instead of a whole match load. The

@@ -109,8 +109,9 @@ const AR: WeaponDef = {
   cls: "ASSAULT RIFLE",
   fire: "auto",
   rpm: 780,
+  // The 4-shot reach goes 25 -> 30 m so the rifle owns the long lanes.
   dmg: [
-    [25, 28],
+    [30, 28],
     [45, 23],
     [Infinity, 20],
   ],
@@ -169,10 +170,13 @@ const SMG: WeaponDef = {
   class: "SMG",
   cls: "SUBMACHINE GUN",
   fire: "auto",
-  rpm: 900,
+  // SMG rebalance — 900 -> 850 rpm (close TTK 200 -> 212 ms) and the 4- and
+  // 5-shot ranges pulled in (10/20 m -> 8/16 m), so it rules the doorways but
+  // no longer out-trades the rifle across the yard.
+  rpm: 850,
   dmg: [
-    [10, 25],
-    [20, 20],
+    [8, 25],
+    [16, 20],
     [Infinity, 15],
   ],
   headMul: 1.25,
@@ -264,8 +268,9 @@ const PISTOL: WeaponDef = {
   cls: "PISTOL",
   fire: "semi",
   rpm: 450,
+  // The 3-shot reach goes 12 -> 14 m, a real sidearm swap.
   dmg: [
-    [12, 34],
+    [14, 34],
     [25, 26],
     [Infinity, 20],
   ],

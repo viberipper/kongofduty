@@ -1059,6 +1059,8 @@ const CLIP_GAIT = {
 const CADENCE_TARGET = (v: number): number => 1.3 + 0.55 * v; // steps/s wanted at ground speed v
 const TS_BAND = { lo: 0.55, hi: 1.75 };
 const STRIDE_MAX = 1.9;
+/** How far cadence may climb past TS_BAND.hi when the stride is maxed (anti-skate catch-up). */
+const TS_CATCHUP_MAX = 2.4;
 /** Lower-body bones the stride amplifier drives, and how much of it each takes. */
 const STRIDE_BONES: [string, number][] = [
   ["L_Thigh", 1], ["R_Thigh", 1],
@@ -2747,6 +2749,9 @@ export class BruiserActor {
       let ts = THREE.MathUtils.clamp((CADENCE_TARGET(spd) * cadScale) / g.steps, TS_BAND.lo, TS_BAND.hi * cadScale);
       // Slow enough that cadence alone covers it: never stride-stretch a stroll.
       if (ts > need) ts = Math.max(TS_BAND.lo, need);
+      // NO GROUND LEFT OVER. With the stride already at STRIDE_MAX, cadence takes
+      // the rest instead of the feet sliding it.
+      if (ts * STRIDE_MAX < need) ts = Math.min(TS_CATCHUP_MAX * cadScale, need / STRIDE_MAX);
       return { ts, amp: THREE.MathUtils.clamp(need / ts, 1, STRIDE_MAX) };
     };
     const walkA = this.actions.get("walk");

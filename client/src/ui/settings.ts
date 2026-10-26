@@ -45,7 +45,7 @@ type Row =
       step: number;
       fmt: (v: number) => string;
     }
-  | { key: keyof Prefs | "pack"; label: string; desc: string; kind: "seg"; opts: { v: string | boolean; label: string }[] }
+  | { key: keyof Prefs | "pack"; label: string; desc: string; kind: "seg"; opts: { v: string | boolean | number; label: string }[] }
   | { key: keyof Prefs | "pack"; label: string; desc: string; kind: "select" }
   | { key: keyof Prefs; label: string; desc: string; kind: "text"; placeholder: string };
 
@@ -108,6 +108,32 @@ const ROWS: Record<Exclude<Tab, "controls">, Row[]> = {
       kind: "seg",
       opts: ON_OFF,
     },
+    { group: "SPRAY PAINT" },
+    {
+      key: "spray",
+      label: "Spray Tag",
+      desc: "The tag you spray with the SPRAY key (B by default; D-pad right on a controller). Everyone in the match sees it, until you spray again or the match ends.",
+      kind: "seg",
+      opts: [
+        { v: 0, label: "BANANA" },
+        { v: 1, label: "KONG" },
+        { v: 2, label: "GG" },
+        { v: 3, label: "EZ" },
+      ],
+    },
+    { group: "GUN GAME" },
+    {
+      key: "gunKills",
+      label: "Kills Per Gun",
+      desc: "How many kills it takes to move up to the next gun in Gun Game bot matches, like CS2's Arms Race. 1 is a sprint through the ladder, 5 a long climb. In a private lobby the host picks it on the lobby screen.",
+      kind: "seg",
+      opts: [
+        { v: 1, label: "1" },
+        { v: 2, label: "2" },
+        { v: 3, label: "3" },
+        { v: 5, label: "5" },
+      ],
+    },
     { group: "INTERFACE" },
     {
       key: "colorMode",
@@ -147,6 +173,20 @@ const ROWS: Record<Exclude<Tab, "controls">, Row[]> = {
     { key: "effects", label: "Effects Volume", desc: "Gunfire, footsteps, grenades, impacts.", kind: "slider", min: 0, max: 1, step: 0.01, fmt: pct },
     { key: "ui", label: "Interface Volume", desc: "Menu sounds, hitmarkers, medals and the countdown.", kind: "slider", min: 0, max: 1, step: 0.01, fmt: pct },
     { key: "ambience", label: "Ambience Volume", desc: "The map's background bed.", kind: "slider", min: 0, max: 1, step: 0.01, fmt: pct },
+    {
+      key: "announcer",
+      label: "Announcer",
+      desc: "A game-show caller for the match: the mode at the start, one minute / thirty / ten seconds left, taking or losing the lead, first blood, streaks and multi-kills by name, and the result. Lines also show as subtitles. Uses a voice built into your computer; plays at the Interface volume.",
+      kind: "seg",
+      opts: ON_OFF,
+    },
+    {
+      key: "kongVoice",
+      label: "Kong Voice",
+      desc: "Your Kong talks like a Halo Brute: \"Kong smash!\" on a kill, \"Head go pop!\" on a headshot, \"Catch banana!\" when you throw a frag, a grumble on reloads, respawns and big hits. Only you hear it; lines also show as subtitles.",
+      kind: "seg",
+      opts: ON_OFF,
+    },
     { group: "MIX" },
     {
       key: "pack",

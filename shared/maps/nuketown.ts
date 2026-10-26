@@ -295,20 +295,21 @@ const FURN_PAD = 0.05;
  * 5.55^2/40.8 ≈ 0.76 m with vy ≈ 0 (mantle allows vy >= -0.5, i.e. falling
  * 0.5 m/s still mantles), so a perch top in [railTop-1.81, railTop-1.05) can
  * jump-mantle: feet at perch+0.76, railTop-feet < 1.05. Air drift at sprint
- * 5.92 m/s over ~0.54 s of air exceeds 3 m, far past the 0.42 m standing
+ * 6.85 m/s over ~0.54 s of air is ≈3.73 m, far past the 0.42 m standing
  * envelope. The audit below therefore sweeps a second, wider band:
  * vertical RAIL_STAGE_JUMP_DROP = 1.9 m (≈1.81 + 0.09 margin) and horizontal
- * RAIL_STAGE_JUMP_REACH = 3.6 m (≈3.22 m analytic drift + margin: the reach is
- * pinned strictly past drift, so a 2 cm analytic shortfall can never reopen).
+ * RAIL_STAGE_JUMP_REACH = 4.1 m (analytic drift 3.73 m + the old 0.38 m
+ * margin, so a 2 cm analytic shortfall can never reopen).
  */
 const RAIL_STAGE_JUMP_DROP = 1.9;
-const RAIL_STAGE_JUMP_REACH = 3.6;
+const RAIL_STAGE_JUMP_REACH = 4.1;
 /**
  * Egress lift: standing on a promoted rail top (~4.0/4.04 m) + jump 0.76 m +
  * mantle 1.05 m reaches ≈5.8 m. Any CLIMBABLE neighbour within jump reach
  * whose top sits in (railTop, railTop+1.9] would be a new launch off the
  * balcony (over low perimeter, onto roofs the movement code skips). Surveyed
- * 2026-10-22: NONE exists — every above-rail neighbour within 3.6 m is steel
+ * 2026-10-22: NONE exists — every above-rail neighbour within the jump
+ * envelope is steel
  * (wall caps 4.10/5.19–5.60 m, roof-volumes 5.70–5.77 m, glass 5.09–5.60 m)
  * or non-climbable props (boxes 4.07–4.40 m tops, climb:false). The audit
  * below enforces that survey: a climbable above-rail neighbour in envelope
@@ -330,7 +331,7 @@ const RAIL_STAGE_JUMP_REACH = 3.6;
  *     other maps never reach it and stay bit-identical.
  */
 const RAIL_EGRESS_LIFT = 1.9;
-const RAIL_EGRESS_REACH = 3.6;
+const RAIL_EGRESS_REACH = 4.1;
 /** Deck-level surfaces (slabs, second-floor dfloor, top stair treads) are the legitimate stand-and-vault floor, not staging. */
 const DECK_BAND = 0.35;
 
@@ -339,7 +340,7 @@ function footprintsOverlap(a: OBB, b: OBB, pad: number): boolean {
   // Per-box axes in world: local +x -> (cos, sin), local +z -> (-sin, cos).
   // NOTE on pad math: EACH box is grown by `pad`, so the total closable gap
   // is 2*pad. Callers pass RAIL_STAGE_REACH/2 (=0.21) for a 0.42 m standing
-  // envelope and RAIL_STAGE_JUMP_REACH/2 (=1.8) for a 3.6 m jump envelope.
+  // envelope and RAIL_STAGE_JUMP_REACH/2 (=2.05) for a 4.1 m jump envelope.
   const axes: Array<[number, number]> = [];
   for (const o of [a, b]) {
     const c = Math.cos(o.yaw);
@@ -555,8 +556,8 @@ export function buildNuketown(raw: unknown): MapDef {
   // change moves both sides together: drift is a compile break, never a
   // silent divergence. Apex =
   // V²/2G ≈ 0.755 m; a perch reaches the rail top when apex + mantle covers
-  // the drop; air drift at sprint over ~2V/G ≈ 0.544 s of air is ≈3.22 m,
-  // inside the 3.6 m reach.
+  // the drop; air drift at sprint over ~2V/G ≈ 0.544 s of air is ≈3.73 m,
+  // inside the 4.1 m reach.
   const JUMP_APEX = (SIM_JUMP_V * SIM_JUMP_V) / (2 * SIM_GRAVITY);
   if (!(RAIL_STAGE_JUMP_DROP >= JUMP_APEX + SIM_MANTLE))
     throw new Error(
@@ -724,9 +725,9 @@ export function buildNuketown(raw: unknown): MapDef {
   // first. Two envelopes, both conservative SINGLE-HOP + 2D-only:
   //   - STANDING: any OTHER climbable with top >= railTop-1.05 within 0.42 m
   //     (footprints overlapping at +0.21 m each) is one mantle step away.
-  //   - JUMP: top >= railTop-1.9 within 3.5 m (footprints at +1.75 m each) is
-  //     one jump-mantle away (apex 0.76 m + mantle 1.05 m + margin, asserted
-  //     against the sim constants above).
+  //   - JUMP: top >= railTop-1.9 within the jump envelope (footprints grown
+  //     by half the reach each) is one jump-mantle away (apex 0.76 m +
+  //     mantle 1.05 m + margin, asserted against the sim constants above).
   // Both are OVER-THROWS by design (safe): they check only the perch→rail
   // step, never whether the perch is itself reachable from the lawn; they
   // ignore intervening walls (no 3D occlusion); they skip other vault
@@ -758,6 +759,58 @@ export function buildNuketown(raw: unknown): MapDef {
   //     deck-LEVEL but not deck-ASSOCIATED (no slab overlap) so it throws.
   const DECK_KINDS = new Set(["deck", "dfloor", "dstair"]);
   const loggedFurniture = new Set<number>();
+  // BLESSED STAGING PERCHES (human looks 2026-10-26, sprint 5.92 -> 6.85).
+  // The wider jump envelope (3.6 -> 4.1 m) sweeps past two surveyed props, so
+  // without a recorded verdict the audit throws on them. Both verdicts: NOT
+  // a bypass — neither perch has a first hop from the lawn:
+  //   - fallout shelter (top 2.67 m): its own base (top 1.17 m) and every
+  //     neighbour in jump range (hedges, fences) are climb:false, and
+  //     groundHeight only ever lifts onto climb:true, so lawn feet (0.22 m,
+  //     max mount 0.22+1.8 = 2.02 m) can never stage onto it; from the deck
+  //     (the only side it is droppable from) the rail vaults directly anyway.
+  //   - pergola (top 3.37 m): the only climbable in range is the deck slab
+  //     itself (stairs path, legitimate) — no lawn-mountable step-stone, so
+  //     from outside (max feet 0.98 m mid-jump, mantle needs top < 2.03 m)
+  //     it is unreachable; deck -> pergola -> rail is a detour, not a
+  //     bypass (the direct deck -> rail vault already does it).
+  //
+  // Fail-closed: a bless holds only while the prop still matches its survey
+  // (visual/position/size) AND no climbable step-stone (top in stoneLo..
+  // stoneHi, i.e. mountable from the lawn AND high enough to matter, within
+  // 4.5 m) exists near it. A regen that moves/re-tags the prop or builds a
+  // step beside it lapses the bless and the audit throws for a fresh human
+  // look — exactly as an unblessed prop would.
+  const BLESSED_STAGING: { visual: string; x: number; z: number; top: number; sx: number; sz: number; stoneLo: number; stoneHi: number }[] = [
+    { visual: "prop:fallout_shelter", x: -28.95, z: -19.65, top: 2.67, sx: 2.88, sz: 1.7, stoneLo: 0.77, stoneHi: 2.02 },
+    { visual: "pergola", x: 12.9641, z: 0.021, top: 3.37, sx: 1.83, sz: 8.55, stoneLo: 1.47, stoneHi: 2.02 },
+  ];
+  const blessedStaging = new Set<number>();
+  for (const bl of BLESSED_STAGING) {
+    let idx = -1;
+    for (let k = 0; k < solids.length; k++) {
+      const o = solids[k]!;
+      if (o.visual !== bl.visual) continue;
+      if (Math.abs(o.x - bl.x) > 0.5 || Math.abs(o.z - bl.z) > 0.5) continue;
+      if (Math.abs(o.y + o.sy / 2 - bl.top) > 0.05) continue;
+      if (Math.abs(o.sx - bl.sx) > 0.05 || Math.abs(o.sz - bl.sz) > 0.05) continue;
+      idx = k;
+      break;
+    }
+    if (idx < 0) continue; // survey no longer matches: no bless (audit decides)
+    const b = solids[idx]!;
+    let stoned = false;
+    for (let k = 0; k < solids.length; k++) {
+      if (k === idx) continue;
+      const o = solids[k]!;
+      if (!o.climb) continue;
+      const t = o.y + o.sy / 2;
+      if (t <= bl.stoneLo || t > bl.stoneHi) continue;
+      if (Math.hypot(o.x - b.x, o.z - b.z) > 4.5) continue;
+      stoned = true; // a step-stone appeared: verdict lapsed, audit decides
+      break;
+    }
+    if (!stoned) blessedStaging.add(idx);
+  }
   for (const i of promoted) {
     const r = solids[i]!;
     const railTop = r.y + r.sy / 2;
@@ -794,6 +847,8 @@ export function buildNuketown(raw: unknown): MapDef {
       if (j === i) continue;
       const c = solids[j]!;
       if (!c.climb || c.vault) continue;
+      // Human-verified benign staging perches (see BLESSED STAGING above).
+      if (blessedStaging.has(j)) continue;
       const ct = c.y + c.sy / 2;
       const cb = c.y - c.sy / 2;
       // Staging steps UP onto the rail: perches above the rail top cannot

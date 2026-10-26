@@ -15,7 +15,7 @@
 import { WEAPON_BY_ID } from "@shared/weapons";
 import { WEAPON_CARDS, type LoadoutWeaponId } from "@shared/loadout";
 import { modeInfo, type ModeId } from "@shared/modes";
-import { GUN_KILLS_PER_TIER, GUN_LADDER, gunFor } from "@shared/gungame";
+import { GUN_LADDER, asGunKills, gunFor, gunGoal } from "@shared/gungame";
 import type { PlayerSnap } from "@shared/protocol";
 import type { Game, HudState } from "../game";
 import { readHudFeed } from "../hud-api";
@@ -114,6 +114,9 @@ export function paintHud(game: Game, s: HudState, mapId: string): void {
 
   const mode: ModeId = s.gun ? "gun" : s.mode === "ffa" ? "ffa" : "tdm";
   const info = modeInfo(mapId, mode);
+  // Kills per gun for the ladder reads below (the room's choice online, settings offline).
+  const perGun = asGunKills(s.gunKills);
+  const gunLimit = gunGoal(perGun);
   const ffa = !info.teams;
   // GUN GAME standings are ladder progress; everywhere else, kills.
   // Wire numbers are untrusted: num() coerces hostile strings/NaN to 0.
@@ -160,7 +163,7 @@ export function paintHud(game: Game, s: HudState, mapId: string): void {
   text("s1lbl", lb.toUpperCase());
   // Bar width from untrusted numbers: a zero/NaN limit must never print NaN%.
   const bar = (v: number): string => {
-    const lim = num(info.limit);
+    const lim = num(mode === "gun" ? gunLimit : info.limit);
     const f = lim > 0 ? (v / lim) * 100 : 0;
     return `${(Number.isFinite(f) ? Math.min(100, Math.max(0, f)) : 0).toFixed(1)}%`;
   };
@@ -171,7 +174,7 @@ export function paintHud(game: Game, s: HudState, mapId: string): void {
     info.rounds && s.round
       ? `ROUND ${s.round.n}/${s.round.total}`
       : mode === "gun" && !bench
-        ? `GUN ${Math.min(GUN_LADDER.length, 1 + Math.floor(pts(s.me) / GUN_KILLS_PER_TIER))}/${GUN_LADDER.length} · ${WEAPON_BY_ID[gunFor(pts(s.me))]?.short ?? ""}`
+        ? `GUN ${Math.min(GUN_LADDER.length, 1 + Math.floor(pts(s.me) / perGun))}/${GUN_LADDER.length} · ${WEAPON_BY_ID[gunFor(pts(s.me), perGun)]?.short ?? ""}`
         : `${info.short} · ${info.limit}`,
   );
   const remain = num(s.remain);
@@ -294,7 +297,7 @@ function paintScoreboard(sb: HTMLElement, s: HudState, info: ReturnType<typeof m
     const ping = num(p.ping);
     const tier = num(p.gun);
     const streak = num(p.streak);
-    return `<tr class="${p.id === s.you ? "you" : ""}${p.alive ? "" : " dead"}"><td>${i + 1}</td><td class="bot-cell">${badge(p)}</td><td class="pname">${esc(p.name)}</td><td>${kills}</td><td>${deaths}</td><td>${kd(kills, deaths)}</td><td>${gun ? `${tier}/${num(info.limit)}` : streak}</td><td class="${ping > 150 ? "ping-bad" : ""}">${ping ? ping : "—"}</td></tr>`;
+    return `<tr class="${p.id === s.you ? "you" : ""}${p.alive ? "" : " dead"}"><td>${i + 1}</td><td class="bot-cell">${badge(p)}</td><td class="pname">${esc(p.name)}</td><td>${kills}</td><td>${deaths}</td><td>${kd(kills, deaths)}</td><td>${gun ? `${tier}/${gunGoal(asGunKills(s.gunKills))}` : streak}</td><td class="${ping > 150 ? "ping-bad" : ""}">${ping ? ping : "—"}</td></tr>`;
   };
   const sort = (arr: HudState["players"]): HudState["players"] =>
     [...arr].sort((x, y) => (gun ? num(y.gun) - num(x.gun) : 0) || num(y.kills) - num(x.kills) || num(x.deaths) - num(y.deaths));

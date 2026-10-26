@@ -86,6 +86,12 @@ const MSG_MAX_PER_WINDOW = 120;
 /** ping ≤ 4/s per socket; lobbyq/lobbyset/shuffle ≤ 2/s per socket (H3 fan-out). */
 const PING_MIN_GAP_MS = 250;
 const LOBBYQ_MIN_GAP_MS = 500;
+/** Spray paint: ≥1.2 s between accepted tags per seat (the client gates 1.5 s). */
+const SPRAY_MIN_GAP_MS = 1200;
+/** Spray paint: server-side reach envelope (the client's own ray is 4 m). */
+const SPRAY_REACH_OK = 6;
+/** Spray paint: room-wide cap (the client's per-src replace is the tight rule). */
+const MAX_SPRAYS = 24;
 /** Pre-auth upgrade socket idle timeout (H4 Slowloris). */
 const UPGRADE_TIMEOUT_MS = 5000;
 /** WS payload cap (H1): protocol messages are < 4 KB; 64 KB has 16x headroom. */
@@ -178,6 +184,7 @@ import { BOT_NAMES, matchTimeFor, MAX_INPUT_QUEUE } from "../../shared/protocol"
 import { packPlayers } from "../../shared/snapshot-wire";
 import { sanitizeLoadout, type Loadout } from "../../shared/loadout";
 import { seatsFor, simMode, type ModeId } from "../../shared/modes";
+import { GUN_KILLS_PER_TIER, asGunKills } from "../../shared/gungame";
 
 // Seats per room: seatsFor(map, mode) — shipment 5v5/10 FFA, dust2/ares/
 // nuketown 6v6/12 (shared/modes.ts MAP_SEATS). No global cap anymore: the
@@ -595,6 +602,8 @@ type Seat = {
   lastPing: number;
   lastLobbyQ: number;
   lastLobbySet: number;
+  /** Spray paint: wall-clock ms of this seat's last accepted spray (rate limit). */
+  lastSpray: number;
   /** M3 checkname/join attempts window. */
   /** H1 repeated oversize/invalid-frame violations. */
   violations: number;
@@ -621,6 +630,7 @@ function memberOf(s: Seat): LobbyMember {
     host: false,
     spectator: s.spectator,
     since: s.joinedAt,
+    ping: s.ping,
   };
 }
 
@@ -644,6 +654,14 @@ class Room {
   emptySince = 0;
   /** Seats (humans+bots) of this room: seatsFor(map, mode). */
   seatCount: number;
+  /** GUN GAME kills per gun (host's lobbyset choice, default 3). */
+  gunKills = GUN_KILLS_PER_TIER;
+  /** Spray tags by seat: one per player, replaced on re-spray (CS rule). */
+  sprays = new Map<string, { tag: number; x: number; y: number; z: number; nx: number; ny: number; nz: number }>();
+  /** Last lobby push that carried ping numbers (dirty-push throttle, below). */
+  lastPingPush = 0;
+  /** Ping numbers last pushed, by seat (dirty-push throttle, below). */
+  pushedPing = new Map<string, number>();
 
   constructor(id: string, kind: "yard" | "private", mode: ModeId) {
     this.id = id;
@@ -771,6 +789,7 @@ class Room {
       lastPing: 0,
       lastLobbyQ: 0,
       lastLobbySet: 0,
+      lastSpray: 0,
       violations: 0,
       lastSeq: -1,
       moveBank: 0,
@@ -813,6 +832,9 @@ class Room {
 
   dropSeat(seat: Seat): void {
     if (!this.seats.delete(seat.id)) return;
+    // Their tag leaves with them.
+    this.sprays.delete(seat.id);
+    this.pushedPing.delete(seat.id);
     // Body gone (no frozen corpse left in the yard).
     this.session.remove(seat.id);
     if (this.kind === "private" && this.host === seat.id) {
@@ -876,6 +898,8 @@ class Room {
     }
     // Fresh match: score 0, respawn, clock reset, countdown tick.
     this.session.nextMatch();
+    this.session.setGunKills(this.gunKills);
+    this.sprays.clear();
     this.session.beginCountdown(COUNTDOWN_MS);
     const startAt = Date.now() + COUNTDOWN_MS;
     this.startAtWall = startAt;
@@ -884,19 +908,29 @@ class Room {
   }
 
   /**
-   * HOST, PRE-GAME ONLY: change the lobby's mode (same room, at once) or its
-   * map (the room moves: every seat is sent `relocate`). Anyone else, or a
-   * room that is counting down or live, is ignored.
+   * HOST, PRE-GAME ONLY: change the lobby's mode (same room, at once), its
+   * kills-per-gun (gun game), or its map (the room moves: every seat is sent
+   * `relocate`). Anyone else, or a room that is counting down or live, is
+   * ignored.
    */
-  lobbySet(fromSeat: Seat, mode: unknown, map: unknown): void {
+  lobbySet(fromSeat: Seat, mode: unknown, map: unknown, gunKills: unknown): void {
     if (this.kind !== "private" || this.phase !== "pregame" || this.host !== fromSeat.id) return;
     if (typeof map === "string" && map !== SERVER_MAP) {
       if (!VALID_MAPS.has(map)) return;
       const roomMode = this.mode;
+      movedRooms.set(this.id, { map, at: Date.now() });
       for (const s of this.seats.values()) {
         this.send(s, { t: "relocate", map, room: this.id, mode: roomMode, host: s.id === this.host });
       }
       return;
+    }
+    if (gunKills !== undefined) {
+      const per = asGunKills(gunKills);
+      if (per !== this.gunKills) {
+        this.gunKills = per;
+        this.session.setGunKills(per);
+        this.broadcastLobby();
+      }
     }
     if (mode !== "tdm" && mode !== "ffa" && mode !== "gun") return;
     if (mode === this.mode) return;
@@ -976,7 +1010,9 @@ class Room {
         players: members.map((m) => ({ ...m })),
         spectators: spec.map((m) => ({ ...m })),
         botFill,
+        gunKills: this.gunKills,
       });
+      this.pushedPing.set(s.id, s.ping);
     }
   }
 
@@ -990,6 +1026,13 @@ class Room {
       phase: this.phase,
       startAt: this.phase === "countdown" ? this.countdownAtWall() : undefined,
     });
+    // A seat that arrives mid-match missed every spray so far: re-deal the
+    // room's tags through the event stream (they land on the next snapshot).
+    // One per player — place() replaces by src, so this is idempotent for
+    // everyone already looking at them.
+    for (const [src, sp] of this.sprays) {
+      this.session.events.push({ t: "spray", src, ...sp });
+    }
     if (this.kind === "private") this.broadcastLobby();
   }
 
@@ -1063,6 +1106,49 @@ class Room {
       case "startmatch":
         this.startMatch(seat);
         return;
+      case "spray": {
+        // SPRAY PAINT: one tag per player on a nearby surface, broadcast to
+        // the room like any other event. Validated: a live body, a legal tag,
+        // finite coords in the map's envelope, within reach of the body, and
+        // a per-seat cooldown so a compromised client cannot paint storms.
+        const now = Date.now();
+        if (now - seat.lastSpray < SPRAY_MIN_GAP_MS) return;
+        const body = this.seatBody(seat);
+        if (!body || !body.alive || this.phase !== "live") return;
+        const tag = Math.floor(num(m.tag, -1));
+        if (tag < 0 || tag > 3) return;
+        const x = num(m.x, NaN);
+        const y = num(m.y, NaN);
+        const z = num(m.z, NaN);
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return;
+        if (Math.abs(x) > 256 || Math.abs(y) > 128 || Math.abs(z) > 256) return;
+        let nx = num(m.nx, 0);
+        let ny = num(m.ny, 1);
+        let nz = num(m.nz, 0);
+        const nl = Math.hypot(nx, ny, nz);
+        if (!(nl > 0.5)) return;
+        nx /= nl;
+        ny /= nl;
+        nz /= nl;
+        // Reach: the tag must sit near the body that sprayed it (eye height
+        // ~1.6 m; generous slack for interpolation between server and client
+        // poses — the client's own 4 m ray is the tight check).
+        const dx = x - body.x;
+        const dy = y - (body.y + 1.6);
+        const dz = z - body.z;
+        if (Math.hypot(dx, dy, dz) > SPRAY_REACH_OK) return;
+        seat.lastSpray = now;
+        const spray = { tag, x, y, z, nx, ny, nz };
+        this.sprays.delete(seat.id);
+        this.sprays.set(seat.id, spray);
+        while (this.sprays.size > MAX_SPRAYS) {
+          const first = this.sprays.keys().next();
+          if (first.done) break;
+          this.sprays.delete(first.value);
+        }
+        this.session.events.push({ t: "spray", src: seat.id, ...spray });
+        return;
+      }
       case "lobbyset": {
         // H3: a map change relocates every seat, a mode change re-arms the
         // room — same per-socket gate as lobbyq so a compromised host cannot
@@ -1070,7 +1156,7 @@ class Room {
         const now = Date.now();
         if (now - seat.lastLobbySet < LOBBYQ_MIN_GAP_MS) return;
         seat.lastLobbySet = now;
-        this.lobbySet(seat, m.mode, m.map);
+        this.lobbySet(seat, m.mode, m.map, m.gunKills);
         return;
       }
       case "shuffle": {
@@ -1115,6 +1201,8 @@ class Room {
       if (Date.now() - this.overAt >= wait) {
         this.overAt = 0;
         this.session.nextMatch();
+        // A new match starts on clean walls (the clients scrub theirs too).
+        this.sprays.clear();
         // MATCH-ROLLOVER BANK RESET (review LOW): nextMatch() respawns every
         // body (which zeroes each sim-side cmdBank), but the seat-side
         // moveBank banked ~0.5 s of travel during the 18-19 s rollover wait —
@@ -1146,6 +1234,26 @@ class Room {
       }
     }
     if (this.session.tick % SNAP_EVERY === 0) this.broadcastSnaps();
+    // LOBBY PING, LIVE: seats report rtt ~1/s (the ping handler stores it on
+    // the seat), but the lobby only broadcasts on roster changes — so the
+    // ms badges would freeze at 0. Re-push at most every 5 s, and only when
+    // some seat's number actually moved (broadcastLobby records what it sent).
+    if (this.kind === "private" && this.phase === "pregame") {
+      const now = Date.now();
+      if (now - this.lastPingPush >= 5000) {
+        let dirty = false;
+        for (const s of this.seats.values()) {
+          if (this.pushedPing.get(s.id) !== s.ping) {
+            dirty = true;
+            break;
+          }
+        }
+        if (dirty) {
+          this.lastPingPush = now;
+          this.broadcastLobby();
+        }
+      }
+    }
   }
 
   stepInputs(): void {
@@ -1299,6 +1407,7 @@ class Room {
         exists: true,
         mode: this.mode,
         map: SERVER_MAP,
+        relocated: freshRelocated(this.id),
         players: this.playableHumans().length,
         spectators: this.spectators().length,
         maxPlayable: this.seatCount,
@@ -1315,6 +1424,14 @@ class Room {
 // Room management
 // ---------------------------------------------------------------------------
 const rooms = new Map<string, Room>();
+/**
+ * LOBBY MOVES, remembered for a minute: room code → the map the host moved it
+ * to. A guest arriving at the old map's process after a host's map change is
+ * told where the lobby went (NameCheck.room.relocated) instead of being
+ * seated alone in the room everyone is leaving.
+ */
+const movedRooms = new Map<string, { map: string; at: number }>();
+const RELOCATED_TTL_MS = 60_000;
 if (!IS_WORKER && !argVal("--map=")) {
   // HUB mode: rooms live in the map workers — create nothing here.
 } else {
@@ -1338,8 +1455,22 @@ function yardRoom(): Room {
   return rooms.get("") as Room;
 }
 
+/** The map a room code moved to, if it moved within the last minute. */
+function freshRelocated(code: string): string | undefined {
+  const rec = movedRooms.get(code);
+  if (!rec) return undefined;
+  if (Date.now() - rec.at > RELOCATED_TTL_MS) {
+    movedRooms.delete(code);
+    return undefined;
+  }
+  return rec.map;
+}
+
 setInterval(() => {
   const now = Date.now();
+  for (const [code, rec] of [...movedRooms]) {
+    if (now - rec.at > RELOCATED_TTL_MS) movedRooms.delete(code);
+  }
   for (const [code, r] of [...rooms]) {
     for (const s of [...r.seats.values()]) {
       if (now - s.lastSeen > IDLE_MS) {
@@ -1945,6 +2076,7 @@ function onSocket(ws: WsConn, ip: string): void {
               exists: false,
               mode: md,
               map: SERVER_MAP,
+              relocated: freshRelocated(asked),
               players: 0,
               spectators: 0,
               maxPlayable: seatsFor(SERVER_MAP, md),

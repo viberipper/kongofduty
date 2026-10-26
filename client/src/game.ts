@@ -74,9 +74,9 @@ import {
   TICK_DT,
   INTERP_MS,
   TDM_MATCH_TIME,
-  SCORE_LIMIT,
   FFA_KILL_LIMIT,
   matchTimeFor,
+  scoreLimit,
   RESPITE,
   BOT_NAMES,
   type RoundState,
@@ -110,7 +110,9 @@ import { bootStage } from "./bootstage";
 // one seat table every room and the offline match share.
 import { prefs, teamColors, vfov } from "./ui/prefs";
 import { asModeId, seatsFor, maxSeats, simMode } from "@shared/modes";
-import { GUN_GOAL } from "@shared/gungame";
+import { GUN_KILLS_PER_TIER, asGunKills, gunGoal } from "@shared/gungame";
+import { Announcer } from "./announcer"; // match announcer (voice + subtitles)
+import { Sprays, sprayHit } from "./sprays"; // spray paint
 import { medalLabel, killHow } from "./ui/labels";
 import { actionOf, keyboardCodes, wheelCodes, type Action } from "./ui/keybinds"; // feel stream: rebindable controls
 // gamepad stream: standard controller mapping, sticks, rumble, aim-assist math (ui/gamepad.ts).
@@ -497,6 +499,32 @@ export class Game {
   lastPredMark = 0;
   /** GUN GAME (shared/gungame.ts): this room plays the ladder, on- or offline. */
   gunGame = false;
+  /** GUN GAME kills per gun — this match's (offline: Settings; online: the lobby's). */
+  gunKills = GUN_KILLS_PER_TIER;
+
+  /** This match's COMBAT STATS for you (endcard panel; reset at every match start). */
+  combat: CombatStats = freshCombat();
+
+  /** SPRAY PAINT — your tag on the surface in front of you, seen by everyone. */
+  sprays: Sprays | null = null;
+  private sprayAt = 0;
+  private spray(): void {
+    if (!this.matchLive()) return;
+    const b = this.heldBody();
+    const now = performance.now();
+    if (!b || !b.alive || this.ended || !this.locked || now - this.sprayAt < 1500) return;
+    const d = aimDir(this.yaw, this.pitch);
+    const c = this.camera.position;
+    const hit = sprayHit(c.x, c.y, c.z, d.dx, d.dy, d.dz);
+    if (!hit) return;
+    this.sprayAt = now;
+    const tag = prefs().spray;
+    if (this.session) this.session.events.push({ t: "spray", src: this.you, tag, ...hit });
+    else if (this.net?.readyState === 1) this.net.send(JSON.stringify({ t: "spray", tag, ...hit }));
+  }
+
+  /** The match announcer (client/src/announcer.ts). */
+  announcer = new Announcer();
 
   /** The round state, or null when this room is not round-based. */
   roundInfo(): RoundState | null {
@@ -748,6 +776,7 @@ export class Game {
     this.flash3P = new THREE.PointLight(MAP.id === "ares" ? 0xffc890 : 0xffc070, 0, 3.2, 2);
     this.world.scene.add(this.flash3P);
     // weapons stream: pooled GPU weapon FX (4 draws total); the 3P flash reuses flash3P
+    this.sprays = new Sprays(this.world.scene); // spray paint
     this.wfx = new WeaponFx(this.world.scene, { mapId: MAP.id, sun: this.world.sun, low: softwareTier, eject: viewmodelEject(this.vm, this.camera) }, TSL);
     this.wfx.light = this.flash3P;
     // weapons stream: brass leaves the viewmodel's port on the frame the gun ejects (bolt guns: on the bolt stroke)
@@ -1421,12 +1450,14 @@ export class Game {
     this.scorePops.clear();
     this.yaw = 0;
     this.pitch = 0;
+    this.combat = freshCombat();
     if (opts.host.trim()) {
       await this.connect(opts.host.trim());
     } else {
       this.session = new GameSession();
       this.session.mode = opts.mode;
       this.session.gunGame = this.gunGame;
+      this.session.gunKills = this.gunKills = asGunKills(prefs().gunKills); // Settings → Gun Game
       this.session.remain = matchTimeFor(opts.mode);
       const me = this.session.addPlayer("local", opts.name, "bruiser", 0, readLoadout().primary, "", false);
       this.you = me.id;
@@ -1771,7 +1802,8 @@ export class Game {
           this.lastEv.push(...msg.ev);
           this.handleEvents(msg.ev);
           // End-of-match trigger (client-side endcard fallback; the server is
-          // authoritative). TDM ends on the clock or a team hitting SCORE_LIMIT;
+          // authoritative). TDM ends on the clock or a team hitting the map's
+          // score limit (scoreLimit: 100 on Nuketown, SCORE_LIMIT elsewhere);
           // FFA ends on the clock or any single player hitting FFA_KILL_LIMIT
           // (team scores never move in FFA, so SCORE_LIMIT must not apply).
           // GUN GAME ends on the clock or any single player finishing the ladder.
@@ -1781,7 +1813,7 @@ export class Game {
             ? msg.players.reduce((m, p) => (num(p.kills) > m ? num(p.kills) : m), 0)
             : 0;
           const gunBest = gun ? msg.players.reduce((m, p) => Math.max(m, num(p.gun ?? 0)), 0) : 0;
-          const limitHit = gun ? gunBest >= GUN_GOAL : ffa ? best >= FFA_KILL_LIMIT : num(msg.score0) >= SCORE_LIMIT || num(msg.score1) >= SCORE_LIMIT;
+          const limitHit = gun ? gunBest >= gunGoal(this.gunKills) : ffa ? best >= FFA_KILL_LIMIT : num(msg.score0) >= scoreLimit(msg.map ?? MAP.id) || num(msg.score1) >= scoreLimit(msg.map ?? MAP.id);
           if (msg.remain <= 0 || limitHit)
             this.finish(num(msg.score0), num(msg.score1));
           // A BENCHED SEAT HAS NOTHING TO RECONCILE. Reconciliation exists to
@@ -2035,7 +2067,14 @@ export class Game {
           this.keys.tac = false;
         }
         break;
-      case "reload": this.keys.reload = on; break;
+      case "reload": {
+        this.keys.reload = on;
+        // The Kong grumbles for ammo — only when a reload will actually happen.
+        const rb = this.heldBody();
+        const rw = rb && WEAPON_BY_ID[rb.weapon];
+        if (on && rb?.alive && rw && rb.ammo < rw.mag && rb.reserve > 0 && rb.reload <= 0) this.announcer.kong("reload");
+        break;
+      }
       case "melee": this.keys.melee = on; break;
       // BANANA FRAG. Hold to keep aiming (the landing marker stays live), release to throw.
       case "frag": if (on) this.nadeDown(); else this.nadeUp(); break;
@@ -2043,6 +2082,7 @@ export class Game {
       case "primary": if (on) this.selectSlot(0); break;
       case "secondary": if (on) this.selectSlot(1); break;
       case "swap": if (on) this.selectSlot(-1); break;
+      case "spray": if (on) this.spray(); break;
       case "fire":
         this.keys.fire = on;
         this.fireHeld = on;
@@ -2214,6 +2254,8 @@ export class Game {
     // --- d-pad weapons
     if (edge(PAD.DUP)) this.inputAction("primary", true);
     if (edge(PAD.DDOWN)) this.inputAction("secondary", true);
+    // --- spray paint: D-RIGHT (free in both layouts)
+    if (edge(PAD.DRIGHT)) this.inputAction("spray", true);
     // --- scoreboard: BACK hold
     const sbHeld = nowPressed(PAD.BACK);
     if (sbHeld !== !!prev[PAD.BACK]) this.inputAction("scoreboard", sbHeld);
@@ -3081,6 +3123,7 @@ export class Game {
       // feel stream R2: map modules (Nuketown's mannequin heads, breakable glass) hear every server shot and blast
       if ((e.t === "shot" || e.t === "boom") && this.worldEvents.length) for (const f of this.worldEvents) f(e);
       if (e.t === "shot") {
+        if (e.src === this.you) this.combat.shots++; // combat stats (accuracy)
         // Minimap gunfire ping: the shot is HEARD, so the shooter is placed on
         // the map for 1.2 s (fading) even when you never got eyes on them.
         this.mapFired.set(e.src, { t: this.nowMs() / 1000, x: e.ox, z: e.oz });
@@ -3129,6 +3172,7 @@ export class Game {
       }
       // ---- banana frag: throw, bounce, burst
       if (e.t === "nade") {
+        if (e.src === this.you) this.announcer.kong("frag"); // "Catch banana!"
         this.accolades.nadeThrown(e.id, this.nowMs() / 1000); // feel stream: COOKED medal
         // Deferred to the draw pass for the same reason remote tracers are: the
         // hand this frag has to leave has not been posed yet on this frame.
@@ -3158,6 +3202,15 @@ export class Game {
         continue;
       }
       if (e.t === "hit") {
+        // COMBAT STATS — headshots, body shots, damage dealt / taken (the endcard's panel).
+        if (!this.ended) {
+          if (e.src === this.you && e.dst !== this.you) {
+            this.combat.dmg += e.dmg;
+            if (e.seq !== undefined || !this.net) e.head ? this.combat.heads++ : this.combat.body++;
+          }
+          if (e.dst === this.you) this.combat.taken += e.dmg;
+        }
+        if (e.dst === this.you && !e.kill && e.src !== this.you) this.announcer.kong("hurt");
         {
           // feel stream: onto the tape too — the final killcam replays its killer's hitmarkers
           const h: TapeHit = { t: this.renderT * 1000 + (this.session ? 0 : INTERP_MS), src: e.src, dst: e.dst, head: e.head, kill: e.kill, x: e.x, y: e.y, z: e.z };
@@ -3205,6 +3258,12 @@ export class Game {
       // explode() pushes its "boom" and then its hits back to back, so the cue
       // only survives across those hits — anything else clears it.
       if (e.t !== "hit") this.blastCue = null;
+      if (e.t === "spawn" && e.id === this.you && this.matchLive()) this.announcer.kong("spawn");
+      // A spray tag went up somewhere (client/src/sprays.ts).
+      if (e.t === "spray") {
+        this.sprays?.place(e.src, e.tag, e.x, e.y, e.z, e.nx, e.ny, e.nz);
+        continue;
+      }
       if (e.t === "kill") {
         this.feed(e);
         // feel stream: every kill opens a final-killcam clip (final-killcam.ts picks the winning one at the end)
@@ -3227,6 +3286,7 @@ export class Game {
           const victim = this.players.get(e.dst);
           const meK = this.me();
           this.accolades.you = this.you;
+          const vStreak = this.accolades.streakOf(e.dst); // BEFORE kill(): it zeroes the victim's streak
           const earned = this.accolades.kill(
             {
               now,
@@ -3243,7 +3303,15 @@ export class Game {
             NADE_FUSE,
           );
           this.scorePops.kill(e.src, e.dst, this.you, e.head, e.weapon, earned, this.nowMs()); // feel stream R2
+          // The announcer calls first blood, streaks, multi-kills and shutdowns by name.
+          if (e.src !== e.dst && !this.ended) {
+            const kn = killer?.name ?? "", vn = victim?.name ?? "";
+            const multi = e.src === this.you ? Math.max(0, ...earned.map((m) => (m.id === "double" ? 2 : m.id === "triple" ? 3 : m.id === "quad" ? 4 : m.id === "rampage" ? 5 : 0))) : 0;
+            if (vStreak >= 5) this.announcer.shutdown(kn, vn, vStreak);
+            else this.announcer.kill(kn, vn, e.src === this.you, this.accolades.streakOf(e.src), multi, e.head);
+          }
           if (e.src === this.you && e.dst !== this.you) {
+            this.announcer.kong(e.head ? "head" : "kill"); // "Kong smash!"
             this.medals.kill(earned, victim?.name ?? "", this.nowMs());
             const top = earned[0];
             if (top) {
@@ -3349,6 +3417,8 @@ export class Game {
         this.ended = false;
         this.endcardUp = false;
         this.stopFinalKillcam(); // feel stream
+        this.sprays?.clear(); // fresh walls for the next match
+        this.combat = freshCombat(); // combat stats are per match
         this.accolades.reset(this.you);
         this.medals.clear();
         this.scorePops.clear();
@@ -4475,6 +4545,23 @@ export class Game {
     // on the spectator POV restricted to living teammates (and takes it off the
     // instant the next round respawns the body).
     this.deadSpectate = !!round && !me.alive && this.killcamT <= 0 && me.team !== undefined && !this.fkc; // feel stream: not over the final killcam
+    // The announcer listens to the same paint — GO, the clock, the lead.
+    {
+      const ffa = this.opts?.mode === "ffa";
+      let bestOther = 0;
+      if (ffa) for (const p of this.players.values()) if (p.id !== this.you) bestOther = Math.max(bestOther, num(p.kills));
+      this.announcer.tick({
+        live: this.matchLive() && !this.ended,
+        remain,
+        score0,
+        score1,
+        team: ffa ? -1 : me.team,
+        ffa,
+        myKills: num(me.kills),
+        bestOther,
+        modeLabel: this.gunGame ? "GUN GAME" : ffa ? "FREE FOR ALL" : round ? "ELIMINATION" : "TEAM DEATHMATCH",
+      });
+    }
     this.onHud({
       me,
       score0,
@@ -4485,6 +4572,7 @@ export class Game {
       locked: this.locked,
       mode: this.opts?.mode ?? "tdm",
       gun: this.gunGame,
+      gunKills: this.gunKills,
       round,
       spectating: !!this.spectateCam,
     });
@@ -5367,11 +5455,13 @@ export class Game {
       const leaders = new Set([...this.players.values()].filter((p) => num(p.kills) === top && top > 0).map((p) => p.id));
       winner = (k) => leaders.has(k.src);
       end = () => this.onEnd?.(win, num(me?.kills ?? 0), top, board);
+      this.announcer.end(win, false);
     } else {
       const win = me ? (me.team === 0 ? num(s0) >= num(s1) : num(s1) >= num(s0)) : num(s0) !== num(s1);
       const team = s0 > s1 ? 0 : s1 > s0 ? 1 : -1;
       winner = (k) => k.srcTeam === team;
       end = () => this.onEnd?.(win, s0, s1, board);
+      this.announcer.end(win, s0 === s1);
     }
     // feel stream: FINAL KILLCAM first (final-killcam.ts), then the endcard. Never in ?test.
     const clip = this.testMode ? null : this.fkTape.pick(winner);
@@ -5561,6 +5651,12 @@ export type EndRow = {
   bot?: boolean;
 };
 
+/** Your combat numbers for one match (Fortnite-style), counted off the authoritative hit events. */
+export type CombatStats = { shots: number; heads: number; body: number; dmg: number; taken: number };
+export function freshCombat(): CombatStats {
+  return { shots: 0, heads: 0, body: 0, dmg: 0, taken: 0 };
+}
+
 export type HudState = {
   me: PlayerSnap;
   score0: number;
@@ -5572,6 +5668,8 @@ export type HudState = {
   mode: "tdm" | "ffa";
   /** GUN GAME: FFA standings rank by ladder progress (PlayerSnap.gun), not kills. */
   gun: boolean;
+  /** GUN GAME kills per gun. */
+  gunKills: number;
   /** Round-based TDM only (shared/protocol.ts RoundState); null elsewhere. */
   round: RoundState | null;
   /** This client is on the bench: its own body is a camera, not a player. */

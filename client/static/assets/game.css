@@ -32,3 +32,19 @@
 #menu .topbar .brand>span{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 #menu .topbar .brand .game-logo{height:calc(34 * var(--tu));min-height:28px;width:auto;flex:none;vertical-align:middle;pointer-events:none}
 @media (max-width:560px){#menu .topbar .brand .game-logo{display:none}}
+/* UPSTREAM HIVE PORT (26.10.): lobby ping badges, announcer subtitles, endcard combat-stats grid.
+ * .nana-row .nana-badges exists in the compiled line 1 (display:flex) — only alignment/spacing is added.
+ * #announcer-sub is created by client/src/announcer.ts when missing; .ec-stat--combat widens the 3-col
+ * stat grid to 6 cells (second row wraps with a top rule, like upstream's bundled sheet). */
+.nana-row .nana-badges{align-items:center;gap:var(--s2)}
+.nana-row .nana-ping{font-family:var(--f-body);font-size:var(--fs-micro);font-weight:700;font-style:normal;letter-spacing:.08em;font-variant-numeric:tabular-nums;padding-right:var(--s2)}
+.nana-ping.is-good{color:#5fd38a}
+.nana-ping.is-ok{color:var(--c-accent)}
+.nana-ping.is-bad{color:var(--c-enemy)}
+#announcer-sub{position:absolute;left:50%;bottom:calc(150 * var(--tu));transform:translate(-50%,6px);padding:calc(6 * var(--tu)) calc(16 * var(--tu));background:#080a0c9e;border-left:3px solid var(--c-accent);color:var(--c-text);font-family:var(--f-display);font-weight:700;font-size:max(15px,calc(26 * var(--tu)));letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}
+#announcer-sub.is-kong{border-left-color:#b9763c;color:#f3d9b6}
+#announcer-sub.is-on{opacity:1;transform:translate(-50%)}
+.ec-stat--combat>div:nth-child(4){border-left:0}
+.ec-stat--combat>div:nth-child(n+4){border-top:var(--rule)}
+.ec-stat--combat .eyebrow{white-space:nowrap;letter-spacing:.06em}
+.ec-stat--combat b{font-size:var(--fs-m,1.4em)}
