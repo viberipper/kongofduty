@@ -20,11 +20,12 @@
  *
  * SPAM CONTROL (say-gating, no finish-path changes): the mode call fires only
  * at match start (round 2+ re-arms the clocks but never repeats it), first
- * blood fires once per match, multi-kills hold a 4 s upgrade window so only
- * the highest multi speaks, repeats are damped per line (mode 30 s, lead
+ * blood fires once per match, multi-kills hold a ~1 s upgrade hold so only
+ * the highest multi speaks (idle hold per upgrade, capped by a fixed 4 s
+ * chain deadline anchored at the first kill — the window never slides), repeats are damped per line (mode 30 s, lead
  * 25 s, foreign streaks 20 s, shutdowns 15 s), foreign multis stay silent
  * (never enter the multi window — see the game.ts gate), a 2.2 s global pacing gap
- * separates announcer voices (result cuts through), and whatever loses is
+ * separates announcer voices (result and multi-kills cut through), and whatever loses is
  * subtitle-only. Foreign first blood, streaks and shutdowns are subtitle-only,
  * foreign multis stay silent, and damped repeats, never take the voice. Priority: result (5) > multi (4) = clock (4) > streak/mode (3) >
  * lead (2) > info (1) > Kong (0).
@@ -50,12 +51,18 @@
 import { prefs } from "./ui/prefs";
 import { ASSET_BASE, assetUrl } from "./asset-base";
 
-type Line = { text: string; prio: number; at: number; kong?: boolean; clip?: string; voice: boolean; coolKey?: string };
+type Line = { text: string; prio: number; at: number; kong?: boolean; clip?: string; voice: boolean; coolKey?: string; cutGap?: boolean };
 
 const STALE_MS = 4000;
-/** Minimum airtime between two announcer voice lines (result cuts through). */
+/** Minimum airtime between two announcer voice lines (result cuts through, multis cut through too). */
 const ANNOUNCE_GAP_MS = 2200;
-/** Multi-kill upgrade window: a higher multi inside it replaces the lower one. */
+/** Multi-kill upgrade hold: after the last upgrade inside the chain, speak the
+ *  highest multi reached — ~1 s, so a lone Double Kill is timely instead of
+ *  waiting out the whole chain window. Restarted per upgrade (idle debounce). */
+const MULTI_HOLD_MS = 1000;
+/** Absolute multi-kill chain cap, anchored at the FIRST kill of the chain (fixed
+ *  deadline, never sliding): a still-growing chain fires its highest multi no
+ *  later than this after the first multi — it can no longer drift backwards. */
 const MULTI_WINDOW_MS = 4000;
 /** Repeat damping per line family (ms). */
 const MODE_COOL_MS = 30000;
@@ -158,6 +165,9 @@ export class Announcer {
   /** Pending multi-kill upgrade: only the highest multi in the window speaks. */
   private multiPending: { level: number; killer: string; mine: boolean; kid: number } | null = null;
   private multiTimer = 0;
+  /** Fixed chain deadline (performance.now()), anchored at the first multi of
+   *  the chain — the idle hold below is never armed past it. */
+  private multiDeadline = 0;
   /** Kill-voice exclusion stamp: sequence number of the latest kill() /
    *  shutdown() call, and of the latest of those calls whose announcer line
    *  for YOUR kill takes (or, for a pending multi, will take) the voice.
@@ -276,8 +286,8 @@ export class Announcer {
       return;
     }
     if (multi >= 2 && ks) {
-      // No "Double... Triple... Quad..." pile-up: hold the window and speak
-      // only the highest multi reached inside it (prio 4: above streaks).
+      // No "Double... Triple... Quad..." pile-up: hold the upgrade hold and
+      // speak only the highest multi reached inside it (prio 4: above streaks).
       // Stamped now, not when the window fires — the Kong line for this kill
       // is decided at kill time, while the announcer line is still pending.
       // If the pending is discarded before it speaks (clearMulti/pushMulti
@@ -321,7 +331,11 @@ export class Announcer {
       if (this.killVoiceSeq === kid) this.killVoiceSeq = -1;
       return;
     }
+    const now = typeof performance !== "undefined" ? performance.now() : 0;
     const old = this.multiPending;
+    // First multi of the chain anchors the fixed deadline: later upgrades
+    // replace the pending level but NEVER move the deadline (no sliding).
+    if (!old) this.multiDeadline = now + MULTI_WINDOW_MS;
     this.multiPending = { level, killer, mine, kid };
     // A displaced pending never speaks, so its optimistic kill-voice stamp
     // goes back — else the Kong stays silent for a voice that never comes.
@@ -332,7 +346,11 @@ export class Announcer {
     if (old && this.killVoiceSeq === old.kid) this.killVoiceSeq = -1;
     if (typeof window !== "undefined") {
       clearTimeout(this.multiTimer);
-      this.multiTimer = window.setTimeout(() => this.fireMulti(), MULTI_WINDOW_MS);
+      // Idle hold (~1 s after the last upgrade the highest speaks), clamped to
+      // the anchored deadline: fast chains announce ~1 s after the last kill,
+      // slow chains at the latest at the deadline — never later.
+      const wait = Math.min(MULTI_HOLD_MS, Math.max(0, this.multiDeadline - now));
+      this.multiTimer = window.setTimeout(() => this.fireMulti(), wait);
     } else this.fireMulti();
   }
 
@@ -340,17 +358,26 @@ export class Announcer {
     const p = this.multiPending;
     this.multiPending = null;
     this.multiTimer = 0;
-    if (!p || !this.wasLive) return;
+    this.multiDeadline = 0;
+    if (!p) return;
+    if (!this.wasLive) {
+      if (this.killVoiceSeq === p.kid) this.killVoiceSeq = -1;
+      return;
+    }
     // Toggled off mid-window: the pending multi never speaks (clearMulti
     // retracts its kill-voice stamp, so the Kong is free to talk that kill).
     if (!prefs().killstreaks) {
       if (this.killVoiceSeq === p.kid) this.killVoiceSeq = -1;
       return;
     }
-    // Your multis speak (prio 4); anyone else's stays silent — game.ts gates
+    // Your multis speak (prio 4) and cut through the pacing gap: they already
+    // waited out the upgrade hold, and holding them another 2.2 s behind a
+    // just-played line is exactly the lag being fixed. They still wait for a
+    // currently playing line (pump's speaking guard) — never on top of it.
+    // Anyone else's stays silent — game.ts gates
     // multi to 0 for foreign kills, so foreign multis never enter the window
     // and the else branch below is unreachable via game.ts (kept, not removed).
-    if (p.mine) this.say(NUM[p.level]!, 4);
+    if (p.mine) this.say(NUM[p.level]!, 4, false, undefined, true, undefined, 0, true);
     else this.say(`${NUM[p.level]} FOR ${p.killer}`, 1, false, undefined, false);
   }
 
@@ -361,6 +388,7 @@ export class Announcer {
     // restamped since, or the pending was foreign and never stamped).
     if (this.multiPending && this.killVoiceSeq === this.multiPending.kid) this.killVoiceSeq = -1;
     this.multiPending = null;
+    this.multiDeadline = 0;
     if (typeof window !== "undefined" && this.multiTimer) clearTimeout(this.multiTimer);
     this.multiTimer = 0;
   }
@@ -368,6 +396,7 @@ export class Announcer {
   end(win: boolean, draw: boolean): void {
     this.queue.length = 0;
     this.hush();
+    this.clearMulti();
     this.say(draw ? "DRAW" : win ? "VICTORY" : "DEFEAT", 5);
   }
 
@@ -397,19 +426,22 @@ export class Announcer {
   /**
    * Queue a line. `voice=false` (repeat-damped or foreign lines) shows only
    * the subtitle. `coolKey`/`coolMs` damp repeats: a line heard recently is
-   * demoted to subtitle-only instead of looping. Priority order: result (5) >
+   * demoted to subtitle-only instead of looping. `cutGap` (multi-kills only)
+   * skips the global pacing gap and the stale-drop: the line already waited
+   * out the upgrade hold, so it must speak next instead of queueing behind —
+   * or being dropped as stale behind — a just-played line. Priority order: result (5) >
    * multi-kill (4) = clock (4) > streak (3) = mode (3) > lead (2) > info (1) >
    * Kong (0).
    */
-  private say(text: string, prio: number, kong = false, clip?: string, voice = true, coolKey?: string, coolMs = 0): void {
+  private say(text: string, prio: number, kong = false, clip?: string, voice = true, coolKey?: string, coolMs = 0, cutGap = false): void {
     if (!kong && !prefs().announcer) return;
     const now = performance.now();
     if (voice && !kong && coolKey && coolMs > 0) {
       const last = this.lastVoiceByKey.get(coolKey) ?? -1e12;
       if (now - last < coolMs) voice = false;
     }
-    this.queue = this.queue.filter((l) => now - l.at < STALE_MS && l.prio >= prio);
-    this.queue.push({ text, prio, at: now, kong, clip: clip ?? (!kong ? clipFor(text) : undefined), voice, coolKey });
+    this.queue = this.queue.filter((l) => (now - l.at < STALE_MS || l.cutGap) && l.prio >= prio);
+    this.queue.push({ text, prio, at: now, kong, clip: clip ?? (!kong ? clipFor(text) : undefined), voice, coolKey, cutGap });
     this.queue.sort((a, b) => b.prio - a.prio);
     if (this.queue.length > 2) this.queue.length = 2;
     this.pump();
@@ -434,7 +466,7 @@ export class Announcer {
   private pump(): void {
     if (this.speaking) return;
     const now = performance.now();
-    while (this.queue.length && now - this.queue[0]!.at > STALE_MS) this.queue.shift(); // stale
+    while (this.queue.length && !this.queue[0]!.cutGap && now - this.queue[0]!.at > STALE_MS) this.queue.shift(); // stale (multis are never stale-dropped: they are the chain's one announcement)
     const line = this.queue[0];
     if (!line) return;
     if (!line.voice) {
@@ -448,8 +480,8 @@ export class Announcer {
       }, 350);
       return;
     }
-    if (!line.kong && line.prio < 5 && now - this.lastVoiceAt < ANNOUNCE_GAP_MS) {
-      // Global pacing: at most one announcer voice per gap (result cuts through).
+    if (!line.kong && line.prio < 5 && !line.cutGap && now - this.lastVoiceAt < ANNOUNCE_GAP_MS) {
+      // Global pacing: at most one announcer voice per gap (result and multis cut through).
       if (!this.gapTimer && typeof window !== "undefined") {
         const wait = ANNOUNCE_GAP_MS - (now - this.lastVoiceAt) + 50;
         this.gapTimer = window.setTimeout(() => {
