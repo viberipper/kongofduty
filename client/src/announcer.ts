@@ -7,24 +7,84 @@
  * multi-kills called BY NAME, and the result. Every line is also a subtitle
  * (#announcer-sub) so it reads with the sound off.
  *
- * The voice is the browser's own speech synthesis, restricted to voices that
- * run ON THIS COMPUTER (`localService`): the network voices some browsers offer
- * would send every line to a third-party server, so a machine with only those
- * gets subtitles and no voice. Lines queue by priority and never pile up: a
- * newer, more important line replaces a waiting one, and stale lines drop.
+ * THE VOICE is a generated deep male announcer (Quake/Doom-like): pre-rendered
+ * clips under static/assets/audio/announcer/ (manifest.json), played as plain
+ * <audio> one-shots. Fixed lines map exactly; dynamic lines (names, streak
+ * counts) play the clip for their fixed head — FIRST BLOOD! KILLER DROPS
+ * VICTIM plays "First blood!", DOUBLE KILL FOR KILLER plays "Double kill!" —
+ * while the subtitle always carries the full text.
+ *
+ * Speech synthesis survives as the FALLBACK: a missing/undecodable clip, a
+ * rejected play() (no gesture yet), or a line with no clip (unknown mode
+ * label) falls back to the browser's localService voice, exactly as before.
  *
  * Also YOUR KONG'S OWN VOICE (hive cbbuhicb): broken, Brute-style English on
  * its kills, headshots, reloads, frags, respawns and when it is hurt — `kong()`
- * — pitched deep and slow, on the same local-voice rule, behind its own switch.
+ * — a deeper, slower beastubleed of the same voice, behind its own switch.
  *
- * Volume follows MASTER x INTERFACE; SETTINGS → AUDIO switches each off.
+ * Volume follows MASTER x INTERFACE; SETTINGS → AUDIO switches each off (the
+ * toggles gate the clips, not just the synthesis).
  */
 import { prefs } from "./ui/prefs";
+import { ASSET_BASE, assetUrl } from "./asset-base";
 
-type Line = { text: string; prio: number; at: number; kong?: boolean };
+type Line = { text: string; prio: number; at: number; kong?: boolean; clip?: string };
 
 const STALE_MS = 2500;
 const NUM = ["", "", "DOUBLE KILL", "TRIPLE KILL", "QUAD KILL", "MEGA KILL"];
+
+/** Fixed announcer line -> clip file (under assets/audio/announcer/). */
+const CLIPS: Record<string, string> = {
+  "GUN GAME": "mode-gun-game.ogg",
+  "FREE FOR ALL": "mode-free-for-all.ogg",
+  "ELIMINATION": "mode-elimination.ogg",
+  "TEAM DEATHMATCH": "mode-team-deathmatch.ogg",
+  "ONE MINUTE REMAINING": "one-minute.ogg",
+  "THIRTY SECONDS": "thirty-seconds.ogg",
+  "TEN SECONDS": "ten-seconds.ogg",
+  "YOU HAVE TAKEN THE LEAD": "lead-taken-you.ogg",
+  "WE HAVE TAKEN THE LEAD": "lead-taken-we.ogg",
+  "YOU HAVE LOST THE LEAD": "lead-lost-you.ogg",
+  "WE HAVE LOST THE LEAD": "lead-lost-we.ogg",
+  "YOU HAVE FALLEN BEHIND": "fallen-behind-you.ogg",
+  "THE ENEMY HAS TAKEN THE LEAD": "lead-enemy.ogg",
+  "SCORES ARE TIED": "tied.ogg",
+  HEADSHOT: "headshot.ogg",
+  DRAW: "draw.ogg",
+  VICTORY: "victory.ogg",
+  DEFEAT: "defeat.ogg",
+};
+
+/**
+ * Dynamic lines carry names/counts the clips cannot (FIRST BLOOD! X DROPS Y):
+ * the clip covers the fixed head, the subtitle the full text. Exact matches
+ * win first so HEADSHOT never falls into a keyword rule.
+ */
+function clipFor(text: string): string | undefined {
+  const exact = CLIPS[text];
+  if (exact) return exact;
+  if (text.startsWith("FIRST BLOOD")) return "first-blood.ogg";
+  if (text.includes("ON A RAMPAGE")) return "rampage.ogg";
+  if (text.includes("UNSTOPPABLE")) return "unstoppable.ogg";
+  if (text.includes("LIVING LEGEND")) return "legend.ogg";
+  if (text.includes("DOUBLE KILL")) return "double-kill.ogg";
+  if (text.includes("TRIPLE KILL")) return "triple-kill.ogg";
+  if (text.includes("QUAD KILL")) return "quad-kill.ogg";
+  if (text.includes("MEGA KILL")) return "mega-kill.ogg";
+  if (text.startsWith("SHUTDOWN")) return "shutdown.ogg";
+  return undefined;
+}
+
+/** Every clip file, so the first line warms (preloads) the whole set. */
+const ALL_CLIPS: string[] = (() => {
+  const out = new Set(Object.values(CLIPS));
+  for (const f of ["first-blood", "rampage", "unstoppable", "legend", "double-kill", "triple-kill", "quad-kill", "mega-kill", "shutdown"]) out.add(`${f}.ogg`);
+  const kongCounts: Record<string, number> = { kill: 8, head: 3, reload: 3, frag: 3, spawn: 3, hurt: 2 };
+  for (const [cue, n] of Object.entries(kongCounts)) for (let i = 0; i < n; i++) out.add(`kong/${cue}-${i}.ogg`);
+  return [...out];
+})();
+
+const clipUrl = (file: string): string => assetUrl(`${ASSET_BASE}assets/audio/announcer/${file}`);
 
 export interface AnnounceState {
   live: boolean;
@@ -52,6 +112,10 @@ export class Announcer {
   private lead: number | null = null;
   private kills = 0;
   private lastKong = 0;
+  /** Clip cache (one <audio> per file) + the currently playing element. */
+  private clips = new Map<string, HTMLAudioElement>();
+  private active: HTMLAudioElement | null = null;
+  private warmed = false;
 
   /** Per frame, from Game.paintHud: GO, clock calls and lead changes. */
   tick(s: AnnounceState): void {
@@ -114,6 +178,7 @@ export class Announcer {
 
   end(win: boolean, draw: boolean): void {
     this.queue.length = 0;
+    this.hush();
     this.say(draw ? "DRAW" : win ? "VICTORY" : "DEFEAT", 5);
   }
 
@@ -127,19 +192,36 @@ export class Announcer {
     if (!kill && Math.random() < 0.5) return;
     this.lastKong = now;
     const lines = KONG_LINES[kind];
-    this.say(lines[Math.floor(Math.random() * lines.length)]!, 0, true);
+    const idx = Math.floor(Math.random() * lines.length);
+    this.say(lines[idx]!, 0, true, `kong/${kind}-${idx}.ogg`);
   }
 
   // ---------------------------------------------------------------- output
 
-  private say(text: string, prio: number, kong = false): void {
+  private say(text: string, prio: number, kong = false, clip?: string): void {
     if (!kong && !prefs().announcer) return;
     const now = performance.now();
     this.queue = this.queue.filter((l) => now - l.at < STALE_MS && l.prio >= prio);
-    this.queue.push({ text, prio, at: now, kong });
+    this.queue.push({ text, prio, at: now, kong, clip: clip ?? (!kong ? clipFor(text) : undefined) });
     this.queue.sort((a, b) => b.prio - a.prio);
     if (this.queue.length > 2) this.queue.length = 2;
     this.pump();
+  }
+
+  /** Silence a playing clip without touching the queue (end() hushes, then calls). */
+  private hush(): void {
+    try {
+      this.active?.pause();
+    } catch {
+      /* a pausing clip is best-effort */
+    }
+    try {
+      if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
+    } catch {
+      /* cancelling synthesis is best-effort */
+    }
+    this.active = null;
+    this.speaking = false;
   }
 
   private pump(): void {
@@ -151,9 +233,117 @@ export class Announcer {
     }
     if (!line) return;
     this.subtitle(line);
+    const vol = prefs().master * prefs().ui;
+    if (line.clip && vol > 0.01 && this.playClip(line, vol)) return;
+    this.synthLine(line, vol);
+  }
+
+  /**
+   * The generated voice. Returns true when a clip attempt owns the line
+   * (playing or loading); false when there is nothing to play with, so the
+   * caller falls through to synthesis. Any failure mid-attempt (missing file,
+   * undecodable bytes, rejected play()) falls back to synthesis for that line.
+   */
+  private playClip(line: Line, vol: number): boolean {
+    if (typeof Audio === "undefined") return false;
+    this.warmClips();
+    let el = this.clips.get(line.clip!);
+    if (!el) {
+      el = new Audio(clipUrl(line.clip!));
+      el.preload = "auto";
+      this.clips.set(line.clip!, el);
+    }
+    // A re-fire of the currently playing clip restarts it; the settled guard
+    // below keeps the queue advance to exactly one handoff. currentTime is
+    // only rewound once metadata is there: on a fresh element it throws and
+    // would wrongly force the synthesis fallback for a clip that exists.
+    try {
+      if (this.active && this.active !== el) {
+        try {
+          this.active.pause();
+        } catch {
+          /* a pausing clip is best-effort */
+        }
+      }
+      el.pause();
+      if (el.readyState > 0 && (el.currentTime > 0 || el.ended)) el.currentTime = 0;
+    } catch {
+      return false;
+    }
+    this.speaking = true;
+    this.active = el;
+    let settled = false;
+    const done = (): void => {
+      if (settled) return;
+      settled = true;
+      if (this.active === el) this.active = null;
+      this.speaking = false;
+      this.pump();
+    };
+    el.volume = Math.min(1, vol);
+    el.onended = done;
+    el.onerror = () => {
+      if (settled) return;
+      settled = true;
+      if (this.active === el) this.active = null;
+      this.speaking = false;
+      this.synthLine(line, vol);
+    };
+    // A clip that never ends must never stall the queue for the rest of the
+    // match (same guard the synthesis path has).
+    const cap = Math.min(8000, 4000 + line.text.length * 45);
+    setTimeout(() => {
+      if (!settled && this.speaking && this.active === el) {
+        try {
+          el.pause();
+        } catch {
+          /* ignore */
+        }
+        done();
+      }
+    }, cap);
+    try {
+      const p = el.play();
+      if (p && typeof p.catch === "function") {
+        p.catch(() => {
+          // play() rejected (no gesture yet, or the file 404d): synthesis.
+          if (settled) return;
+          settled = true;
+          if (this.active === el) this.active = null;
+          this.speaking = false;
+          this.synthLine(line, vol);
+        });
+      }
+    } catch {
+      if (settled) return true;
+      settled = true;
+      this.active = null;
+      this.speaking = false;
+      this.synthLine(line, vol);
+    }
+    return true;
+  }
+
+  /** Fire-and-forget preload of the whole clip set, once, on first use. */
+  private warmClips(): void {
+    if (this.warmed || typeof Audio === "undefined") return;
+    this.warmed = true;
+    try {
+      for (const f of ALL_CLIPS) {
+        if (this.clips.has(f)) continue;
+        const el = new Audio(clipUrl(f));
+        el.preload = "auto";
+        this.clips.set(f, el);
+      }
+    } catch {
+      /* preload is best-effort; playClip re-creates on demand */
+    }
+  }
+
+  /** The synthesis fallback: subtitles alone, or the local voice, as before. */
+  private synthLine(line: Line, vol: number): void {
     const synth = typeof speechSynthesis !== "undefined" ? speechSynthesis : null;
     const voice = this.pickVoice();
-    const vol = prefs().master * prefs().ui;
     if (!synth || !voice || vol <= 0.01) {
       // no local voice: the subtitle alone, held for about as long as the line would take
       this.speaking = true;

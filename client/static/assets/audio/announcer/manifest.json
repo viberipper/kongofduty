@@ -1,0 +1,264 @@
+{
+ "pack": "announcer",
+ "title": "ANNOUNCER",
+ "codec": "opus/ogg",
+ "sourceFormat": {
+  "sampleRate": 48000,
+  "channels": "mono",
+  "container": "ogg"
+ },
+ "encodedAt": "2026-10-26",
+ "bitrate": {
+  "mono": "64k"
+ },
+ "bytes": 664610,
+ "fileCount": 49,
+ "note": "Match announcer + Kong voice. Qwen3-TTS-1.7B Q8_0 voice-clone of hartmann ref (365days qa/audio_cpp_voice_refs), English lines; announcer rubberband pitch 0.85, Kong tempo 0.95 + pitch 0.72, loudnorm -16 LUFS. Played by client/src/announcer.ts as <audio> one-shots; speechSynthesis stays as fallback.",
+ "events": {
+  "mode-gun-game.ogg": {
+   "files": [
+    "mode-gun-game.ogg"
+   ]
+  },
+  "mode-free-for-all.ogg": {
+   "files": [
+    "mode-free-for-all.ogg"
+   ]
+  },
+  "mode-elimination.ogg": {
+   "files": [
+    "mode-elimination.ogg"
+   ]
+  },
+  "mode-team-deathmatch.ogg": {
+   "files": [
+    "mode-team-deathmatch.ogg"
+   ]
+  },
+  "one-minute.ogg": {
+   "files": [
+    "one-minute.ogg"
+   ]
+  },
+  "thirty-seconds.ogg": {
+   "files": [
+    "thirty-seconds.ogg"
+   ]
+  },
+  "ten-seconds.ogg": {
+   "files": [
+    "ten-seconds.ogg"
+   ]
+  },
+  "lead-taken-you.ogg": {
+   "files": [
+    "lead-taken-you.ogg"
+   ]
+  },
+  "lead-taken-we.ogg": {
+   "files": [
+    "lead-taken-we.ogg"
+   ]
+  },
+  "lead-lost-you.ogg": {
+   "files": [
+    "lead-lost-you.ogg"
+   ]
+  },
+  "lead-lost-we.ogg": {
+   "files": [
+    "lead-lost-we.ogg"
+   ]
+  },
+  "fallen-behind-you.ogg": {
+   "files": [
+    "fallen-behind-you.ogg"
+   ]
+  },
+  "lead-enemy.ogg": {
+   "files": [
+    "lead-enemy.ogg"
+   ]
+  },
+  "tied.ogg": {
+   "files": [
+    "tied.ogg"
+   ]
+  },
+  "first-blood.ogg": {
+   "files": [
+    "first-blood.ogg"
+   ]
+  },
+  "rampage.ogg": {
+   "files": [
+    "rampage.ogg"
+   ]
+  },
+  "unstoppable.ogg": {
+   "files": [
+    "unstoppable.ogg"
+   ]
+  },
+  "legend.ogg": {
+   "files": [
+    "legend.ogg"
+   ]
+  },
+  "double-kill.ogg": {
+   "files": [
+    "double-kill.ogg"
+   ]
+  },
+  "triple-kill.ogg": {
+   "files": [
+    "triple-kill.ogg"
+   ]
+  },
+  "quad-kill.ogg": {
+   "files": [
+    "quad-kill.ogg"
+   ]
+  },
+  "mega-kill.ogg": {
+   "files": [
+    "mega-kill.ogg"
+   ]
+  },
+  "headshot.ogg": {
+   "files": [
+    "headshot.ogg"
+   ]
+  },
+  "shutdown.ogg": {
+   "files": [
+    "shutdown.ogg"
+   ]
+  },
+  "victory.ogg": {
+   "files": [
+    "victory.ogg"
+   ]
+  },
+  "defeat.ogg": {
+   "files": [
+    "defeat.ogg"
+   ]
+  },
+  "draw.ogg": {
+   "files": [
+    "draw.ogg"
+   ]
+  },
+  "kong/kill-0.ogg": {
+   "files": [
+    "kong/kill-0.ogg"
+   ]
+  },
+  "kong/kill-1.ogg": {
+   "files": [
+    "kong/kill-1.ogg"
+   ]
+  },
+  "kong/kill-2.ogg": {
+   "files": [
+    "kong/kill-2.ogg"
+   ]
+  },
+  "kong/kill-3.ogg": {
+   "files": [
+    "kong/kill-3.ogg"
+   ]
+  },
+  "kong/kill-4.ogg": {
+   "files": [
+    "kong/kill-4.ogg"
+   ]
+  },
+  "kong/kill-5.ogg": {
+   "files": [
+    "kong/kill-5.ogg"
+   ]
+  },
+  "kong/kill-6.ogg": {
+   "files": [
+    "kong/kill-6.ogg"
+   ]
+  },
+  "kong/kill-7.ogg": {
+   "files": [
+    "kong/kill-7.ogg"
+   ]
+  },
+  "kong/head-0.ogg": {
+   "files": [
+    "kong/head-0.ogg"
+   ]
+  },
+  "kong/head-1.ogg": {
+   "files": [
+    "kong/head-1.ogg"
+   ]
+  },
+  "kong/head-2.ogg": {
+   "files": [
+    "kong/head-2.ogg"
+   ]
+  },
+  "kong/reload-0.ogg": {
+   "files": [
+    "kong/reload-0.ogg"
+   ]
+  },
+  "kong/reload-1.ogg": {
+   "files": [
+    "kong/reload-1.ogg"
+   ]
+  },
+  "kong/reload-2.ogg": {
+   "files": [
+    "kong/reload-2.ogg"
+   ]
+  },
+  "kong/frag-0.ogg": {
+   "files": [
+    "kong/frag-0.ogg"
+   ]
+  },
+  "kong/frag-1.ogg": {
+   "files": [
+    "kong/frag-1.ogg"
+   ]
+  },
+  "kong/frag-2.ogg": {
+   "files": [
+    "kong/frag-2.ogg"
+   ]
+  },
+  "kong/spawn-0.ogg": {
+   "files": [
+    "kong/spawn-0.ogg"
+   ]
+  },
+  "kong/spawn-1.ogg": {
+   "files": [
+    "kong/spawn-1.ogg"
+   ]
+  },
+  "kong/spawn-2.ogg": {
+   "files": [
+    "kong/spawn-2.ogg"
+   ]
+  },
+  "kong/hurt-0.ogg": {
+   "files": [
+    "kong/hurt-0.ogg"
+   ]
+  },
+  "kong/hurt-1.ogg": {
+   "files": [
+    "kong/hurt-1.ogg"
+   ]
+  }
+ }
+}
