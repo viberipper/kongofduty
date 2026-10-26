@@ -17,6 +17,7 @@ Local copy of the browser game at https://cnvs.dev/kong/ — **including a custo
 - **Generated voice clips:** 49 doom-like announcer/Kong lines generated locally with audio.cpp/Qwen3-TTS in a deep Hartmann-style voice with warm mastering, played as audio files with `speechSynthesis` fallback when a clip is missing.
 - **Restrained announcer direction:** anti-spam gating with cooldowns, priorities, and no repeats; killstreak announcements toggleable (default off); ascending killstreak callouts never repeat what was already heard; lead callout only once a team leads by 3; multikill callout in a fixed window instead of sliding; Kong and announcer never talk over each other.
 - **Secure in-game text chat:** server-side badword filter with leet-folding, rate-limited, sender taken from the session (no spoofing, "server" name reserved), text-only rendering (no XSS); T key, Enter/Escape like in-game.
+- **Team-colored clothing:** Kong on your own team wear blue shorts (enemies red), astronaut armbands/panels in team colors — all colorMode-aware (Protan/Deutan/Tritan), swapped per actor, FFA unchanged.
 
 ## Quick start
 
