@@ -187,6 +187,13 @@ const ROWS: Record<Exclude<Tab, "controls">, Row[]> = {
       kind: "seg",
       opts: ON_OFF,
     },
+    {
+      key: "killstreaks",
+      label: "Killstreaks",
+      desc: "Double Kill, Triple Kill, Quad, Mega Kill and streak calls (Rampage, Unstoppable, Living Legend) by name. Off by default; everything else the announcer says — mode, countdowns, lead, first blood, shutdowns, result — stays, and so does the Kong.",
+      kind: "seg",
+      opts: ON_OFF,
+    },
     { group: "MIX" },
     {
       key: "pack",

@@ -66,6 +66,8 @@ export interface Prefs {
   announcer: boolean;
   /** Your Kong's own gruff voice lines (announcer.ts kong()). */
   kongVoice: boolean;
+  /** Double/Multi/Triple/Quad/Mega-Kill and streak calls (Rampage/Unstoppable/Legend) — voice + subtitles. Off by default. */
+  killstreaks: boolean;
   // GRAPHICS
   renderScale: RenderScaleMode;
   showFps: boolean;
@@ -147,6 +149,7 @@ export const DEFAULT_PREFS: Readonly<Prefs> = {
   ambience: 0.8,
   announcer: true,
   kongVoice: true,
+  killstreaks: false,
   renderScale: "auto",
   showFps: false,
   hudScale: 1,
@@ -226,6 +229,7 @@ export function sanitizePrefs(x: unknown): Prefs {
     ambience: clamp(o.ambience, 0, 1, d.ambience),
     announcer: bool(o.announcer, d.announcer),
     kongVoice: bool(o.kongVoice, d.kongVoice),
+    killstreaks: bool(o.killstreaks, d.killstreaks),
     renderScale: pick(o.renderScale, ["auto", "native"] as const, d.renderScale),
     showFps: bool(o.showFps, d.showFps),
     hudScale: clamp(o.hudScale, RANGES.hudScale[0], RANGES.hudScale[1], d.hudScale),

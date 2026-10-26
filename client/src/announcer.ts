@@ -239,7 +239,12 @@ export class Announcer {
       this.say(`FIRST BLOOD! ${killer} DROPS ${victim}`, mine ? 3 : 1, false, undefined, mine);
       return;
     }
-    if (streak === 5 || streak === 10 || streak === 15) {
+    // Killstreak toggle (SETTINGS → AUDIO, default OFF): the streak and
+    // multi-kill branches below are skipped entirely — no voice, no subtitle,
+    // no pending window/timer, no kill-voice stamp (so the Kong still talks on
+    // those kills). Shutdowns stay outside the toggle (shutdown(), unchanged).
+    const ks = prefs().killstreaks;
+    if ((streak === 5 || streak === 10 || streak === 15) && ks) {
       // A streak call covers any pending multi: same killer (the streak is
       // the bigger news) and other killers alike (no double voice right
       // after the streak) — drop it.
@@ -258,7 +263,7 @@ export class Announcer {
       );
       return;
     }
-    if (multi >= 2) {
+    if (multi >= 2 && ks) {
       // No "Double... Triple... Quad..." pile-up: hold the window and speak
       // only the highest multi reached inside it (prio 4: above streaks).
       // Stamped now, not when the window fires — the Kong line for this kill
@@ -324,6 +329,12 @@ export class Announcer {
     this.multiPending = null;
     this.multiTimer = 0;
     if (!p || !this.wasLive) return;
+    // Toggled off mid-window: the pending multi never speaks (clearMulti
+    // retracts its kill-voice stamp, so the Kong is free to talk that kill).
+    if (!prefs().killstreaks) {
+      if (this.killVoiceSeq === p.kid) this.killVoiceSeq = -1;
+      return;
+    }
     // Your multis speak (prio 4); anyone else's stays silent — game.ts gates
     // multi to 0 for foreign kills, so foreign multis never enter the window
     // and the else branch below is unreachable via game.ts (kept, not removed).
