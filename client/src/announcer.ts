@@ -22,11 +22,11 @@
  * at match start (round 2+ re-arms the clocks but never repeats it), first
  * blood fires once per match, multi-kills hold a 4 s upgrade window so only
  * the highest multi speaks, repeats are damped per line (mode 30 s, lead
- * 25 s, foreign streaks 20 s, shutdowns 15 s), foreign multis are always
- * subtitle-only, a 2.2 s global pacing gap
+ * 25 s, foreign streaks 20 s, shutdowns 15 s), foreign multis stay silent
+ * (never enter the multi window — see the game.ts gate), a 2.2 s global pacing gap
  * separates announcer voices (result cuts through), and whatever loses is
- * subtitle-only. Foreign streaks/multis/shutdowns and damped repeats never take the
- * voice. Priority: result (5) > multi (4) = clock (4) > streak/mode (3) >
+ * subtitle-only. Foreign first blood, streaks and shutdowns are subtitle-only,
+ * foreign multis stay silent, and damped repeats, never take the voice. Priority: result (5) > multi (4) = clock (4) > streak/mode (3) >
  * lead (2) > info (1) > Kong (0).
  *
  * KILL VOICE EXCLUSION: a kill-related announcer voice for YOUR kill (first
@@ -235,7 +235,8 @@ export class Announcer {
     if (!this.bloodSeen && this.kills === 1 && killer && victim) {
       this.bloodSeen = true;
       if (ownVoice) this.killVoiceSeq = kid;
-      this.say(`FIRST BLOOD! ${killer} DROPS ${victim}`, 3);
+      // Strangers' openers are subtitles: only your first blood speaks.
+      this.say(`FIRST BLOOD! ${killer} DROPS ${victim}`, mine ? 3 : 1, false, undefined, mine);
       return;
     }
     if (streak === 5 || streak === 10 || streak === 15) {
@@ -243,15 +244,15 @@ export class Announcer {
       // the bigger news) and other killers alike (no double voice right
       // after the streak) — drop it.
       if (this.multiPending) this.clearMulti();
-      // Player relevance: your streaks speak (3), anyone else's is damped (1)
-      // and repeats per killer at most every 20 s.
+      // Player relevance: your streaks speak (3), anyone else's is subtitle-only
+      // (1) and repeats per killer at most every 20 s.
       if (ownVoice) this.killVoiceSeq = kid;
       this.say(
         `${killer} IS ${streak === 5 ? "ON A RAMPAGE" : streak === 10 ? "UNSTOPPABLE" : "A LIVING LEGEND"}! ${streak} IN A ROW`,
         mine ? 3 : 1,
         false,
         undefined,
-        true,
+        mine,
         mine ? undefined : `streak:${killer}`,
         mine ? 0 : STREAK_FOREIGN_COOL_MS,
       );
@@ -281,12 +282,16 @@ export class Announcer {
     const kid = ++this.killSeq;
     // Your streaks (ended or ending) speak; strangers' shutdowns are subtitles.
     if (streak >= 5) {
-      // Kill-voice stamp: only a shutdown that really takes the voice counts —
-      // a repeat inside the 15 s damping window is subtitle-only, so the Kong
-      // keeps that kill. Mirrors the coolKey/coolMs check in say().
-      if (involved && prefs().announcer && performance.now() - (this.lastVoiceByKey.get(`shutdown:${victim}`) ?? -1e12) >= SHUTDOWN_COOL_MS)
-        this.killVoiceSeq = kid;
-      this.say(`SHUTDOWN! ${killer} ENDS ${victim}'S STREAK`, involved ? 3 : 1, false, undefined, involved, `shutdown:${victim}`, SHUTDOWN_COOL_MS);
+      // Kill-voice stamp only when the line really takes the voice: the
+      // damping decision is computed once here and passed to say() as voice,
+      // so a repeat inside the 15 s window stays subtitle-only AND leaves the
+      // Kong unstamped (say() re-checks the same key, consistently degrading).
+      // Mirrors the coolKey/coolMs check in say().
+      const now = performance.now();
+      const willVoice =
+        involved && prefs().announcer && now - (this.lastVoiceByKey.get(`shutdown:${victim}`) ?? -1e12) >= SHUTDOWN_COOL_MS;
+      if (willVoice) this.killVoiceSeq = kid;
+      this.say(`SHUTDOWN! ${killer} ENDS ${victim}'S STREAK`, involved ? 3 : 1, false, undefined, willVoice, `shutdown:${victim}`, SHUTDOWN_COOL_MS);
     }
   }
 
@@ -302,11 +307,11 @@ export class Announcer {
     const old = this.multiPending;
     this.multiPending = { level, killer, mine, kid };
     // A displaced pending never speaks, so its optimistic kill-voice stamp
-    // goes back — else the Kong stays silent for a voice that never comes
-    // (an own pending displaced by a foreign higher multi). A no-op unless
-    // the stamp still points at the displaced pending: own upgrades already
-    // restamped the new kill above, and foreign pendings were never stamped
-    // (stamps only ever point at own kills, so === is exact).
+    // goes back — else the Kong stays silent for a voice that never comes.
+    // A no-op unless the stamp still points at the displaced pending: own
+    // upgrades already restamped the new kill above, and a foreign pending
+    // (unreachable via game.ts, which gates multi to 0 for foreign kills)
+    // was never stamped (stamps only ever point at own kills, so === is exact).
     if (old && this.killVoiceSeq === old.kid) this.killVoiceSeq = -1;
     if (typeof window !== "undefined") {
       clearTimeout(this.multiTimer);
@@ -319,8 +324,9 @@ export class Announcer {
     this.multiPending = null;
     this.multiTimer = 0;
     if (!p || !this.wasLive) return;
-    // Your multis speak (prio 4); anyone else's is always subtitle-only and
-    // never takes the voice (like foreign shutdowns).
+    // Your multis speak (prio 4); anyone else's stays silent — game.ts gates
+    // multi to 0 for foreign kills, so foreign multis never enter the window
+    // and the else branch below is unreachable via game.ts (kept, not removed).
     if (p.mine) this.say(NUM[p.level]!, 4);
     else this.say(`${NUM[p.level]} FOR ${p.killer}`, 1, false, undefined, false);
   }

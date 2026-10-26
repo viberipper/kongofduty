@@ -1391,17 +1391,6 @@ class Room {
     const nades = this.session.nadeSnap();
     const round = this.session.roundSnap();
     const countWall = this.phase === "countdown" ? this.countdownAtWall() : undefined;
-    const footer = {
-      score0: this.session.score0,
-      score1: this.session.score1,
-      remain: this.session.remain,
-      mode: this.mode,
-      map: SERVER_MAP,
-      round,
-      nades,
-      ph: this.phase,
-    };
-    void footer;
     for (const s of this.seats.values()) {
       const snap: Snapshot = {
         t: "snap",
