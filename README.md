@@ -1,6 +1,6 @@
 # BANANA SHIPMENT (ripoff)
 
-Local copy of the browser game at https://cnvs.dev/kong/ — **including a custom multiplayer game server** (the original only ships the client; the server code is not published). The server in `server/` is a clean-room rebuild based on the official network protocol (`shared/protocol.ts`) and runs the same authoritative simulation (`shared/sim.ts`) as the client's offline Quick Play.
+Self-hostable version of the browser game at https://cnvs.dev/kong/ — playable offline (Quick Play vs bots) and online via **a custom multiplayer game server** (the original only ships the client; the server code is not published). The server in `server/` is a clean-room rebuild based on the official network protocol (`shared/protocol.ts`) and runs the same authoritative simulation (`shared/sim.ts`) as the client's offline Quick Play. It runs over LAN or behind a reverse proxy (see Playing / Own server with Docker).
 
 **Important: always start the game via the HTTP server, never by double-clicking `index.html`.** Under `file://`, Chromium blocks all of the client's `fetch()` calls — menu 3D backgrounds go missing and Quick Play fails with "FAILED TO FETCH".
 
@@ -19,6 +19,18 @@ Local copy of the browser game at https://cnvs.dev/kong/ — **including a custo
 - **Per-map menu music:** the main menu and the private lobby play a passive background loop per map (60–77 s each, period-aligned for clean looping — Shipment: industrial taikos; Dust2: desert-ops duduk; Ares Relay: cold synth pads; Nuketown: ironic surf twang with a dark turn), switching with a 1.5 s equal-power crossfade when the picked map changes. The bed sits at MASTER × MUSIC × 0.25 under everything, starts only after the first click/keypress (autoplay policy), goes quiet over live matches, and has its own slider in SETTINGS → AUDIO. Tracks live in `client/static/assets/audio/music/` (Opus primary, MP3 fallback); `docs/menu-music-prompts.md` holds the audio.cpp (`ace_step` / `stable_audio`) prompts + mastering chain to re-render them in AI quality as drop-in replacements.
 - **Secure in-game text chat:** server-side badword filter with leet-folding, rate-limited, sender taken from the session (no spoofing, "server" name reserved), text-only rendering (no XSS); T key, Enter/Escape like in-game.
 - **Team-colored clothing:** Kong on your own team wear blue shorts (enemies red), astronaut armbands/panels in team colors — all colorMode-aware (Protan/Deutan/Tritan), swapped per actor, FFA unchanged.
+
+## Upstream sync log
+
+Upstream features from the original (https://cnvs.dev/kong/) are ported in batches; own systems (graphics stack, gamepad, server, announcer direction, chat) stay untouched.
+
+| Date | Upstream state | Included |
+|---|---|---|
+| 2026-10-20 | Upstream state as of 2026-10-20 (fresh rip) | Full client snapshot this version is based on |
+| 2026-10-22/23 | Upstream state as of 2026-10-22/23 (fresh rip) | Base features: Gun Game, Penetration/Wallbangs, Xmas-Deko, Foot-Surfaces, Bug-Report, Gun-Preview, Lobby lobbyset/shuffle/relocate, Endcard-Podium, Colour Vision, Loadout-Wheel, Fence-Fix, Footstep-Verdrahtung |
+| 2026-10-26 | Upstream state as of 2026-10-26 (fresh rip) | 11 updates: lobby follow + ping badges + kills-per-gun option; gun-game goal options (`GUN_KILL_OPTIONS` 1/2/3/5); announcer + Kong voice lines; combat-stats endcard; spraypaint emotes; anti-skate catch-up; Nuketown TDM limit 100; movement speeds; weapon rebalance |
+
+Last sync: 2026-10-26. Anything newer lives only in the original (https://cnvs.dev/kong/) until the next batch port.
 
 ## Quick start
 
@@ -86,4 +98,4 @@ After cloning, run `npm run install:all && npm run build` (`client/dist/`, `serv
 
 ## Asset ownership
 
-All game files (models, textures, audio, code) belong to the original author and must **not** be redistributed. This copy exists solely for personal offline use.
+All game files (models, textures, audio, code) belong to the original author and must **not** be redistributed. This version is self-hostable (offline Quick Play and online multiplayer via the custom server, over LAN or behind a reverse proxy with Docker).
