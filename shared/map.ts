@@ -311,6 +311,10 @@ export function buildSolids(): OBB[] {
 
   // Forklift: chassis/overhead-guard envelope (the old 1.4 m box left the guard
   // roof and mast standing 0.53 m outside it) + a low box for the forks.
+  // Upstream (.origin 28.10.): sy 0.21, not the 0.16 of the forks themselves.
+  // The walker only steps onto a climbable whose top is MORE than 0.2 m above
+  // its feet (sim resolveCircle), so a 0.16 box was a shin-high invisible wall
+  // in front of the forklift. Now you walk over the forks, 5 cm above the steel.
   solids.push({
     x: 10.6,
     y: 0.95,
@@ -324,10 +328,10 @@ export function buildSolids(): OBB[] {
   });
   solids.push({
     x: 10.6 + 1.36 * Math.sin(-0.4),
-    y: 0.08,
+    y: 0.105,
     z: 10.8 - 1.36 * Math.cos(-0.4),
     sx: 0.72,
-    sy: 0.16,
+    sy: 0.21,
     sz: 1.04,
     yaw: -0.4,
     climb: true,

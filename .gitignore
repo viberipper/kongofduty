@@ -26,6 +26,9 @@ scripts/
 Thumbs.db
 .opencode/
 
+# Local-only upstream sync process doc (internal workflow notes)
+docs/upstream-sync.md
+
 .agents/
 cloudflare/
 .wrangler/

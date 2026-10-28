@@ -241,7 +241,14 @@ const ROWS: Record<Exclude<Tab, "controls">, Row[]> = {
         { v: "ultra", label: "ULTRA" },
       ],
     },
-    { key: "showFps", label: "FPS Counter", desc: "Show frames per second in the top-right corner (WebGL2 backend).", kind: "seg", opts: ON_OFF },
+    { key: "showFps", label: "FPS Counter", desc: "Show frames per second in the top-right corner.", kind: "seg", opts: ON_OFF },
+    {
+      key: "netStats",
+      label: "Network Stats",
+      desc: "Show FPS, frame time, ping, jitter and packet loss in the top-right corner. Loss counts snapshots that never arrived from the server.",
+      kind: "seg",
+      opts: ON_OFF,
+    },
     { group: "CINEMATIC" },
     { key: "bloom", label: "Bloom", desc: "Selective glow on HDR highlights only — sun, muzzle flash, explosions. Never a fullscreen wash.", kind: "seg", opts: ON_OFF },
     {

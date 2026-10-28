@@ -72,6 +72,7 @@ function strictGroundY(x: number, z: number, fromY: number): number {
 import { angWrap } from "@shared/math";
 import {
   TICK_DT,
+  SNAP_HZ,
   INTERP_MS,
   TDM_MATCH_TIME,
   FFA_KILL_LIMIT,
@@ -375,6 +376,9 @@ export class Game {
    */
   private snapTick = -1;
   private seenTicks = new Set<number>();
+  /** Upstream (.origin 28.10.): NETWORK STATS — [arrival ms, tick] of every distinct snapshot in the last few seconds. */
+  private statSnaps: [number, number][] = [];
+  private statPings: number[] = [];
   locked = false;
   opts!: BootOpts;
   // r186: THREE.Clock is deprecated (warns per boot) — Timer is the
@@ -1576,6 +1580,8 @@ export class Game {
     this.stepAt = 0;
     this.snapTick = -1;
     this.seenTicks.clear();
+    this.statSnaps.length = 0;
+    this.statPings.length = 0;
     this.renderTimeline.reset();
   }
 
@@ -1732,6 +1738,8 @@ export class Game {
           this.diagnostics?.pong(msg.t0, performance.now());
           const ping = Math.max(0, Date.now() - msg.t0);
           if (this.ghost) this.ghost.ping = ping;
+          this.statPings.push(ping);
+          if (this.statPings.length > 10) this.statPings.shift();
         }
         // A private server notice (e.g. the chat filter): rendered as a
         // system line in the chat log, never as a connection state.
@@ -1910,9 +1918,42 @@ export class Game {
    * never puts an event in two different ticks (server/game-server.ts), so
    * nothing plays twice. A big step backwards is a new session, not a late copy.
    */
+  /**
+   * Upstream (.origin 28.10.): the NETWORK STATS overlay's numbers (main.ts
+   * paints them). Loss is the share of snapshot ticks in the last 3 s that
+   * never arrived on either lane — the server publishes every SNAP_EVERY-th
+   * tick, so the gaps are countable. Jitter is the mean deviation of the last
+   * ten pings. null = offline (bots).
+   */
+  netStats(): { ping: number; jitter: number; loss: number; snapHz: number; lane: string } | null {
+    if (!this.net || this.testMode) return null;
+    const now = performance.now();
+    while (this.statSnaps.length && now - this.statSnaps[0]![0] > 3000) this.statSnaps.shift();
+    const snaps = this.statSnaps;
+    const step = Math.max(1, Math.round(1 / TICK_DT / SNAP_HZ));
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const [, t] of snaps) { lo = Math.min(lo, t); hi = Math.max(hi, t); }
+    const expected = snaps.length > 1 ? Math.round((hi - lo) / step) + 1 : snaps.length;
+    const loss = expected > 0 ? Math.max(0, 1 - snaps.length / expected) : 0;
+    const span = snaps.length > 1 ? (now - snaps[0]![0]) / 1000 : 0;
+    const pings = this.statPings;
+    const mean = pings.length ? pings.reduce((a, b) => a + b, 0) / pings.length : 0;
+    const jitter = pings.length > 1 ? pings.reduce((a, b) => a + Math.abs(b - mean), 0) / pings.length : 0;
+    return {
+      ping: this.ghost?.ping ?? Math.round(mean),
+      jitter,
+      loss,
+      snapHz: span > 0.5 ? (snaps.length - 1) / span : 0,
+      lane: this.udp?.stats.up ? "UDP" : "WS",
+    };
+  }
+
   private freshSnap(msg: { tick: number; ev: NetEvent[] }): boolean {
     if (this.seenTicks.has(msg.tick)) return false;
     this.seenTicks.add(msg.tick);
+    this.statSnaps.push([performance.now(), msg.tick]);
+    if (this.statSnaps.length > 256) this.statSnaps.shift();
     if (this.seenTicks.size > 256) this.seenTicks.delete(this.seenTicks.values().next().value!);
     if (msg.tick < this.snapTick && this.snapTick - msg.tick < 1024) {
       this.lastEv.push(...msg.ev);
@@ -3338,6 +3379,15 @@ export class Game {
       // explode() pushes its "boom" and then its hits back to back, so the cue
       // only survives across those hits — anything else clears it.
       if (e.t !== "hit") this.blastCue = null;
+      // Upstream (.origin 28.10.): a fresh life opens on the sim's spawn facing
+      // (toward the middle of the map). The view yaw is the client's own and
+      // rides every command, so without this the new body would turn straight
+      // back to where you died looking.
+      if (e.t === "spawn" && e.id === this.you && typeof e.yaw === "number") {
+        this.yaw = e.yaw;
+        this.pitch = 0;
+        this.recY = this.recP = this.punchY = this.punchP = 0;
+      }
       if (e.t === "spawn" && e.id === this.you && this.matchLive()) this.announcer.kong("spawn");
       // A spray tag went up somewhere (client/src/sprays.ts).
       if (e.t === "spray") {
@@ -3770,7 +3820,15 @@ export class Game {
     // capsule, so taking its bearing was reading a ~0.3 m random offset — that,
     // plus a gradient that was transparent at its own centre and opaque at the
     // rim, is why qa/out/killcam.json measured a mean cue error of 158 deg.
-    const ang = Math.atan2(wx - me.x, wz - me.z) - me.yaw;
+    // Upstream (.origin 28.10.): the bearing is measured CLOCKWISE on screen
+    // (positive = to your right). A world bearing above your yaw is to your
+    // LEFT — the camera looks along (sin yaw, cos yaw) with its right at
+    // (-cos yaw, sin yaw) — so it is yaw minus bearing. The other way round
+    // mirrored every cue left/right: a shot from your left lit the right of
+    // the screen (the frag danger arrows in weapons/hud.ts already flip it
+    // the same way).
+    let ang = me.yaw - Math.atan2(wx - me.x, wz - me.z);
+    ang = Math.atan2(Math.sin(ang), Math.cos(ang));
     // #dmg is now OPAQUE at (--dx,--dy) and fades outward, so the bloom sits ON
     // the attacker's bearing. The X and Y gains differ because the offset is in
     // percent of WIDTH vs HEIGHT: 34/46 lands the bloom's true alpha centroid on

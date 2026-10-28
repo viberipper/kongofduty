@@ -172,7 +172,7 @@ function applyPrefs(): void {
       if (p.colorMode === "default") document.documentElement.style.removeProperty(k);
       else document.documentElement.style.setProperty(k, v);
     }
-    fpsOn(p.showFps);
+    fpsOn(p.showFps, p.netStats);
     if (changed.includes("renderScale") || changed.includes("quality")) game.resize();
     if (changed.some((k) => (GFX as string[]).includes(k))) game.setGraphicsOptions();
     if (game.opts) {
@@ -186,8 +186,12 @@ function applyPrefs(): void {
 // ---------------------------------------------------------------- FPS counter
 
 let fpsRaf = 0;
-function fpsOn(on: boolean): void {
+let netStatsOn = false;
+function fpsOn(on: boolean, net = false): void {
+  netStatsOn = net;
+  on ||= net;
   show("fps", on);
+  $("fps")?.classList.toggle("netstats", net);
   if (!on) {
     cancelAnimationFrame(fpsRaf);
     fpsRaf = 0;
@@ -196,14 +200,40 @@ function fpsOn(on: boolean): void {
   if (fpsRaf) return;
   let frames = 0;
   let since = performance.now();
+  let worst = 0;
+  let last = since;
   const tick = (now: number): void => {
     frames++;
+    worst = Math.max(worst, now - last);
+    last = now;
     if (now - since >= 500) {
       const el = $("fps");
+      const fps = Math.round((frames * 1000) / (now - since));
       // Read the backend live: it is only decided inside game.init().
-      if (el) el.textContent = `${Math.round((frames * 1000) / (now - since))} FPS · ${game.backend === "webgpu" ? "WEBGPU" : "WEBGL2"}`;
+      const backend = game.backend === "webgpu" ? "WEBGPU" : "WEBGL2";
+      if (el && !netStatsOn) el.textContent = `${fps} FPS · ${backend}`;
+      else if (el) {
+        // Upstream (.origin 28.10.): NETWORK STATS — one row per number,
+        // coloured by how it feels to play on.
+        const n = game.netStats();
+        const tone = (v: number, ok: number, bad: number): string => (v <= ok ? "good" : v <= bad ? "warn" : "bad");
+        const rows: [string, string, string][] = [
+          ["FPS", `${fps} ${backend}`, tone(-fps, -55, -30)],
+          ["FRAME", `${((now - since) / frames).toFixed(1)} / ${worst.toFixed(0)} MS`, tone(worst, 34, 70)],
+        ];
+        if (n) {
+          rows.push(
+            ["PING", `${Math.round(n.ping)} MS`, tone(n.ping, 80, 150)],
+            ["JITTER", `${n.jitter.toFixed(1)} MS`, tone(n.jitter, 10, 30)],
+            ["LOSS", `${(n.loss * 100).toFixed(1)}%`, tone(n.loss, 0.01, 0.05)],
+            ["TICK", `${Math.round(n.snapHz)} HZ ${n.lane}`, tone(-n.snapHz, -28, -20)],
+          );
+        } else rows.push(["NET", "LOCAL · BOTS", "good"]);
+        el.innerHTML = rows.map(([k, v, c]) => `<div class="ns-row"><span>${k}</span><b class="ns-${c}">${v}</b></div>`).join("");
+      }
       frames = 0;
       since = now;
+      worst = 0;
     }
     fpsRaf = requestAnimationFrame(tick);
   };

@@ -22,7 +22,11 @@ import type { WeaponDef } from "./weapons";
  * damage left after it — `keep` at zero thickness, minus `perM` per metre.
  */
 export const PEN_RULES: Partial<Record<Surface, { max: number; keep: number; perM: number }>> = {
-  wood: { max: 1.0, keep: 0.8, perM: 0.4 },
+  // Upstream (.origin 28.10.): wood max 1.5 m, so every Shipment crate
+  // (0.70-1.10 m) is a wallbang for SMG and AR as well as the sniper; the
+  // pistol still only gets through the thinner ones, with little left.
+  // Damage still falls off per metre of wood.
+  wood: { max: 1.5, keep: 0.8, perM: 0.4 },
   glass: { max: 0.3, keep: 0.95, perM: 0.3 },
   rubber: { max: 0.9, keep: 0.6, perM: 0.3 },
   dirt: { max: 1.5, keep: 0.8, perM: 0.2 },

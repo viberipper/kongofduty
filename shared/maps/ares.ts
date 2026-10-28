@@ -36,9 +36,14 @@ box(9, 1, 2.4, 4.2, 1.25, "aconsole");
 box(-13, 4.9, 2.4, 3, 2.25, "anavtower");
 box(13, -4.9, 2.4, 3, 2.25, "anavtower");
 // Observatory: shallow elevation, never a one-way or inaccessible perch.
-box(0, -21.5, 40, 9, 0.6, "adeck", { climb: true });
-box(0, -16.65, 40, 0.7, 0.4, "astep", { climb: true });
-box(0, -15.95, 40, 0.7, 0.2, "astep", { climb: true });
+// Upstream (.origin 28.10.): every riser a hair over 0.2 m. The walker only
+// steps onto a climbable whose top is MORE than 0.2 m above its feet (sim
+// resolveCircle); a riser of exactly 0.2 m was a shin-high invisible wall
+// along the whole observatory front. The 1-2 cm extra per collider is below
+// what the eye can see on the treads.
+box(0, -21.5, 40, 9, 0.62, "adeck", { climb: true });
+box(0, -16.65, 40, 0.7, 0.415, "astep", { climb: true });
+box(0, -15.95, 40, 0.7, 0.21, "astep", { climb: true });
 for (const sign of [-1, 1]) {
   box(sign * 9.5, -21.5, 3.2, 3.6, 3.05, "anavtower", { y: 0.6 + 3.05 / 2 });
   box(sign * 17, -25, 3.6, 2, 1.15, "aconsole", { y: 0.6 + 1.15 / 2 });

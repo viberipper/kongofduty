@@ -73,6 +73,8 @@ export interface Prefs {
   // GRAPHICS
   renderScale: RenderScaleMode;
   showFps: boolean;
+  /** Upstream (.origin 28.10.): NETWORK STATS overlay — FPS, ping, jitter, snapshot loss under the FPS corner. */
+  netStats: boolean;
   /** HUD size multiplier. */
   hudScale: number;
   motion: MotionPref;
@@ -155,6 +157,7 @@ export const DEFAULT_PREFS: Readonly<Prefs> = {
   killstreaks: false,
   renderScale: "auto",
   showFps: false,
+  netStats: false,
   hudScale: 1,
   motion: "system",
   colorMode: "default",
@@ -236,6 +239,7 @@ export function sanitizePrefs(x: unknown): Prefs {
     killstreaks: bool(o.killstreaks, d.killstreaks),
     renderScale: pick(o.renderScale, ["auto", "native"] as const, d.renderScale),
     showFps: bool(o.showFps, d.showFps),
+    netStats: bool(o.netStats, d.netStats),
     hudScale: clamp(o.hudScale, RANGES.hudScale[0], RANGES.hudScale[1], d.hudScale),
     motion: pick(o.motion, ["system", "reduce", "full"] as const, d.motion),
     colorMode: pick(o.colorMode, ["default", "protanopia", "deuteranopia", "tritanopia"] as const, d.colorMode),

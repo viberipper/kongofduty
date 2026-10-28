@@ -291,7 +291,7 @@ export type NetEvent =
       wall?: boolean;
     }
   | { t: "kill"; src: string; dst: string; weapon: string; head: boolean; medal: string }
-  | { t: "spawn"; id: string; x: number; y: number; z: number }
+  | { t: "spawn"; id: string; x: number; y: number; z: number; /** Upstream (.origin 28.10.): the facing the life opens on (the client adopts it). */ yaw?: number }
   | { t: "shot"; src: string; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; weapon: string }
   | { t: "foot"; id: string; x: number; z: number; kind: "run" | "land" | "slide" }
   | {

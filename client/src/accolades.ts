@@ -35,6 +35,7 @@ export type MedalId =
   | "quad"
   | "rampage"
   | "headshot"
+  | "collateral"
   | "longshot"
   | "frag"
   | "cooked"
@@ -66,6 +67,7 @@ const META: Record<MedalId, { title: string; tier: 1 | 2; rank: number }> = {
   firstblood: { title: "FIRST BLOOD", tier: 1, rank: 11 },
   cooked: { title: "COOKED", tier: 1, rank: 12 },
   longshot: { title: "LONGSHOT", tier: 1, rank: 13 },
+  collateral: { title: "COLLATERAL", tier: 1, rank: 12.5 },
   headshot: { title: "HEADSHOT", tier: 1, rank: 14 },
   laststand: { title: "LAST STAND", tier: 1, rank: 15 },
   frag: { title: "GRENADE KILL", tier: 1, rank: 16 },
@@ -212,6 +214,8 @@ export class AccoladeTracker {
       else add("frag", "FRAG");
     }
     if (gun && Number.isFinite(k.dist) && k.dist >= (k.weapon === "sniper" ? LONGSHOT_SNIPER_M : LONGSHOT_M)) add("longshot", `${Math.round(k.dist)} M`);
+    // Upstream (.origin 28.10.): the sim names the second body one round dropped (shared/sim.ts hitscan)
+    if (k.simMedal === "COLLATERAL") add("collateral", "TWO FOR ONE");
     if (gun && k.head) add("headshot", "RIGHT BETWEEN THE EYES");
     if (k.myHp > 0 && k.myHp <= LAST_STAND_HP) add("laststand", `ON ${Math.max(1, Math.round(k.myHp))} HEALTH`);
     out.sort((a, b) => META[a.id].rank - META[b.id].rank);

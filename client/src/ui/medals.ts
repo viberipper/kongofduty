@@ -46,6 +46,9 @@ function glyph(id: MedalId): string {
       return `<path fill="currentColor" d="M32 14.5a8.6 8.6 0 1 1 0 17.2 8.6 8.6 0 0 1 0-17.2Z M17 49c.8-9 6.6-14.4 15-14.4S46.2 40 47 49Z"/><g fill="none" stroke="var(--md-ring, #0b0c0e)" stroke-width="1.8"><circle cx="32" cy="22.6" r="4.4"/></g><g fill="var(--md-ring, #0b0c0e)"><rect x="31.2" y="15.2" width="1.6" height="3.4"/><rect x="31.2" y="26.6" width="1.6" height="3.4"/><rect x="24.6" y="21.8" width="3.4" height="1.6"/><rect x="36" y="21.8" width="3.4" height="1.6"/></g>`;
     case "longshot":
       return `<g fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="32" cy="32" r="13"/></g><g fill="currentColor"><rect x="30.9" y="15" width="2.2" height="11"/><rect x="30.9" y="38" width="2.2" height="11"/><rect x="15" y="30.9" width="11" height="2.2"/><rect x="38" y="30.9" width="11" height="2.2"/><circle cx="32" cy="32" r="1.8"/><rect x="31" y="40.4" width="2" height="1.2"/><rect x="31" y="43.4" width="2" height="1.2"/></g>`;
+    case "collateral":
+      // two heads in a row, one round through both
+      return `<g fill="currentColor"><circle cx="25" cy="27" r="6.4"/><circle cx="41" cy="27" r="6.4"/><path d="M14.5 45c.6-6.8 4.6-10.6 10.5-10.6S35 38.2 35.5 45Z M30.5 45c.6-6.8 4.6-10.6 10.5-10.6S51 38.2 51.5 45Z"/></g><path stroke="var(--md-ring, #0b0c0e)" stroke-width="5" d="M9 27h46"/><path stroke="currentColor" stroke-width="2.2" d="M9 27h44"/><path fill="currentColor" d="M52 23.4 58 27l-6 3.6Z"/>`;
     case "frag":
       return icon("FRAG", 1.45);
     case "cooked":

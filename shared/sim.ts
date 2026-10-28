@@ -2000,7 +2000,7 @@ export class GameSession {
         }
       }
     }
-    p.yaw = best.yaw;
+    p.yaw = spawnFacing(p.x, p.y, p.z, best.yaw);
     p.pitch = 0;
     p.vx = p.vy = p.vz = 0;
     p.hp = 100;
@@ -2028,7 +2028,7 @@ export class GameSession {
     // THE LOADOUT LANDS HERE, AND ONLY HERE (CoD rule): a change made mid-life
     // waits for the next spawn. Every life opens on the primary, fully stocked.
     equip(p);
-    this.events.push({ t: "spawn", id: p.id, x: p.x, y: p.y, z: p.z });
+    this.events.push({ t: "spawn", id: p.id, x: p.x, y: p.y, z: p.z, yaw: p.yaw });
   }
 
   eyeY(p: SimPlayer): number {
@@ -2577,69 +2577,71 @@ export class GameSession {
     // PENETRATION (shared/penetration.ts): the round runs on through thin
     // soft walls, so bodies behind them are in reach at reduced damage.
     const path = bulletPath(ox, oy, oz, dx, dy, dz, maxT, w, MAP.id);
-    let bestT = path.t;
-    let victim: SimPlayer | null = null;
-    let hitPose: HitPose | null = null;
-    let head = false;
 
     const when = at === false ? this.time : clamp(at, this.time - REWIND_MS / 1000, this.time);
 
+    // Upstream (.origin 28.10.): COLLATERALS. Every enemy body on the line,
+    // nearest first: a gun's round carries on through the first body into the
+    // next (up to COLLATERAL_MAX), each extra body taking COLLATERAL_KEEP of
+    // the share the one before it got. A knife stops in the first body.
+    const line: { o: SimPlayer; t: number; pose: HitPose; head: boolean }[] = [];
     for (const o of this.players.values()) {
       if (o.id === src.id || !o.alive) continue;
       if (this.mode !== "ffa" && o.team === src.team) continue;
       const pose = this.poseAt(o, when);
       const t = rayPlayer(ox, oy, oz, dx, dy, dz, pose);
-      if (t < bestT) {
-        bestT = t;
-        victim = o;
-        hitPose = pose;
-        head = isHeadshot(oy + dy * t, pose);
-      }
+      if (t < path.t) line.push({ o, t, pose, head: isHeadshot(oy + dy * t, pose) });
     }
+    if (!line.length) return;
+    line.sort((a, b) => a.t - b.t);
+    const bodies = w.fire === "melee" ? 1 : Math.min(line.length, COLLATERAL_MAX);
+    let killed = 0;
+    for (let i = 0; i < bodies; i++) {
+      const { o: victim, t: bestT, pose: hitPose, head } = line[i]!;
+      // A spawn-protected body soaks the round: nothing behind it is hit either.
+      if (victim.protect > 0) return;
 
-    if (!victim) return;
-    if (victim.protect > 0) return;
-
-    const dist = bestT;
-    const hx = ox + dx * bestT;
-    const hy = oy + dy * bestT;
-    const hz = oz + dz * bestT;
-    // Damage zones read off the pose that was actually TESTED, not off the live
-    // one: `head` above already came from the rewound body, and scoring a chest
-    // against a different (newer) body is how a rewound headshot could land as
-    // a limb hit on a victim who has crouched since.
-    const zone = hitPose ?? victim;
-    const top = zone.y + poseHeight(zone);
-    const chest = !head && hy > top - (zone.slide > 0 ? 0.55 : 0.85);
-    // THREE ZONES (CoD): head x headMul, upper body (chest, shoulders, arms) x1,
-    // lower body and legs x lowerMul — over the gun's range STEP, rounded.
-    const keep = keepAt(path, dist);
-    const dmg = Math.max(1, Math.round(bulletDamage(w, dist, head ? "head" : chest ? "upper" : "lower") * keep));
-    victim.hp -= dmg;
-    victim.lastHit = src.id;
-    victim.lastHitAt = this.time;
-    // Every damage path in this file resets the regen clock, here and in the two
-    // blast paths below. Miss one and that source of damage silently heals
-    // through itself.
-    victim.regenT = 0;
-    const kill = victim.hp <= 0;
-    this.events.push({
-      t: "hit",
-      src: src.id,
-      dst: victim.id,
-      dmg,
-      head,
-      x: hx,
-      y: hy,
-      z: hz,
-      kill,
-      // hitscan runs while src's command is being processed, so src.seq IS
-      // that command's seq — the shooter's client dedupes its predicted
-      // hitmarker against exactly this number.
-      seq: src.seq,
-      ...(keep < 1 ? { wall: true } : {}),
-    });
-    if (kill) this.kill(src, victim, w.id, head);
+      const dist = bestT;
+      const hx = ox + dx * bestT;
+      const hy = oy + dy * bestT;
+      const hz = oz + dz * bestT;
+      // Damage zones read off the pose that was actually TESTED, not off the live
+      // one: `head` above already came from the rewound body, and scoring a chest
+      // against a different (newer) body is how a rewound headshot could land as
+      // a limb hit on a victim who has crouched since.
+      const zone = hitPose ?? victim;
+      const top = zone.y + poseHeight(zone);
+      const chest = !head && hy > top - (zone.slide > 0 ? 0.55 : 0.85);
+      // THREE ZONES (CoD): head x headMul, upper body (chest, shoulders, arms) x1,
+      // lower body and legs x lowerMul — over the gun's range STEP, rounded.
+      const keep = keepAt(path, dist);
+      const dmg = Math.max(1, Math.round(bulletDamage(w, dist, head ? "head" : chest ? "upper" : "lower") * keep * COLLATERAL_KEEP ** i));
+      victim.hp -= dmg;
+      victim.lastHit = src.id;
+      victim.lastHitAt = this.time;
+      // Every damage path in this file resets the regen clock, here and in the two
+      // blast paths below. Miss one and that source of damage silently heals
+      // through itself.
+      victim.regenT = 0;
+      const kill = victim.hp <= 0;
+      this.events.push({
+        t: "hit",
+        src: src.id,
+        dst: victim.id,
+        dmg,
+        head,
+        x: hx,
+        y: hy,
+        z: hz,
+        kill,
+        // hitscan runs while src's command is being processed, so src.seq IS
+        // that command's seq — the shooter's client dedupes its predicted
+        // hitmarker against exactly this number.
+        seq: src.seq,
+        ...(keep < 1 ? { wall: true } : {}),
+      });
+      if (kill) this.kill(src, victim, w.id, head, killed++ > 0);
+    }
   }
 
   /**
@@ -2684,7 +2686,7 @@ export class GameSession {
     };
   }
 
-  kill(src: SimPlayer, dst: SimPlayer, weapon: string, head: boolean): void {
+  kill(src: SimPlayer, dst: SimPlayer, weapon: string, head: boolean, collateral = false): void {
     this.dropCooked(dst);
     dst.alive = false;
     dst.hp = 0;
@@ -2719,6 +2721,8 @@ export class GameSession {
     else if (src.streak === 5) medal = "FURY KILL";
     else if (src.streak === 7) medal = "RELENTLESS";
     else if (src.streak >= 10) medal = "UNSTOPPABLE";
+    // Upstream (.origin 28.10.): the second (or third) body dropped by one round
+    if (collateral && (medal === "KILL" || medal === "HEADSHOT")) medal = "COLLATERAL";
     this.events.push({ t: "kill", src: src.id, dst: dst.id, weapon, head, medal });
     // GUN GAME: the kill moves the killer up the ladder; a knife kill also
     // knocks the victim back one (humiliation). A frag in your own face is not
@@ -4816,6 +4820,9 @@ export const BOT_NAV: BotNavPt[] = buildBotNav();
  * turning round.
  */
 const SPAWN_TRACE_TOP = 24;
+/** Upstream (.origin 28.10.): most bodies one round can pass through, and the damage share each extra body keeps. */
+const COLLATERAL_MAX = 3;
+const COLLATERAL_KEEP = 0.7;
 const SPAWN_LOS_RANGE = 40;
 const SPAWN_CLEAR_R = RADIUS + 0.6;
 const SPAWN_BOUNDS_INSET = 1.5;
@@ -4875,6 +4882,27 @@ function navSpawn(n: BotNavPt, team: 0 | 1): Spawn {
   const cz = (b.minZ + b.maxZ) * 0.5;
   // Forward is (sin yaw, cos yaw) — see the wish-direction maths in movePlayer.
   return { x: n.x, y: n.y, z: n.z, yaw: Math.atan2(cx - n.x, cz - n.z), team };
+}
+
+/**
+ * Upstream (.origin 28.10.): EVERY LIFE OPENS FACING THE MIDDLE OF THE MAP,
+ * where the fight is — not at the yard fence, and not wherever you were
+ * looking when you died. Bearing to the centre of the map's bounds (forward
+ * is (sin yaw, cos yaw)). A wall within SPAWN_FACE_CLEAR of the eye on that
+ * bearing (a dust2 spawn tucked into a doorway whose centre-ward side is
+ * masonry) keeps the authored facing, which was chosen to look down the
+ * open lane.
+ */
+const SPAWN_FACE_CLEAR = 2.5;
+function spawnFacing(x: number, y: number, z: number, authored: number): number {
+  const b = MAP.bounds;
+  const dx = (b.minX + b.maxX) * 0.5 - x;
+  const dz = (b.minZ + b.maxZ) * 0.5 - z;
+  const d = Math.hypot(dx, dz);
+  if (d < 1) return authored;
+  const tr = traceWorld(x, y + EYE, z, dx / d, 0, dz / d, SPAWN_FACE_CLEAR);
+  if (tr.t < SPAWN_FACE_CLEAR - 0.01) return authored;
+  return Math.atan2(dx, dz);
 }
 
 const SPAWN_POOLS: Map<string, Spawn[]> = new Map();

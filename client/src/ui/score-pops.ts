@@ -23,6 +23,7 @@ const MEDAL_PTS: Partial<Record<MedalId, number>> = {
   quad: 100,
   rampage: 150,
   longshot: 50,
+  collateral: 75,
   payback: 50,
   revenge: 50,
   buzzkill: 50,
