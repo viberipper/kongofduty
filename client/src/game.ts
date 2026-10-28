@@ -76,6 +76,7 @@ import {
   INTERP_MS,
   TDM_MATCH_TIME,
   FFA_KILL_LIMIT,
+  ROUNDS_TO_WIN,
   matchTimeFor,
   scoreLimit,
   RESPITE,
@@ -495,6 +496,15 @@ export class Game {
   netScore0 = 0;
   netScore1 = 0;
   netRemain = TDM_MATCH_TIME;
+  /**
+   * END-OF-MATCH WATCHDOG (endWatchdog, called from fixed()): performance.now()
+   * when an end-of-match signal was last seen on the wire while !ended — a
+   * remain<=0 snapshot, a match/end event, or clinched round wins. Cleared on
+   * match/live. The watchdog enters finish() only when this evidence exists
+   * AND no snapshot has arrived for seconds, so mid-match jitter can never
+   * trip it.
+   */
+  private endEvidenceAt = 0;
   /**
    * ROUND-BASED TDM (shared/protocol.ts RoundState): the round block off the
    * newest snapshot, null on every other room. Offline the local session is
@@ -1451,6 +1461,8 @@ export class Game {
     this.netPhase = "live";
     this.netStartAt = 0;
     this.ended = false;
+    // Fresh boot/re-deploy clears stale watchdog evidence (see resetPrediction).
+    this.endEvidenceAt = 0;
     this.endcardUp = false;
     // Every boot (re-)starts on clean walls: the Sprays instance and the scene
     // outlive a match (QuickMatch-Neustart, leave-to-menu → re-deploy), so old
@@ -1592,6 +1604,10 @@ export class Game {
     this.stepAt = 0;
     this.snapTick = -1;
     this.seenTicks.clear();
+    // STALE WATCHDOG EVIDENCE must not survive a boot/reconnect: lastSnapArr
+    // is reset above, so old evidence would fire the watchdog before the
+    // first snapshot of the new seat arrives.
+    this.endEvidenceAt = 0;
     this.statSnaps.length = 0;
     this.statPings.length = 0;
     this.renderTimeline.reset();
@@ -1840,6 +1856,19 @@ export class Game {
             : 0;
           const gunBest = gun ? msg.players.reduce((m, p) => Math.max(m, num(p.gun ?? 0)), 0) : 0;
           const limitHit = gun ? gunBest >= gunGoal(this.gunKills) : ffa ? best >= FFA_KILL_LIMIT : num(msg.score0) >= scoreLimit(msg.map ?? MAP.id) || num(msg.score1) >= scoreLimit(msg.map ?? MAP.id);
+          // END-OF-MATCH WATCHDOG (endWatchdog, fixed()): record that the end
+          // was seen on the wire — before finish() runs, so the evidence
+          // survives even if finish() ever failed to run. Round-based rooms
+          // park remain on ROUND_TIME and score round wins, so neither trigger
+          // above fires there: clinched round wins (>= ROUNDS_TO_WIN ends the
+          // match synchronously in the sim) count as end evidence too.
+          if (!this.ended && (msg.remain <= 0 || limitHit)) this.endEvidenceAt = performance.now();
+          if (!this.ended && (this.netRound ? this.netRound.wins0 >= ROUNDS_TO_WIN || this.netRound.wins1 >= ROUNDS_TO_WIN : false)) this.endEvidenceAt = performance.now();
+          // TRANSIENT FALSE EVIDENCE must not linger: a fresh live snapshot with
+          // a healthy stand (clock running, no limit, no clinched rounds) clears
+          // it. Snaps with remain<=0/limitHit/clinch never reach this branch —
+          // they set evidence above.
+          else if (!this.ended && msg.remain > 0 && !limitHit && !(this.netRound ? this.netRound.wins0 >= ROUNDS_TO_WIN || this.netRound.wins1 >= ROUNDS_TO_WIN : false)) this.endEvidenceAt = 0;
           if (msg.remain <= 0 || limitHit)
             this.finish(num(msg.score0), num(msg.score1));
           // A BENCHED SEAT HAS NOTHING TO RECONCILE. Reconciliation exists to
@@ -1961,8 +1990,25 @@ export class Game {
     };
   }
 
-  private freshSnap(msg: { tick: number; ev: NetEvent[] }): boolean {
-    if (this.seenTicks.has(msg.tick)) return false;
+  private freshSnap(msg: { tick: number; ev: NetEvent[]; remain?: number; score0?: number; score1?: number }): boolean {
+    if (this.seenTicks.has(msg.tick)) {
+      // END-OF-MATCH RETRANSMIT (server/index.ts, over window): the end state
+      // repeats on the FROZEN end tick until the rollover, so every repeat is
+      // a "duplicate" by tick — and must never swallow the end of the match.
+      // Only the idempotent end signals are replayed here (finish() returns
+      // when already ended); kills/feed stay deduplicated, nothing plays twice.
+      for (const e of msg.ev) {
+        if (e.t === "match" && e.state === "end") {
+          try { this.finish(e.score0, e.score1); } catch (err) { console.debug("[events] match/end replay failed", err); /* the match end is never blocked */ }
+        }
+      }
+      // The over window pins remain to 0 on that same frozen tick: the main
+      // remain<=0 trigger never runs for duplicates, so it runs here.
+      if ((msg.remain ?? 1) <= 0) {
+        try { this.finish(num(msg.score0), num(msg.score1)); } catch (err) { console.debug("[events] remain<=0 replay failed", err); /* the match end is never blocked */ }
+      }
+      return false;
+    }
     this.seenTicks.add(msg.tick);
     this.statSnaps.push([performance.now(), msg.tick]);
     if (this.statSnaps.length > 256) this.statSnaps.shift();
@@ -2781,8 +2827,32 @@ export class Game {
     }
   }
 
+  /**
+   * END-OF-MATCH WATCHDOG — last resort behind the retransmit (server), the
+   * duplicate-tick end replay (freshSnap) and the per-event catch
+   * (handleEvents). If an end-of-match signal was seen on the wire but
+   * finish() still has not run — and no snapshot has arrived for seconds
+   * (4 s) — enter the finish path instead of waiting for the
+   * rollover. Requires BOTH a stall AND end evidence, so mid-match jitter
+   * (snaps flowing, or no end signal seen) can never trip it; and a fresh
+   * match clears the evidence on match/live while flowing snaps hold the
+   * stall gate shut. Runs on the fixed tick (foreground); a throttled tab
+   * relies on the retransmit instead.
+   */
+  private endWatchdog(): void {
+    if (this.ended || this.session || !this.net || this.testMode) return;
+    if (!this.endEvidenceAt) return;
+    if (!this.matchLive()) return;
+    // No snapshot for seconds while the end was seen: the match is over and
+    // the wire went quiet — finish on the newest scores, do not wait.
+    if (performance.now() - this.lastSnapArr < 4000) return;
+    try { this.finish(this.netScore0, this.netScore1); } catch { /* never throw out of the frame loop */ }
+  }
+
   fixed(): void {
     BruiserActor.nowMs = this.nowMs();
+    // Online only (offline ends off session.over below); spectators included.
+    if (!this.session) this.endWatchdog();
     // SPECTATING: THIS CLIENT DRIVES NOTHING. Not one InputCmd is built, stamped,
     // queued, sent or locally predicted for a body it is not playing — which is
     // the difference between a spectator that costs the server nothing and one
@@ -3251,7 +3321,11 @@ export class Game {
   }
 
   handleEvents(ev: NetEvent[]): void {
+    // END-OF-MATCH ROBUSTNESS: each event runs in its own try/catch, so one
+    // faulty event in the final flush (feed, accolades, announcer, tracer)
+    // can never throw past the match/end event — and finish() — behind it.
     for (const e of ev) {
+      try {
       if (e.t === "chat") this.chatLine(e.name, e.text);
       // feel stream R2: map modules (Nuketown's mannequin heads, breakable glass) hear every server shot and blast
       if ((e.t === "shot" || e.t === "boom") && this.worldEvents.length) for (const f of this.worldEvents) f(e);
@@ -3329,8 +3403,8 @@ export class Game {
             const d = Math.hypot(e.x - me.x, e.z - me.z);
             rumbleBoom(Math.max(0, 1 - d / 25));
           } else rumbleBoom(0.3);
-        } catch {
-          /* cosmetic */
+        } catch (err) {
+          console.debug("[events] boom rumble failed", err); /* cosmetic */
         }
         continue;
       }
@@ -3558,12 +3632,18 @@ export class Game {
         if (e.state === "end") this.banner(`ROUND ${res}`, 4.5, `ROUND ${e.round} · ${ours}–${theirs}`);
         else this.banner(`ROUND ${e.round}`, 1.2);
       }
-      if (e.t === "match" && e.state === "end") this.finish(e.score0, e.score1);
+      if (e.t === "match" && e.state === "end") {
+        // END-OF-MATCH WATCHDOG (endWatchdog): the end was seen on the wire,
+        // even if finish() below ever failed to run it.
+        this.endEvidenceAt = performance.now();
+        this.finish(e.score0, e.score1);
+      }
       // A FRESH MATCH AFTER AN ENDCARD: the 24/7 rollover or a created lobby
       // that dropped back to its pre-game screen. Re-arm finish() for the next
       // one and let main.ts take the endcard down.
       else if (e.t === "match" && e.state === "live" && this.ended) {
         this.ended = false;
+        this.endEvidenceAt = 0;
         this.endcardUp = false;
         this.stopFinalKillcam(); // feel stream
         this.sprays?.clear(); // fresh walls for the next match
@@ -3572,6 +3652,11 @@ export class Game {
         this.medals.clear();
         this.scorePops.clear();
         this.onRematch?.();
+      }
+      } catch (err) {
+        // One bad event must never block the events behind it (match/end) —
+        // logged at debug so real bugs stay visible without changing behaviour.
+        console.debug("[events] dropped event", e.t, err);
       }
     }
   }

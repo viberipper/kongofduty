@@ -700,6 +700,13 @@ class Room {
   seats = new Map<string, Seat>();
   botSeq = 0;
   overAt = 0;
+  // END-OF-MATCH RETRANSMIT (match-end robustness, all modes/kinds): the last
+  // match-end scores, repeated on over-window snapshots until the rollover.
+  // The end tick freezes (GameSession.step returns when over), so without a
+  // repeat a single lost flush frame leaves clients waiting for the rollover.
+  overMatchEnd: { score0: number; score1: number } | null = null;
+  // Wall time of the last over-window snapshot (retransmit throttle, tick()).
+  overLastSnap = 0;
   startAtWall = 0;
   emptySince = 0;
   /** Seats (humans+bots) of this room: seatsFor(map, mode). */
@@ -1267,12 +1274,15 @@ class Room {
     const flushed = this.session.over && this.overAt === 0;
     if (flushed) {
       this.overAt = Date.now();
+      this.overMatchEnd = { score0: this.session.score0, score1: this.session.score1 };
+      this.overLastSnap = Date.now();
       this.broadcastSnaps();
     }
     if (this.session.over && this.overAt !== 0) {
       const wait = this.kind === "yard" ? YARD_ROLLOVER_MS : LOBBY_RETURN_MS;
       if (Date.now() - this.overAt >= wait) {
         this.overAt = 0;
+        this.overMatchEnd = null;
         this.session.nextMatch();
         // A new match starts on clean walls (the clients scrub theirs too).
         this.sprays.clear();
@@ -1304,9 +1314,23 @@ class Room {
         } else if (this.session.players.size < this.seatCount) {
           this.addBot(this.pickTeam());
         }
+      } else if (Date.now() - this.overLastSnap >= 1000) {
+        // END-OF-MATCH RETRANSMIT. The end tick is frozen, so the flush above
+        // was a single shot: re-send the end state ~1 Hz until the rollover so
+        // a lost flush frame (jitter, throttled tab, UDP/WS gap) still lands.
+        // broadcastSnaps() re-attaches match/end and pins remain to 0 (below);
+        // 1 Hz is ~18 small snapshots per over window, not spam. Throttled on
+        // the wall clock (not the frozen session tick) so delivery no longer
+        // depends on tick parity either way: a frozen even tick previously
+        // re-snapped at the full 64 Hz tick rate, a frozen odd tick never again.
+        this.overLastSnap = Date.now();
+        this.broadcastSnaps();
       }
     }
-    if (!flushed && this.session.tick % SNAP_EVERY === 0) this.broadcastSnaps();
+    // No regular snapshot while over: the over window sends only the throttled
+    // retransmit above (a frozen `session.tick % SNAP_EVERY === 0` is either
+    // always or never true — 64 Hz spam or permanent silence by parity).
+    if (!flushed && !this.session.over && this.session.tick % SNAP_EVERY === 0) this.broadcastSnaps();
     // LOBBY PING, LIVE: seats report rtt ~1/s (the ping handler stores it on
     // the seat), but the lobby only broadcasts on roster changes — so the
     // ms badges would freeze at 0. Re-push at most every 5 s, and only when
@@ -1387,6 +1411,14 @@ class Room {
     // depth (server-side reject on control characters) stays a
     // third-party-client concern and is out of scope here.
     const ev: NetEvent[] = this.session.drainEvents();
+    // END-OF-MATCH RETRANSMIT (tick(), over window): the sim is frozen, so the
+    // drain above is empty after the flush — re-attach the match/end event on
+    // every over-window snapshot until the rollover clears overMatchEnd.
+    // finish() is idempotent client-side, so repeats are safe; the rollover's
+    // match/live event is NOT repeated (it drains once, normally).
+    if (this.session.over && this.overMatchEnd) {
+      ev.push({ t: "match", state: "end", score0: this.overMatchEnd.score0, score1: this.overMatchEnd.score1 });
+    }
     const playersRaw: PlayerSnap[] = this.session.snap();
     const nades = this.session.nadeSnap();
     const round = this.session.roundSnap();
@@ -1400,7 +1432,11 @@ class Room {
         prediction: this.predictionFor(s),
         score0: this.session.score0,
         score1: this.session.score1,
-        remain: this.session.remain,
+        // remain is pinned to 0 while over: the clock path already publishes 0,
+        // the kill-limit path leaves the clock parked above 0 — pinning aligns
+        // both (and round-based rooms, whose remain parks on ROUND_TIME) so the
+        // client's remain<=0 trigger fires on every over-window snapshot.
+        remain: this.session.over ? 0 : this.session.remain,
         mode: this.mode,
         map: SERVER_MAP,
         round,
