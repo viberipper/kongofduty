@@ -57,6 +57,11 @@
  * Also YOUR KONG'S OWN VOICE (hive cbbuhicb): broken, Brute-style English on
  * its kills, headshots, reloads, frags, respawns and when it is hurt — `kong()`
  * — a deeper, slower beastubleed of the same voice, behind its own switch.
+ * Throttled: shared 10 s voice cooldown for kill/head cues (12 s for every
+ * other cue, fully silent inside), one shared 6 s global voice gap across all
+ * cues (voice withheld, subtitle still shown), and max 6 voiced lines per cue
+ * category per match (kill/head counted separately, afterwards subtitle-only).
+ * Cooldown/gap/cap stamps advance only on actually voiced lines.
  *
  * Volume follows MASTER x INTERFACE; SETTINGS → AUDIO switches each off (the
  * toggles gate the clips, not just the synthesis).
@@ -82,6 +87,19 @@ const MODE_COOL_MS = 30000;
 const LEAD_COOL_MS = 25000;
 const STREAK_FOREIGN_COOL_MS = 20000;
 const SHUTDOWN_COOL_MS = 15000;
+/** Kong spam control (Announcer-Balance): shared voice cooldown — kill/head
+ *  cues every 10 s at most, every other cue (reload/hurt/spawn/frag) every
+ *  12 s at most (inside the window the line stays fully silent, as before). */
+const KONG_KILL_COOL_MS = 10000;
+const KONG_OTHER_COOL_MS = 12000;
+/** Kong global voice gap: one shared 6 s gap across ALL cue categories
+ *  (kill/head share it with reload/hurt/spawn/frag) — a Kong voice in the
+ *  last 6 s withholds only the voice, the subtitle still shows. */
+const KONG_GAP_MS = 6000;
+/** Kong per-match voice cap: each cue category (kill, head, reload, hurt,
+ *  spawn, frag — kill/head counted separately) speaks at most 6× per match,
+ *  afterwards subtitle-only. */
+const KONG_CAP_PER_MATCH = 6;
 const NUM = ["", "", "DOUBLE KILL", "TRIPLE KILL", "QUAD KILL", "MEGA KILL"];
 
 /** Fixed announcer line -> clip file (under assets/audio/announcer/). */
@@ -166,7 +184,9 @@ export class Announcer {
   /** Own-side score at the last tick (TDM: your team's score, FFA: your kills). */
   private leadScore = 0;
   private kills = 0;
-  private lastKong = 0;
+  private lastKong = -1e9;
+  /** Kong voices per cue category this match (match-scoped cap, see kong()). */
+  private kongCounts = new Map<KongCue, number>();
   /** First blood fired this match (match-scoped: exactly once per match). */
   private bloodSeen = false;
   /** Last announcer (non-Kong) voice start, for the global pacing gap. */
@@ -210,6 +230,11 @@ export class Announcer {
         this.bloodSeen = false;
         this.multiHigh = 0;
         this.streakHigh = 0;
+        this.kongCounts.clear();
+        // Fresh voice clocks: a Kong tail / announcer voice from the previous
+        // match must not eat the new match's first Kong line or defer its GO.
+        this.lastKong = -1e9;
+        this.lastVoiceAt = -1e9;
         this.lead = 0;
         this.leadScore = 0;
         this.clearMulti();
@@ -218,8 +243,9 @@ export class Announcer {
         this.lastVoiceByKey.delete(`mode:${s.modeLabel}`);
         this.say(s.modeLabel, 3, false, undefined, true, `mode:${s.modeLabel}`, MODE_COOL_MS);
       } else {
-        // ROUND start (round 2+): clocks re-arm, but the mode is NOT called
-        // again and match-scoped state (first blood, streak kills) survives.
+        // ROUND start (round 2+): the clocks survive on purpose (only the
+        // pending multi window is cleared), the mode is NOT called again
+        // and match-scoped state (first blood, streak kills) survives.
         this.clearMulti();
       }
     }
@@ -283,7 +309,7 @@ export class Announcer {
       this.say(`FIRST BLOOD! ${killer} DROPS ${victim}`, mine ? 3 : 1, false, undefined, mine);
       return;
     }
-    // Killstreak toggle (SETTINGS → AUDIO, default OFF): the streak and
+    // Killstreak toggle (SETTINGS → AUDIO, default ON): the streak and
     // multi-kill branches below are skipped entirely — no voice, no subtitle,
     // no pending window/timer, no kill-voice stamp (so the Kong still talks on
     // those kills). Shutdowns stay outside the toggle (shutdown(), unchanged).
@@ -458,13 +484,29 @@ export class Announcer {
     if ((kind === "kill" || kind === "head") && this.killSeq > 0 && this.killVoiceSeq === this.killSeq) return;
     const now = performance.now();
     const kill = kind === "kill" || kind === "head";
-    // Damped: no endless roaring — a kill line every few seconds at most.
-    if (now - this.lastKong < (kill ? 4000 : 8000)) return;
+    const lines = KONG_LINES[kind];
+    const idx = Math.floor(Math.random() * lines.length);
+    // Global voice gap (one shared gap for all categories): a Kong voice in
+    // the last 6 s withholds only the voice — the subtitle still shows, and
+    // no cooldown/cap stamp advances (nothing spoke). Checked before the
+    // cooldown so the gap demotes to subtitle-only instead of dropping silent.
+    if (now - this.lastKong < KONG_GAP_MS) {
+      this.say(lines[idx]!, 0, true, `kong/${kind}-${idx}.ogg`, false);
+      return;
+    }
+    // Damped: no endless roaring — a kill/head line every 10 s at most, every
+    // other cue every 12 s at most; inside the window fully silent, as before.
+    if (now - this.lastKong < (kill ? KONG_KILL_COOL_MS : KONG_OTHER_COOL_MS)) return;
+    // Per-match voice cap per cue category (kill/head counted separately):
+    // over-cap lines keep their subtitle but never take the voice again.
+    if ((this.kongCounts.get(kind) ?? 0) >= KONG_CAP_PER_MATCH) {
+      this.say(lines[idx]!, 0, true, `kong/${kind}-${idx}.ogg`, false);
+      return;
+    }
     // the chatter stays a spice: every kill gets a line, the rest only sometimes
     if (!kill && Math.random() < 0.5) return;
     this.lastKong = now;
-    const lines = KONG_LINES[kind];
-    const idx = Math.floor(Math.random() * lines.length);
+    this.kongCounts.set(kind, (this.kongCounts.get(kind) ?? 0) + 1);
     this.say(lines[idx]!, 0, true, `kong/${kind}-${idx}.ogg`);
   }
 

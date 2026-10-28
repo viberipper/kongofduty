@@ -70,7 +70,7 @@ export interface Prefs {
   announcer: boolean;
   /** Your Kong's own gruff voice lines (announcer.ts kong()). */
   kongVoice: boolean;
-  /** Double/Multi/Triple/Quad/Mega-Kill and streak calls (Rampage/Unstoppable/Legend) — voice + subtitles. Off by default. */
+  /** Double/Multi/Triple/Quad/Mega-Kill and streak calls (Rampage/Unstoppable/Legend) — voice + subtitles. On by default. */
   killstreaks: boolean;
   // GRAPHICS
   renderScale: RenderScaleMode;
@@ -157,7 +157,7 @@ export const DEFAULT_PREFS: Readonly<Prefs> = {
   musicMuted: false,
   announcer: true,
   kongVoice: true,
-  killstreaks: false,
+  killstreaks: true,
   renderScale: "auto",
   showFps: false,
   netStats: false,
