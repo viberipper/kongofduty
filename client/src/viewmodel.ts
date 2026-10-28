@@ -49,6 +49,9 @@ export type NadePhase = 0 | 1 | 2 | 3;
 
 /** uniform depth squeeze of the whole viewmodel about the eye (same image, half the depth) */
 const VM_DEPTH = 0.5;
+/** hive: one reload in this many gets a rare flourish (Viewmodel.evalSpecial). */
+const SPECIAL_RELOAD_ODDS = 8;
+type SpecialReload = "" | "flip" | "smack";
 
 // ------------------------------------------------------------------ math helpers
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -196,6 +199,7 @@ const SHOULDER_L = new THREE.Vector3(-0.22, -0.26, 0.12);
 const Y_UP = new THREE.Vector3(0, 1, 0);
 const Z_FWD = new THREE.Vector3(0, 0, 1);
 const _M = new THREE.Matrix4(), _M2 = new THREE.Matrix4(), _M3 = new THREE.Matrix4();
+const _MR = new THREE.Matrix4(); // hive: evalSpecial
 const _p = new THREE.Vector3(), _p2 = new THREE.Vector3(), _d = new THREE.Vector3(), _s = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _e = new THREE.Euler();
 const IDQ = new THREE.Quaternion();
@@ -234,6 +238,10 @@ export class Viewmodel {
   private reloadU = 0;
   private reloadEmpty = false;
   private lastReload = 0;
+  /** hive: this reload's rare flourish, latched at its start ("" = the normal one). */
+  private special: SpecialReload = "";
+  /** QA: force the next reload's flourish. */
+  nextSpecial: SpecialReload = "";
   private sinceShot = 9;
   private boltT = 9;
   private boltEjected = true;
@@ -537,7 +545,14 @@ export class Viewmodel {
     if (reloading && this.lastReload <= 0) {
       this.reloadEmpty = this.ammo <= 0;
       this.dropDone = false;
+      // hive: RARE SPECIAL RELOADS — a mag flipped end over end before it goes
+      // in, or a Kong-sized smack to seat it. Cosmetic only: same timing, same sim.
+      const canFlip = !!lo.mag && !!H.magGrip;
+      this.special = this.nextSpecial || (Math.random() * SPECIAL_RELOAD_ODDS < 1 ? (canFlip && Math.random() < 0.5 ? "flip" : "smack") : "");
+      if (this.special === "flip" && !canFlip) this.special = "smack";
+      this.nextSpecial = "";
     }
+    if (!reloading) this.special = "";
     this.lastReload = reloading ? reload : 0;
     this.reloadU = reloading ? reload : 0;
 
@@ -645,6 +660,7 @@ export class Viewmodel {
     o.px = o.py = o.pz = o.rx = o.ry = o.rz = 0;
     this.resetParts(lo);
     if (reloading) this.evalReload(lo, this.reloadU);
+    if (reloading && this.special) this.evalSpecial(lo, this.reloadU);
     else if (H.reload === "bolt" && this.boltT < 1.0) this.evalBoltCycle(lo, this.boltT);
     px += o.px; py += o.py; pz += o.pz; rx += o.rx; ry += o.ry; rz += o.rz;
 
@@ -935,6 +951,33 @@ export class Viewmodel {
       } else if (u >= 0.64) this.setL(u, F.mag, restL, 0.64, 0.84);
     } else {
       this.evalBoltReload(lo, u);
+    }
+  }
+
+  /**
+   * hive: the rare flourish, layered over evalReload's pose at progress u.
+   * FLIP: while the fresh mag rides the support hand it spins end over end,
+   * landing upright just as it reaches the magwell. SMACK: the seat (or the
+   * bolt going home) is a big palm strike — the gun hops and rattles.
+   */
+  private evalSpecial(lo: Loadout, u: number): void {
+    const kind = lo.hold.reload, o = this.off;
+    // [fresh mag in hand from, to] and the instant it seats, per choreography above
+    const [a, b, seat] = kind === "pistol" ? [0.31, 0.56, 0.58] : kind === "mag" ? (this.reloadEmpty ? [0.31, 0.5, 0.5] : [0.43, 0.62, 0.62]) : [0, 0, 0.84];
+    if (this.special === "flip" && lo.mag?.visible && u > a && u < b) {
+      // spun about the grip, so it turns over IN the hand (magToHand with a twist)
+      this.fL.matrix(_M);
+      _M.multiply(_MR.makeRotationX(Math.PI * 2 * smooth01((u - a) / (b - a))));
+      _M2.copy(lo.magParentInv).multiply(_M).multiply(lo.magGripLocalInv);
+      _M2.decompose(lo.mag.position, lo.mag.quaternion, _s);
+    }
+    if (this.special === "smack") {
+      const k = bump(u, seat, seat + 0.08);
+      o.py += 0.035 * k;
+      o.rx += 0.16 * k;
+      const tail = u > seat + 0.03 ? Math.exp(-(u - seat - 0.03) * 16) : 0;
+      o.rz += 0.15 * Math.sin((u - seat) * 70) * tail;
+      o.ry += 0.05 * Math.sin((u - seat) * 55) * tail;
     }
   }
 
