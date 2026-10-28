@@ -488,6 +488,10 @@ async function deploy(online: boolean, phase: MatchPhase | null = null, spectate
             if (settingsOpen()) closeSettings();
             hideEndcard();
             closePause();
+            // The server scrubbed its tags at the rollover: scrub the meshes
+            // too (the match/live event the old path relied on is not what a
+            // pre-game lobby should depend on).
+            game.sprays?.clear();
             show("hud", false);
             startMenuMusic(PAGE_MAP);
             if (document.pointerLockElement) document.exitPointerLock();

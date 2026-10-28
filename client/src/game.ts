@@ -663,6 +663,8 @@ export class Game {
     if (!(left > -2000 && left < COUNTDOWN_MS + 5000)) left = COUNTDOWN_MS;
     this.netStartAt = svMs + left;
     this.netPhase = "countdown";
+    // A (re-)armed match starts on clean walls (rematch after lobby return).
+    this.sprays?.clear();
     this.matchFeel.reset();
   }
 
@@ -1450,6 +1452,10 @@ export class Game {
     this.netStartAt = 0;
     this.ended = false;
     this.endcardUp = false;
+    // Every boot (re-)starts on clean walls: the Sprays instance and the scene
+    // outlive a match (QuickMatch-Neustart, leave-to-menu → re-deploy), so old
+    // tags would otherwise survive into the next match.
+    this.sprays?.clear();
     this.stopFinalKillcam(); // feel stream
     this.fkTape.reset();
     this.accolades.reset(this.you);
@@ -1550,6 +1556,9 @@ export class Game {
     this.net?.close();
     this.net = null;
     this.session = null;
+    // Scrub the tags on teardown (menu, Play Again): the scene outlives the
+    // match, so without this the next boot would inherit the old walls.
+    this.sprays?.clear();
     // The timer outlives the socket it was pinging otherwise, and RETURN TO MENU
     // -> DEPLOY would leave one running per match played.
     if (this.keepAliveTimer) {
