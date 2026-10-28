@@ -110,6 +110,10 @@ export const SYNTH_ONLY = [
   "slide",
   "whoosh",
   "metal-far",
+  // SPRAY PAINT hiss: the synth twin plus the direct-loaded can-hiss
+  // (static/assets/audio/weapons/spray-01 via loadSpraySample in audio2.ts).
+  // No sample pack carries it, so it plays identically under every pack.
+  "spray",
   // MATCH FEEL (the 3-2-1, the kill resupply, the health-recovered cue). The
   // packs were mastered before these events existed and none of them ships a
   // countdown, so they are synthesised under every pack — see the fam() block

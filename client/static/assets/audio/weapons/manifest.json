@@ -2,7 +2,7 @@
  "version": 1,
  "sr": 48000,
  "generated": "2026-10-19T04:01:04.096Z",
- "note": "Built by scripts/encode-weapon-audio.mjs. g = level correction dB (KR normDb), p = 100 ms transient loudness after g (KR P). Opus/Ogg primary, AAC/M4A for browsers without Opus; p1 shots are FLAC everywhere.",
+ "note": "Built by scripts/encode-weapon-audio.mjs. g = level correction dB (KR normDb), p = 100 ms transient loudness after g (KR P). Opus/Ogg primary, AAC/M4A for browsers without Opus; p1 shots are FLAC everywhere. Direct-load families (spray-01, fetched by AudioRig2.loadSpraySample instead of the WeaponLibrary) are intentionally unlisted and uncounted.",
  "bytes": {
   "ogg": 1116999,
   "m4a": 1500780,

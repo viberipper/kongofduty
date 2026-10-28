@@ -1316,6 +1316,31 @@ export class AudioRig2 {
     };
     fam("monkey", "amb", 0.45, 0.12, [hoot(305), hoot(268)]);
 
+    // SPRAY PAINT hiss (client/src/sprays.ts): the synth twin of the recorded
+    // can-hiss (static/assets/audio/weapons/spray-01). A soft nozzle click over
+    // a ~0.8 s band of air. The recorded clip replaces these variants at boot
+    // (loadSpraySample), so this only speaks when the file is missing or
+    // undecodable — same bus/level as the nade foley below either way.
+    {
+      const hiss = (): Float32Array => {
+        const n = Math.floor(0.85 * SR);
+        let x = bandpass(noise(n, rng), 4200, 0.8);
+        x = normalize(x, 1);
+        const y = new Float32Array(n);
+        for (let i = 0; i < n; i++) {
+          const t = i / SR;
+          y[i] = x[i]! * ramp(t, 0.012) * Math.exp(-t / 0.28);
+        }
+        // nozzle click: short, ramped attack, lowpassed — never a truncation click
+        const ck = normalize(bandpass(noise(Math.floor(0.02 * SR), rng), 2400, 1.6), 1);
+        const c = new Float32Array(ck.length);
+        for (let i = 0; i < ck.length; i++) c[i] = ck[i]! * ramp(i / SR, 0.002) * Math.exp(-(i / SR) / 0.006);
+        mix(y, lowpass(c, 6000), 0.5);
+        return fadeTail(normalize(lowpass(y, 7500), 0.5), 0.03);
+      };
+      fam("spray", "vfx", 0.7, 0.08, [hiss(), hiss()]);
+    }
+
     // baked reload sequence (QA reference)
     {
       const total = 1.8;
@@ -1551,6 +1576,9 @@ export class AudioRig2 {
     await Promise.all([
       Promise.race([this.loadPack(this.packKey), new Promise<void>((r) => setTimeout(r, 9000))]),
       Promise.race([this.weapons.lib.first ?? weaponsAll, new Promise<void>((r) => setTimeout(r, 2500))]),
+      // The spray hiss decodes next to the pack: bounded like the rest, so a
+      // hung fetch cannot park boot — the synth twin covers the game meanwhile.
+      Promise.race([(this.sprayLoading = this.loadSpraySample()), new Promise<void>((r) => setTimeout(r, 9000))]),
     ]);
     // A deferred boot (no gesture at deploy) lands here inside the unlock
     // gesture, after game.boot()'s loopAmb() already no-opped — start the bed.
@@ -1675,6 +1703,42 @@ export class AudioRig2 {
   packLoading: Promise<void> | null = null;
   /** Last load outcome, for the options UI and QA. */
   packStatus: { key: string; ok: boolean; bytes: number; events: number; missing: string[]; synthOnly?: readonly string[]; error?: string; pending?: boolean } | null = null;
+
+  /** Spray-paint hiss (static/assets/audio/weapons/spray-01): decoded at boot
+   *  over the synth "spray" fallback above. Opus/Ogg where the browser has it,
+   *  AAC/M4A otherwise (same pair convention as the recorded weapon set) — a
+   *  failed fetch/decode keeps the synth twin, never mutes the event. The
+   *  weapons manifest is deliberately untouched: this clip is fetched directly,
+   *  so no pack schema has to learn a new group. */
+  sprayFile = "";
+  private sprayLoading: Promise<void> | null = null;
+
+  private async loadSpraySample(): Promise<void> {
+    const ctx = this.ctx;
+    const fam = this.families.get("spray");
+    if (!ctx || !fam) return;
+    const probe = typeof Audio !== "undefined" ? new Audio() : null;
+    const opus = !!probe && probe.canPlayType('audio/ogg; codecs="opus"') !== "";
+    const order = opus ? ["spray-01.ogg", "spray-01.m4a"] : ["spray-01.m4a", "spray-01.ogg"];
+    for (const f of order) {
+      try {
+        const res = await fetch(assetUrl(`/assets/audio/weapons/${f}`));
+        if (!res.ok) continue;
+        const ab = await res.arrayBuffer();
+        if (!ab.byteLength || ab.byteLength > 4 * 1024 * 1024) continue;
+        const buf = await ctx.decodeAudioData(ab);
+        // One raised-cosine fade (0.03 s, like the synth twin) so a non-zero
+        // endpoint never clicks when the hiss is truncated.
+        for (let c = 0; c < buf.numberOfChannels; c++) fadeTail(buf.getChannelData(c) as Float32Array, 0.03);
+        fam.variants = [buf];
+        this.sprayFile = f;
+        return;
+      } catch {
+        /* next codec */
+      }
+    }
+    console.warn("[audio] spray sample unavailable — synth hiss stays in charge");
+  }
 
   /**
    * Swap the sample pack live. The synth stays baked underneath the whole time,

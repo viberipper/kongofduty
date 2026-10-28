@@ -526,6 +526,9 @@ export class Game {
     const tag = prefs().spray;
     if (this.session) this.session.events.push({ t: "spray", src: this.you, tag, ...hit });
     else if (this.net?.readyState === 1) this.net.send(JSON.stringify({ t: "spray", tag, ...hit }));
+    // The hiss is yours and immediate (2D, like the nade-pin click) — the
+    // broadcast echo (online) / drained event (offline) skips src === you below.
+    this.audio.play("spray", { vol: 0.5, src: "local" });
   }
 
   /** The match announcer (client/src/announcer.ts). */
@@ -3392,6 +3395,9 @@ export class Game {
       // A spray tag went up somewhere (client/src/sprays.ts).
       if (e.t === "spray") {
         this.sprays?.place(e.src, e.tag, e.x, e.y, e.z, e.nx, e.ny, e.nz);
+        // Someone else's can: positional hiss — heard when you stand next to
+        // it, culled past CULL_M by play(). Your own echo already hissed above.
+        if (e.src !== this.you) this.audio.play("spray", { x: e.x, y: e.y, z: e.z, vol: 0.4, src: e.src });
         continue;
       }
       if (e.t === "kill") {
