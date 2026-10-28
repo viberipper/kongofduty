@@ -52,7 +52,8 @@ const TRACK_DIR = `${ASSET_BASE}assets/audio/music`;
 const trackUrls = (map: string): string[] =>
   [`${TRACK_DIR}/menu-${map}.ogg`, `${TRACK_DIR}/menu-${map}.mp3`].map(assetUrl);
 
-const effLevel = (): number => prefs().master * prefs().music * BED;
+/** Mute-aware level: MASTER x MUSIC x BED, forced to 0 while the topbar toggle mutes. */
+const effLevel = (): number => (prefs().musicMuted ? 0 : prefs().master * prefs().music * BED);
 
 function visible(el: HTMLElement | null): boolean {
   return !!el && !el.classList.contains("hidden");

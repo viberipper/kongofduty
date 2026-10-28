@@ -11,6 +11,7 @@
 import { asModeId, modeInfo, modesFor, PUBLIC_MODE, type ModeId } from "@shared/modes";
 import { isMapId } from "@shared/maps";
 import { mapBlurb, mapCardUrl, mapIds, mapLabel } from "./flow";
+import { onPrefs, prefs, setPrefs } from "./prefs";
 import { wireSfx } from "./sfx";
 import { onPadPrompts, padGlyph, padPromptsActive } from "./gamepad";
 import { renderKeyline } from "./keys";
@@ -71,6 +72,7 @@ export function initMenu(pageMap: string, cb: (s: MenuSelection) => void): void 
   if (menu) wireSfx(menu);
   buildCards();
   paint();
+  initMusicToggle();
   const keys = $("menu-keys");
   if (keys) renderKeyline(keys);
   initPadBar();
@@ -181,6 +183,29 @@ function paint(): void {
 export function setCallsignChip(name: string): void {
   const el = $("callsign-name");
   if (el) el.textContent = name || "SET CALLSIGN";
+}
+
+/**
+ * The topbar menu-music toggle (left of the callsign chip): a mute switch on
+ * top of the AUDIO slider — the slider keeps driving the level, this only
+ * forces it to 0 via prefs.musicMuted (menu-music.ts effLevel). Persists
+ * through prefs, applies live via the onPrefs sync (no reload), menu only.
+ */
+function paintMusicToggle(btn: HTMLButtonElement): void {
+  const muted = prefs().musicMuted;
+  btn.classList.toggle("is-off", muted);
+  btn.setAttribute("aria-pressed", String(muted));
+  btn.setAttribute("aria-label", muted ? "Turn menu music on" : "Mute menu music");
+  btn.title = muted ? "Menu music: off — click to turn on" : "Menu music: on — click to mute";
+}
+
+function initMusicToggle(): void {
+  const btn = document.getElementById("music-toggle") as HTMLButtonElement | null;
+  if (!btn || btn.dataset.wired === "1") return;
+  btn.dataset.wired = "1";
+  paintMusicToggle(btn);
+  btn.addEventListener("click", () => setPrefs({ musicMuted: !prefs().musicMuted }));
+  onPrefs(() => paintMusicToggle(btn));
 }
 
 /** Grey the tiles out while a launch is in flight (one press, one attempt). */
