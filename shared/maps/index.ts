@@ -10,7 +10,7 @@
  * grenade and every bot route pointing at a world that no longer exists.
  *
  * SELECTION, in order:
- *   browser  `?map=<id>`  ->  default
+ *   browser  `?map=<id>`  ->  saved menu card (localStorage)  ->  default
  *   node     `--map=<id>` ->  SHIPMENT_MAP env  ->  default
  *
  * The browser map is URL-pinned so links and map-change reloads select it.
@@ -39,6 +39,7 @@
 
 import { setActiveWorld } from "../map";
 import type { MapDef } from "./types";
+import { DEFAULT_MAP_ID, isMapId, MAP_IDS } from "../map-ids";
 import { SHIPMENT } from "./shipment";
 import { ARES } from "./ares";
 import { buildDust2, DUST2_NAME } from "./dust2";
@@ -48,9 +49,10 @@ export type { MapDef, Rect, FenceRect, MinimapRect, NavLattice } from "./types";
 export { DUST2_AUDIT, DUST2_IS_STUB, buildDust2, dust2GeoHash } from "./dust2";
 export { NUKETOWN_AUDIT, buildNuketown } from "./nuketown";
 
-export const MAP_IDS = ["shipment", "dust2", "ares", "nuketown"] as const;
-
-export const DEFAULT_MAP_ID = "shipment";
+// Map ids live in shared/map-ids.ts (light-weight, no geometry/builders/TLA);
+// re-exported here so existing `@shared/maps` importers keep working unchanged.
+export { DEFAULT_MAP_ID, isMapId, MAP_IDS } from "../map-ids";
+export type { MapId } from "../map-ids";
 
 /**
  * Menu/lobby options, in display order — THE map list every screen renders
@@ -206,15 +208,26 @@ export function withMapQuery(url: string, id: string, force = false): string {
 }
 
 const LEGACY_LS_KEY = "shipment.map"; // Clear the active-map preference saved by older releases.
+/** The menu's remembered card (client/src/ui/menu.ts SEL_KEY) — the middle tier. */
+const MENU_LS_KEY = "shipment.menu";
 
-export function isMapId(id: string | null | undefined): id is string {
-  return !!id && (MAP_IDS as readonly string[]).includes(id);
+function readMenuMap(): string | null {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(MENU_LS_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw) as { map?: unknown };
+    const m = typeof o?.map === "string" ? o.map : null;
+    return isMapId(m) ? m : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
- * A valid `?map=<id>` (qa + shareable links) wins; otherwise use the default.
- * Untrusted input is whitelisted, never trusted — same shape as
- * server/index.ts `roomCode()`.
+ * A valid `?map=<id>` (qa + shareable links) wins; otherwise the remembered
+ * menu card; otherwise the default. Untrusted input is whitelisted, never
+ * trusted — same shape as server/index.ts `roomCode()`.
  */
 export function readMapPref(search?: string): string {
   const s = search ?? (typeof location !== "undefined" ? location.search : "");
@@ -229,7 +242,7 @@ export function readMapPref(search?: string): string {
   } catch {
     /* no URL API / malformed query */
   }
-  return DEFAULT_MAP_ID;
+  return readMenuMap() ?? DEFAULT_MAP_ID;
 }
 
 /** Node: `--map=<id>` on argv, then SHIPMENT_MAP in the environment. */
@@ -262,7 +275,7 @@ let ACTIVE: MapDef | null = null;
 export function activeMap(): MapDef {
   if (!ACTIVE) {
     const id = resolveMapId();
-    ACTIVE = isMapId(id) ? buildMap(id) : SHIPMENT;
+    ACTIVE = isMapId(id) ? buildMap(id) : buildMap(DEFAULT_MAP_ID);
     // Point the two unqualified query functions (and their broadphase index) at
     // this map BEFORE anything derived from it is built.
     setActiveWorld(ACTIVE.solids, ACTIVE.floorY);

@@ -9,7 +9,7 @@
  * already highlighted.
  */
 import { asModeId, modeInfo, modesFor, PUBLIC_MODE, type ModeId } from "@shared/modes";
-import { isMapId } from "@shared/maps";
+import { DEFAULT_MAP_ID, isMapId } from "@shared/maps";
 import { mapBlurb, mapCardUrl, mapIds, mapLabel } from "./flow";
 import { onPrefs, prefs, setPrefs } from "./prefs";
 import { wireSfx } from "./sfx";
@@ -36,7 +36,7 @@ export interface MenuSelection {
   mode: ModeId;
 }
 
-let sel: MenuSelection = { map: "shipment", mode: "tdm" };
+let sel: MenuSelection = { map: DEFAULT_MAP_ID, mode: "tdm" };
 let onChange: ((s: MenuSelection) => void) | null = null;
 
 const $ = (id: string): HTMLElement | null => document.getElementById(id);
@@ -53,19 +53,30 @@ export function menuSelection(): MenuSelection {
 }
 
 /**
- * The page's own map is the default selection: what is highlighted is what
- * is loaded, unless the player picked something else last time.
+ * The page's own map wins over the remembered card: an explicit `?map=` pin
+ * (a shared link, a map-change reload) is what this page built, while the
+ * saved card is only the highlight for a free visit. Order: `?map=` > saved
+ * card > page default (ares).
  */
 export function initMenu(pageMap: string, cb: (s: MenuSelection) => void): void {
   onChange = cb;
   let saved: Partial<MenuSelection> = {};
   try {
-    saved = JSON.parse(localStorage.getItem(SEL_KEY) ?? "{}") as Partial<MenuSelection>;
+    const raw: unknown = JSON.parse(localStorage.getItem(SEL_KEY) ?? "{}");
+    if (raw && typeof raw === "object") saved = raw as Partial<MenuSelection>;
   } catch {
     /* ignore */
   }
+  // `?map=` wins over the remembered card, the card over the page default.
+  let urlMap: string | null = null;
+  try {
+    const q = new URLSearchParams(location.search).get("map");
+    if (isMapId(q)) urlMap = q;
+  } catch {
+    /* no URL API */
+  }
   sel = {
-    map: isMapId(saved.map) ? saved.map : pageMap,
+    map: urlMap ?? (isMapId(saved.map) ? saved.map : isMapId(pageMap) ? pageMap : DEFAULT_MAP_ID),
     mode: asModeId(saved.mode),
   };
   const menu = $("menu");

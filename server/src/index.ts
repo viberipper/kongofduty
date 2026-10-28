@@ -42,6 +42,9 @@ import path from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer, type WebSocket as WsConn } from "ws";
+// Light-weight map ids only — NOT shared/maps (geometry/builders + TLA
+// preload belong to the worker's sim chain below, never to hub startup).
+import { DEFAULT_MAP_ID, MAP_IDS, isMapId, type MapId } from "../../shared/map-ids";
 
 // ---------------------------------------------------------------------------
 // CLI / ENV
@@ -52,13 +55,13 @@ function argVal(name: string): string | undefined {
   return undefined;
 }
 
-const VALID_MAPS = new Set(["shipment", "dust2", "ares", "nuketown"]);
+const VALID_MAPS = new Set<MapId>(MAP_IDS);
 
 const MAP_ARG = argVal("--map=");
-const SERVER_MAP = (() => {
+const SERVER_MAP: MapId = (() => {
   let m = process.env.SHIPMENT_MAP ?? "";
   if (MAP_ARG) m = MAP_ARG;
-  return VALID_MAPS.has(m) ? m : "nuketown";
+  return isMapId(m) ? m : DEFAULT_MAP_ID;
 })();
 const IS_WORKER = !!MAP_ARG || !!process.env.SHIPMENT_MAP;
 
@@ -973,7 +976,7 @@ class Room {
   lobbySet(fromSeat: Seat, mode: unknown, map: unknown, gunKills: unknown): void {
     if (this.kind !== "private" || this.phase !== "pregame" || this.host !== fromSeat.id) return;
     if (typeof map === "string" && map !== SERVER_MAP) {
-      if (!VALID_MAPS.has(map)) return;
+      if (!isMapId(map)) return;
       const roomMode = this.mode;
       movedRooms.set(this.id, { map, at: Date.now() });
       for (const s of this.seats.values()) {
@@ -1779,7 +1782,7 @@ if (IS_WORKER) {
         return;
       }
       const mapQ = u.searchParams.get("map");
-      if (mapQ && VALID_MAPS.has(mapQ) && mapQ !== SERVER_MAP) {
+      if (mapQ && isMapId(mapQ) && mapQ !== SERVER_MAP) {
         wss.handleUpgrade(req, socket, head, (ws) => {
           disarm();
           ws.send(
@@ -1838,7 +1841,7 @@ function tcpAlive(port: number, timeoutMs = 400): Promise<boolean> {
 }
 
 /** Start the worker for a map (or reuse it) and wait until it listens. */
-async function ensureWorker(map: string): Promise<number | null> {
+async function ensureWorker(map: MapId): Promise<number | null> {
   const port = workerPortFor(map);
   if (!port) return null;
   const existing = workers.get(map);
@@ -2026,7 +2029,7 @@ if (!IS_WORKER) {
         return;
       }
       const mapQ = u.searchParams.get("map");
-      const map = mapQ && VALID_MAPS.has(mapQ) ? mapQ : "nuketown";
+      const map: MapId = mapQ && isMapId(mapQ) ? mapQ : DEFAULT_MAP_ID;
       ensureWorker(map)
         .then((port) => {
           if (port) {
@@ -2267,7 +2270,7 @@ function onSocket(ws: WsConn, ip: string): void {
 // ---------------------------------------------------------------------------
 // Run
 // ---------------------------------------------------------------------------
-const REDIRECT_MAP = IS_WORKER ? SERVER_MAP : "nuketown";
+const REDIRECT_MAP = IS_WORKER ? SERVER_MAP : DEFAULT_MAP_ID;
 
 function describeStatus(): string {
   if (IS_WORKER) return `ok map=${SERVER_MAP}`;

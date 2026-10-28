@@ -29,7 +29,7 @@
 
 import { ASSET_BASE, assetUrl } from "./asset-base";
 import { hasUserGesture, onFirstGesture } from "./audio-unlock";
-import { isMapId } from "@shared/maps";
+import { DEFAULT_MAP_ID, isMapId } from "@shared/maps";
 import { onPrefs, prefs } from "./ui/prefs";
 
 /** Crossfade length for a map switch — long enough to feel like a mix, short
@@ -260,11 +260,11 @@ export function menuMusicSync(): void {
 /**
  * Switch the bed to a map's track with a clean crossfade. No-op for the map
  * already targeted (so lobby repaints and repeat card clicks can never
- * restart an in-flight fade); unknown ids fall back to shipment, never to
+ * restart an in-flight fade); unknown ids fall back to ares, never to
  * silence.
  */
 export function selectMenuMusic(map: string): void {
-  const want = isMapId(map) ? map : "shipment";
+  const want = isMapId(map) ? map : DEFAULT_MAP_ID;
   playFailures = 0;
   if (!ready || typeof Audio === "undefined") {
     target = want;
@@ -367,7 +367,7 @@ export function startMenuMusic(map?: string): void {
 export function initMenuMusic(initialMap: string): void {
   if (ready || typeof Audio === "undefined") return;
   ready = true;
-  target = isMapId(initialMap) ? initialMap : "shipment";
+  target = isMapId(initialMap) ? initialMap : DEFAULT_MAP_ID;
   els();
   arm(active!, target);
   onPrefs(() => menuMusicSync());
