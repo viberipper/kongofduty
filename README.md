@@ -17,6 +17,7 @@ Self-hostable version of the browser game at https://cnvs.dev/kong/ — playable
 - **Generated voice clips:** 49 doom-like announcer/Kong lines generated locally with audio.cpp/Qwen3-TTS in a deep Hartmann-style voice with warm mastering, played as audio files with `speechSynthesis` fallback when a clip is missing.
 - **Restrained announcer direction:** anti-spam gating with cooldowns, priorities, and no repeats; killstreak announcements toggleable (default off); ascending killstreak callouts never repeat what was already heard; lead callout only once a team leads by 3; multikill callout in a fixed window instead of sliding; Kong and announcer never talk over each other.
 - **Per-map menu music:** the main menu and the private lobby play a passive background loop per map (60–77 s each, period-aligned for clean looping — Shipment: industrial taikos; Dust2: desert-ops duduk; Ares Relay: cold synth pads; Nuketown: ironic surf twang with a dark turn), switching with a 1.5 s equal-power crossfade when the picked map changes. The bed sits at MASTER × MUSIC × 0.25 under everything, starts only after the first click/keypress (autoplay policy), goes quiet over live matches, and has its own slider in SETTINGS → AUDIO. Tracks live in `client/static/assets/audio/music/` (Opus primary, MP3 fallback); `docs/menu-music-prompts.md` holds the audio.cpp (`ace_step` / `stable_audio`) prompts + mastering chain to re-render them in AI quality as drop-in replacements.
+- **Spray paint audio:** user-provided spray-can sound (Opus primary, M4A fallback), positional (local sprays play instantly, remote sprays with distance attenuation), synth fallback when clips are missing, balanced against similar one-shot effects.
 - **Secure in-game text chat:** server-side badword filter with leet-folding, rate-limited, sender taken from the session (no spoofing, "server" name reserved), text-only rendering (no XSS); T key, Enter/Escape like in-game.
 - **Team-colored clothing:** Kong on your own team wear blue shorts (enemies red), astronaut armbands/panels in team colors — all colorMode-aware (Protan/Deutan/Tritan), swapped per actor, FFA unchanged.
 
@@ -29,8 +30,9 @@ Upstream features from the original (https://cnvs.dev/kong/) are ported in batch
 | 2026-10-20 | Upstream state as of 2026-10-20 (fresh rip) | Full client snapshot this version is based on |
 | 2026-10-22/23 | Upstream state as of 2026-10-22/23 (fresh rip) | Base features: Gun Game, Penetration/Wallbangs, Xmas-Deko, Foot-Surfaces, Bug-Report, Gun-Preview, Lobby lobbyset/shuffle/relocate, Endcard-Podium, Colour Vision, Loadout-Wheel, Fence-Fix, Footstep-Verdrahtung |
 | 2026-10-26 | Upstream state as of 2026-10-26 (fresh rip) | 11 updates: lobby follow + ping badges + kills-per-gun option; gun-game goal options (`GUN_KILL_OPTIONS` 1/2/3/5); announcer + Kong voice lines; combat-stats endcard; spraypaint emotes; anti-skate catch-up; Nuketown TDM limit 100; movement speeds; weapon rebalance |
+| 2026-10-28 | Upstream state as of 2026-10-28 (fresh rip) | 9 updates: network-stats overlay; spawn facing toward map center; collateral multi-kills + medal; forklift/Ares steps fixes; directional damage indicator; crate penetration; voice-lines content table; special reload animations; spawn LOS weighting |
 
-Last sync: 2026-10-26. Anything newer lives only in the original (https://cnvs.dev/kong/) until the next batch port.
+Last sync: 2026-10-28. Anything newer lives only in the original (https://cnvs.dev/kong/) until the next batch port.
 
 ## Quick start
 
