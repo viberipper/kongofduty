@@ -1686,6 +1686,20 @@ function connRelease(ip: string): void {
 // M1: CSWSH — any website can open ws:// to a LAN server. Allow non-browser
 // clients (no Origin) and same-origin pages (Origin host === Host header).
 // Evil origin https://evil.com vs Host 192.168.1.10:8765 → reject.
+// DEV LOOPBACK EXCEPTION: when the Origin hostname AND the Host-header
+// hostname are BOTH loopback (localhost / 127.0.0.0/8 / ::1), the port is
+// ignored — dev serves the page on :5173 (Vite) while the hub listens on
+// :8787. CSWSH protection is preserved: only a page already served from
+// loopback qualifies, a foreign site (evil.com) never does, and any
+// non-loopback host keeps the strict full-host comparison (LAN host with a
+// foreign port stays rejected).
+function isLoopbackHostname(h: string): boolean {
+  const n = h.toLowerCase().replace(/^\[/, "").replace(/\]$/, "");
+  if (n === "localhost" || n === "127.0.0.1" || n === "::1") return true;
+  // Whole 127.0.0.0/8 is loopback (RFC 1122); a local stack may source any.
+  if (/^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(n)) return true;
+  return false;
+}
 function checkOrigin(req: http.IncomingMessage): boolean {
   const origin = req.headers.origin;
   if (!origin) return true;
@@ -1694,7 +1708,16 @@ function checkOrigin(req: http.IncomingMessage): boolean {
     const host = req.headers.host ?? "";
     if (!host) return false;
     // Compare full host (hostname:port) — same-origin pages match exactly.
-    return o.host.toLowerCase() === host.toLowerCase();
+    if (o.host.toLowerCase() === host.toLowerCase()) return true;
+    // Loopback exception: same loopback family, any port.
+    let hostName = "";
+    try {
+      hostName = new URL(`http://${host}`).hostname;
+    } catch {
+      return false;
+    }
+    if (isLoopbackHostname(o.hostname) && isLoopbackHostname(hostName)) return true;
+    return false;
   } catch {
     return false;
   }
