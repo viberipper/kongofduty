@@ -1911,9 +1911,13 @@ export class GameSession {
       // Hard-avoid occupied points (guns in the first frame), softly spread out,
       // and bias away from where this player just died.
       const deadHere = Math.hypot(p.x - s.x, p.z - s.z);
+      // Upstream (.origin 28.10.): A SPAWN NO ENEMY CAN SEE ALWAYS BEATS ONE THEY CAN. Each enemy
+      // with a line on the point costs more than any distance can pay back
+      // (SPAWN_SEEN), so a seen point is only ever picked when every candidate
+      // is seen — and then the one the fewest enemies can see.
       const score =
         minD -
-        los * 6 -
+        los * SPAWN_SEEN -
         Math.max(0, 1.6 - minAny) * 60 -
         Math.max(0, 3.0 - minAny) * 8 -
         Math.max(0, 6 - deadHere) * 1.5 +
@@ -4823,6 +4827,8 @@ const SPAWN_TRACE_TOP = 24;
 /** Upstream (.origin 28.10.): most bodies one round can pass through, and the damage share each extra body keeps. */
 const COLLATERAL_MAX = 3;
 const COLLATERAL_KEEP = 0.7;
+/** Upstream (.origin 28.10.): score cost of each enemy with line of sight on a spawn point — more than any map's width. */
+const SPAWN_SEEN = 500;
 const SPAWN_LOS_RANGE = 40;
 const SPAWN_CLEAR_R = RADIUS + 0.6;
 const SPAWN_BOUNDS_INSET = 1.5;
