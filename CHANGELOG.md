@@ -2,11 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+This file tracks exclusively our own bugfixes and enhancements. It exists
+so that later upstream updates can be differentiated: anything already
+fixed by us is listed here with commit evidence. Upstream ports are
+intentionally NOT tracked here (see `.origin/` + `docs/upstream-sync.md`).
+
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 as closely as possible. Every entry below is backed by a commit in this
 repository (short hash in parentheses); nothing is listed without commit
 evidence. Commit range covered: `39093f4` (initial snapshot) through
-`b48671e` (HEAD at time of writing).
+`b48671e` (HEAD at time of writing); upstream sync/port commits in that
+range (e.g. `09486bd`, `d4111b4`) are intentionally excluded — upstream
+ports are NOT tracked here (see `.origin/` + `docs/upstream-sync.md`).
 
 ## [Unreleased]
 
@@ -65,20 +72,9 @@ No unreleased changes beyond the sections below.
   throttled, playback caps in place (`2b33ed5`).
 - `feat(menu): music mute toggle in topbar` — background music can be
   muted directly from the topbar (`e308f85`).
-- `feat(sync): rare special reload animations (mag flip, palm smack)` —
-  reloads occasionally play special mag-flip / palm-smack variants
-  (`c06892b`).
-- `feat(sync): network stats, spawn facing, collateral, forklift/ares
-  fixes, damage direction, crate penetration, voice-lines, gun-preview
-  check` — bundle: net stats HUD, facing-aware spawns, collateral kills,
-  forklift/Ares map fixes, damage-direction feedback, crate penetration,
-  voice lines, and a gun-preview validation check (`d4111b4`).
 
 ### Fixed
 
-- `fix(sync): unseen spawns always beat seen ones (SPAWN_SEEN weight)` —
-  spawn selection weights unseen spawns above recently seen ones
-  (`14c7e89`).
 - `fix(sprays): clear decals on match end, rematch and lobby return` —
   spray decals are wiped on match end, rematch, and lobby return
   (`7c4e12c`).
@@ -88,11 +84,6 @@ No unreleased changes beyond the sections below.
 - `fix(server): allow loopback origin across ports for local dev` — local
   development across differing loopback ports is accepted by the server
   origin check (`b365a48`).
-
-### Docs
-
-- `docs(readme): sync log 28.10 plus spray audio enhancement` — README
-  sync log for 28 Oct plus the spray-audio addition (`e2efc89`).
 
 ## 2026-10-27
 
@@ -108,21 +99,11 @@ No unreleased changes beyond the sections below.
 
 - `docs(readme): menu-music loop lengths 60-77s` — documents the
   per-map loop durations (`b7df429`).
-- `docs(readme): upstream sync log` — records the upstream sync in the
-  README (`179c5e5`).
 
 ## 2026-10-26
 
 ### Added
 
-- `feat(sync): port 11 upstream updates (lobby, gun game, audio,
-  movement)` — second upstream sync (cnvs.dev/kong, Oct 2026), additive;
-  own WebGPU stack, gamepad, movement, and deploy paths kept. Lobby: join
-  follows host map switch, ping badges, kills-per-gun row. Gun game:
-  configurable kills-per-level. Audio: speech announcer + Kong voice
-  lines. Combat/UI: endcard combat stats, spray emotes, anti-skate
-  catch-up, Nuketown TDM limit. Sim: movement speeds and weapon rebalance
-  (`09486bd`).
 - `feat(audio): generated doom-like announcer/kong voice clips (49 ogg,
   synthesis fallback)` — 49 generated voice clips with a synthesis
   fallback (`af3b15b`).
@@ -169,15 +150,7 @@ No unreleased changes beyond the sections below.
 
 ## 2026-10-23 — Base + site setup (collective)
 
-Upstream/base commits, listed as one group since they are not own
-bugfixes/features:
-
-- `Initial repository snapshot` (`39093f4`).
-- `Add game logo to topbar and style adjustments for branding`
-  (`2a70e17`).
-- `Add Google site verification meta tag and update .gitignore for
-  client HTML file` (`aca1150`).
-- `Add client/static/ to .gitignore to exclude static files from version
-  control` (`f0f6fc8`).
-- `Add Google site verification files and update .gitignore`
-  (`85b9668`).
+Upstream/base snapshot and site setup — upstream ports are NOT tracked
+here (see `.origin/` + `docs/upstream-sync.md`): `Initial repository
+snapshot` (`39093f4`), branding/site-verification/gitignore setup
+(`2a70e17`, `aca1150`, `f0f6fc8`, `85b9668`).

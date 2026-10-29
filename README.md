@@ -26,6 +26,10 @@ Self-hostable version of the browser game at https://cnvs.dev/kong/ — playable
 - **Clean walls every match:** spray-paint decals are scrubbed at match end, on rematch, and on lobby/menu return, so tags never leak into the next match.
 - **Menu discoverability:** SPRAY and CHAT key hints in the controls keyline, plus a "Source available on GitHub" link in the menu footer.
 
+## Changelog
+
+Own fixes are tracked in CHANGELOG.md (upstream ports excluded).
+
 ## Upstream sync log
 
 Upstream features from the original (https://cnvs.dev/kong/) are ported in batches; own systems (graphics stack, gamepad, server, announcer direction, chat) stay untouched.
