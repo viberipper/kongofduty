@@ -542,6 +542,23 @@ function onMatchEnd(s0: number, s1: number, board: EndRow[]): void {
       void deploy(false);
     },
     onMenu: toMenu,
+    // COUNTDOWN-EXPIRY FALLBACK (yard rollover): the card is still up ~2 s
+    // past zero, so the rollover event never landed. Only act when the wire
+    // is provably a live match — fresh snapshots, live phase, clock running —
+    // otherwise leave the card alone (a slow server must never be preempted).
+    // forceRollover() runs the same reset as the match/live event path and
+    // starts/rejoins nothing, so a double match start is impossible; if the
+    // server is actually still over, the next remain<=0 snapshot re-raises
+    // the card via finish().
+    onExpired: () => {
+      const card = document.getElementById("endcard");
+      if (!card || card.classList.contains("hidden")) return;
+      if (!game.ended) {
+        hideEndcard();
+        return;
+      }
+      if (game.matchLive() && performance.now() - game.snapRecv < 4000 && game.netRemain > 0) game.forceRollover();
+    },
   });
 }
 

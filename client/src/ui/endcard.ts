@@ -36,10 +36,22 @@ export interface EndParams {
   gunKills?: number;
   onPlayAgain?: () => void;
   onMenu: () => void;
+  /**
+   * COUNTDOWN-EXPIRY FALLBACK (yard rollover / lobby return). The card's own
+   * timer fires this once, ~2 s after the countdown reaches zero, and only if
+   * the card is still up — the server's rollover event (match/live) or lobby
+   * return normally takes the card down first and wins the race. The handler
+   * (main.ts) only acts when the wire is provably live, so a slow server can
+   * never be preempted; it covers exactly the missed-event hang (countdown at
+   * "…" forever while the match plays on behind the card).
+   */
+  onExpired?: () => void;
 }
 
 const $ = (id: string): HTMLElement => document.getElementById(id)!;
 let timer = 0;
+/** Pending countdown-expiry fallback (see onExpired); cleared with the card. */
+let expireTimer = 0;
 
 /**
  * ENDCARD FIT (F11-fullscreen fix). The card's intrinsic height (168tu title +
@@ -115,6 +127,8 @@ export function computeResult(p: Pick<EndParams, "mode" | "s0" | "s1" | "board">
 export function hideEndcard(): void {
   if (timer) clearInterval(timer);
   timer = 0;
+  if (expireTimer) clearTimeout(expireTimer);
+  expireTimer = 0;
   const card = $("endcard");
   card.classList.add("hidden");
   (card.querySelector(".ec-inner") as HTMLElement | null)?.style.removeProperty("zoom");
@@ -270,6 +284,9 @@ export function showEndcard(p: EndParams): MatchResult {
   actions.replaceChildren();
   if (timer) clearInterval(timer);
   timer = 0;
+  if (expireTimer) clearTimeout(expireTimer);
+  expireTimer = 0;
+  let expired = false;
   if (p.kind === "bots") {
     const again = h("button", "btn btn--primary", "PLAY AGAIN");
     again.type = "button";
@@ -299,6 +316,25 @@ export function showEndcard(p: EndParams): MatchResult {
         last = left;
         countBold.textContent = left > 0 ? `0:${String(left).padStart(2, "0")}` : "…";
         if (left > 0 && left <= 3) uiSfx("tick");
+      }
+      // The countdown ran out and the card is still up: the rollover/return
+      // event never landed. One grace beat so a merely-late event still wins,
+      // then the owner's fallback (which only acts on a provably-live wire).
+      if (left <= 0 && !expired) {
+        expired = true;
+        if (p.onExpired) expireTimer = window.setTimeout(() => {
+          expireTimer = 0;
+          try {
+            p.onExpired?.();
+          } catch (err) {
+            console.debug("[endcard] expiry fallback failed", err);
+          }
+        }, 2000);
+        // The countdown is done ("…") and the one-shot expiry fallback owns
+        // the rest — stop the 200 ms interval instead of ticking forever on a
+        // hanging card. hideEndcard() clears the pending expireTimer.
+        if (timer) clearInterval(timer);
+        timer = 0;
       }
     };
     tick();

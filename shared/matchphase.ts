@@ -89,3 +89,19 @@ export function countdownVisible(msRemaining: number): boolean {
 export function inputLocked(phase: MatchPhase): boolean {
   return phase !== "live";
 }
+
+/**
+ * STALE MATCH-END SIGNALS (yard rollover + lobby return). The server emits
+ * match/live exactly ONCE per rollover and never repeats it, while match/end
+ * is retransmitted ~1 Hz over the whole over window on a FROZEN tick — and a
+ * late duplicate of that frozen tick (unordered UDP lane, WS replay after a
+ * reconnect) can land AFTER the rollover. Re-entering finish() for it would
+ * re-raise the endcard over a match that is already live, with no further
+ * match/live ever coming: the client hangs on the endcard while the game
+ * plays on behind it. `liveTick` is the snapshot tick the last match/live was
+ * consumed on; any end signal on a tick at or before it belongs to the
+ * previous match and must be ignored.
+ */
+export function isStaleMatchTick(tick: number, liveTick: number): boolean {
+  return liveTick >= 0 && tick <= liveTick;
+}

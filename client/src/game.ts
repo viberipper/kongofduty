@@ -157,7 +157,7 @@ import { RenderQuality } from "./quality";
 import { softwareMaterials } from "./software-materials";
 import { RenderTimeline } from "./render-timeline";
 import { DepthPrecision } from "./depth-precision";
-import { COUNTDOWN_MS, inputLocked, type MatchPhase } from "@shared/matchphase";
+import { COUNTDOWN_MS, inputLocked, isStaleMatchTick, type MatchPhase } from "@shared/matchphase";
 // AAA graphics (feature/aaa-graphics): fused cinematic final pass, map-agnostic
 // contact AO, selective bloom, opt-in motion blur, quality presets, GPU-backend
 // detection (WebGPU-first via the vendored three r186 WebGPURenderer — see gpu-backend).
@@ -505,6 +505,15 @@ export class Game {
    * trip it.
    */
   private endEvidenceAt = 0;
+  /**
+   * ROLLOVER POINT (shared/matchphase.ts isStaleMatchTick): the snapshot tick
+   * the last match/live event was consumed on (-1 = none yet). Duplicate-tick
+   * end signals on ticks at or before it are the PREVIOUS match's (frozen-tick
+   * retransmit or unordered-lane redelivery landing after the rollover) and
+   * must not re-enter finish() — that re-raises the endcard over a live match
+   * no further match/live will ever take down.
+   */
+  private liveTick = -1;
   /**
    * ROUND-BASED TDM (shared/protocol.ts RoundState): the round block off the
    * newest snapshot, null on every other room. Offline the local session is
@@ -1463,6 +1472,7 @@ export class Game {
     this.ended = false;
     // Fresh boot/re-deploy clears stale watchdog evidence (see resetPrediction).
     this.endEvidenceAt = 0;
+    this.liveTick = -1;
     this.endcardUp = false;
     // Every boot (re-)starts on clean walls: the Sprays instance and the scene
     // outlive a match (QuickMatch-Neustart, leave-to-menu → re-deploy), so old
@@ -1608,6 +1618,9 @@ export class Game {
     // is reset above, so old evidence would fire the watchdog before the
     // first snapshot of the new seat arrives.
     this.endEvidenceAt = 0;
+    // A reconnect is a new seat on continuing server ticks: a carried-over
+    // rollover point would read the new match's early end signals as stale.
+    this.liveTick = -1;
     this.statSnaps.length = 0;
     this.statPings.length = 0;
     this.renderTimeline.reset();
@@ -1842,7 +1855,7 @@ export class Game {
           // Roster tracks the WIRE, not the frame rate (see applyRoster).
           this.applyRoster(msg.players);
           this.lastEv.push(...msg.ev);
-          this.handleEvents(msg.ev);
+          this.handleEvents(msg.ev, msg.tick);
           // End-of-match trigger (client-side endcard fallback; the server is
           // authoritative). TDM ends on the clock or a team hitting the map's
           // score limit (scoreLimit: 100 on Nuketown, SCORE_LIMIT elsewhere);
@@ -1997,6 +2010,18 @@ export class Game {
       // a "duplicate" by tick — and must never swallow the end of the match.
       // Only the idempotent end signals are replayed here (finish() returns
       // when already ended); kills/feed stay deduplicated, nothing plays twice.
+      // STALE-ROLLOVER GUARD: a duplicate of the PREVIOUS match's frozen end
+      // tick landing after the rollover (unordered UDP redelivery, WS replay
+      // after a reconnect) must NOT re-enter finish() — the endcard would come
+      // back up over a live match that no further match/live will ever end.
+      // RECONNECT WINDOW: before the first match/live of this session
+      // (liveTick < 0) duplicates replay nothing at all. The legitimate cases
+      // need no replay: the first sighting of the end tick is always fresh
+      // and finishes there (remain<=0 covers the eventless path), finish() is
+      // idempotent, and a fast reconnect into a live match carries no end
+      // signals while one into the over window re-finishes off its first
+      // fresh remain<=0 snapshot.
+      if (this.liveTick >= 0 && !isStaleMatchTick(msg.tick, this.liveTick)) {
       for (const e of msg.ev) {
         if (e.t === "match" && e.state === "end") {
           try { this.finish(e.score0, e.score1); } catch (err) { console.debug("[events] match/end replay failed", err); /* the match end is never blocked */ }
@@ -2007,6 +2032,7 @@ export class Game {
       if ((msg.remain ?? 1) <= 0) {
         try { this.finish(num(msg.score0), num(msg.score1)); } catch (err) { console.debug("[events] remain<=0 replay failed", err); /* the match end is never blocked */ }
       }
+      }
       return false;
     }
     this.seenTicks.add(msg.tick);
@@ -2015,7 +2041,7 @@ export class Game {
     if (this.seenTicks.size > 256) this.seenTicks.delete(this.seenTicks.values().next().value!);
     if (msg.tick < this.snapTick && this.snapTick - msg.tick < 1024) {
       this.lastEv.push(...msg.ev);
-      this.handleEvents(msg.ev);
+      this.handleEvents(msg.ev, msg.tick);
       return false;
     }
     this.snapTick = msg.tick;
@@ -3320,10 +3346,12 @@ export class Game {
     return out;
   }
 
-  handleEvents(ev: NetEvent[]): void {
+  handleEvents(ev: NetEvent[], tick: number = this.snapTick): void {
     // END-OF-MATCH ROBUSTNESS: each event runs in its own try/catch, so one
     // faulty event in the final flush (feed, accolades, announcer, tracer)
     // can never throw past the match/end event — and finish() — behind it.
+    // `tick` is the snapshot tick carrying these events: the match/end branch
+    // below drops stale ones against it (see the rollover point, liveTick).
     for (const e of ev) {
       try {
       if (e.t === "chat") this.chatLine(e.name, e.text);
@@ -3633,6 +3661,20 @@ export class Game {
         else this.banner(`ROUND ${e.round}`, 1.2);
       }
       if (e.t === "match" && e.state === "end") {
+        // STALE-ROLLOVER GUARD (see liveTick): a late frozen-tick duplicate of
+        // the PREVIOUS match's end landing after the rollover — via the
+        // old-tick branch or a fresh match/end branch — must not re-enter
+        // finish() over the live match. Legitimate retransmits of the CURRENT
+        // end carry a tick past liveTick and still pass.
+        // RECONNECT WINDOW: after a reconnect liveTick is -1, so nothing is
+        // stale by the guard above — but an end on a tick OLDER than the
+        // newest applied one cannot be the current match's (its frozen tick
+        // admits nothing newer until the rollover, which sets liveTick), so a
+        // pre-first-rollover old-tick end replay is the previous match's and
+        // is dropped too. Fresh-tick ends with liveTick < 0 stay allowed:
+        // the first match (and round rooms, whose remain never drops) end so.
+        if (isStaleMatchTick(tick, this.liveTick)) continue;
+        if (this.liveTick < 0 && tick < this.snapTick) continue;
         // END-OF-MATCH WATCHDOG (endWatchdog): the end was seen on the wire,
         // even if finish() below ever failed to run it.
         this.endEvidenceAt = performance.now();
@@ -3642,16 +3684,10 @@ export class Game {
       // that dropped back to its pre-game screen. Re-arm finish() for the next
       // one and let main.ts take the endcard down.
       else if (e.t === "match" && e.state === "live" && this.ended) {
-        this.ended = false;
-        this.endEvidenceAt = 0;
-        this.endcardUp = false;
-        this.stopFinalKillcam(); // feel stream
-        this.sprays?.clear(); // fresh walls for the next match
-        this.combat = freshCombat(); // combat stats are per match
-        this.accolades.reset(this.you);
-        this.medals.clear();
-        this.scorePops.clear();
-        this.onRematch?.();
+        // The rollover point (see liveTick): stale end signals on ticks at or
+        // before this one belong to the match that just ended.
+        this.liveTick = this.snapTick;
+        this.forceRollover();
       }
       } catch (err) {
         // One bad event must never block the events behind it (match/end) —
@@ -5679,6 +5715,39 @@ export class Game {
   /** Bullet-truth line of sight between two players (eye to chest). */
   private canSee(a: PlayerSnap, b: PlayerSnap): boolean {
     return this.clearSight(a.x, a.y + (a.crouch ? CROUCH_EYE : EYE), a.z, b.x, b.y + 1.05, b.z);
+  }
+
+  /**
+   * THE ROLLOVER, WITH OR WITHOUT THE EVENT. Runs the exact reset the
+   * match/live branch runs (re-arm finish(), drop the endcard via onRematch)
+   * and is what the endcard-countdown fallback calls when the wire is
+   * provably live but the single match/live event never landed. It starts
+   * nothing and rejoins nothing — the seat never left the room — so calling
+   * it twice, or after the event path already ran, can never double-start a
+   * match. If the server is actually still over, the next remain<=0 snapshot
+   * re-enters finish() and the card comes back.
+   */
+  forceRollover(): void {
+    if (!this.ended) {
+      this.onRematch?.();
+      return;
+    }
+    // ROLLOVER POINT, LIKE THE EVENT PATH: the countdown-expiry fallback
+    // takes over exactly when the single match/live event was missed, so it
+    // lifts liveTick to the newest applied tick itself — otherwise the point
+    // stays one rollover behind and a stale frozen-tick duplicate landing now
+    // would re-enter finish() over the live match.
+    this.liveTick = this.snapTick;
+    this.ended = false;
+    this.endEvidenceAt = 0;
+    this.endcardUp = false;
+    this.stopFinalKillcam(); // feel stream
+    this.sprays?.clear(); // fresh walls for the next match
+    this.combat = freshCombat(); // combat stats are per match
+    this.accolades.reset(this.you);
+    this.medals.clear();
+    this.scorePops.clear();
+    this.onRematch?.();
   }
 
   finish(s0: number, s1: number): void {
