@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 This file tracks exclusively our own bugfixes and enhancements. It exists
 so that later upstream updates can be differentiated: anything already
 fixed by us is listed here with commit evidence. Upstream ports are
-intentionally NOT tracked here (see `.origin/` + `docs/upstream-sync.md`).
+intentionally NOT tracked here (see `docs/upstream-sync.md`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 as closely as possible. Every entry below is backed by a commit in this
@@ -13,7 +13,7 @@ repository (short hash in parentheses); nothing is listed without commit
 evidence. Commit range covered: `39093f4` (initial snapshot) through
 `b48671e` (HEAD at time of writing); upstream sync/port commits in that
 range (e.g. `09486bd`, `d4111b4`) are intentionally excluded — upstream
-ports are NOT tracked here (see `.origin/` + `docs/upstream-sync.md`).
+ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ## [Unreleased]
 
@@ -81,9 +81,9 @@ No unreleased changes beyond the sections below.
 - `fix(net): reliable match end (retransmit, watchdog, event guards)` —
   match end is delivered reliably via retransmit, a watchdog, and event
   guards (`89e611e`).
-- `fix(server): allow loopback origin across ports for local dev` — local
+- `fix(server): allow loopback across ports for local dev` — local
   development across differing loopback ports is accepted by the server
-  origin check (`b365a48`).
+  host check (`b365a48`).
 
 ## 2026-10-27
 
@@ -151,6 +151,6 @@ No unreleased changes beyond the sections below.
 ## 2026-10-23 — Base + site setup (collective)
 
 Upstream/base snapshot and site setup — upstream ports are NOT tracked
-here (see `.origin/` + `docs/upstream-sync.md`): `Initial repository
+here (see `docs/upstream-sync.md`): `Initial repository
 snapshot` (`39093f4`), branding/site-verification/gitignore setup
 (`2a70e17`, `aca1150`, `f0f6fc8`, `85b9668`).
