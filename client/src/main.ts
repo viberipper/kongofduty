@@ -441,7 +441,11 @@ async function deploy(online: boolean, phase: MatchPhase | null = null, spectate
     game.onHud = (s: HudState) => paintHud(game, s, PAGE_MAP);
     game.onRematch = () => {
       hideEndcard();
-      hudState.everLocked = false;
+      // ROLLOVER WITH THE LOCK STILL HELD (yard auto-rollover): keep
+      // everLocked so the CLICK-TO-PLAY hint stays down and play resumes
+      // without another click. Lock lost (ESC during the endcard): re-arm
+      // the hint exactly as before.
+      if (!document.pointerLockElement) hudState.everLocked = false;
     };
     game.onEnd = (_win, s0, s1, board) => onMatchEnd(s0, s1, board ?? []);
     // BENCHED BEFORE THE FIRST FRAME: hook the spectator camera before start()
@@ -523,8 +527,12 @@ async function deploy(online: boolean, phase: MatchPhase | null = null, spectate
 
 function onMatchEnd(s0: number, s1: number, board: EndRow[]): void {
   closePause();
-  if (document.pointerLockElement) document.exitPointerLock();
   const kind: EndKind = !state.online ? "bots" : state.room ? "lobby" : "yard";
+  // YARD ROLLOVER KEEPS THE LOCK: the public match rolls straight into the
+  // next one (no cursor needed — LEAVE is one ESC away), so play resumes
+  // without another CLICK-TO-PLAY. Bots/lobby endcards need the cursor for
+  // their buttons, so they still release it.
+  if (kind !== "yard" && document.pointerLockElement) document.exitPointerLock();
   showEndcard({
     mode: state.mode,
     map: PAGE_MAP,
