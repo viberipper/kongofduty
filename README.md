@@ -20,6 +20,11 @@ Self-hostable version of the browser game at https://cnvs.dev/kong/ — playable
 - **Spray paint audio:** user-provided spray-can sound (Opus primary, M4A fallback), positional (local sprays play instantly, remote sprays with distance attenuation), synth fallback when clips are missing, balanced against similar one-shot effects.
 - **Secure in-game text chat:** server-side badword filter with leet-folding, rate-limited, sender taken from the session (no spoofing, "server" name reserved), text-only rendering (no XSS); T key, Enter/Escape like in-game.
 - **Team-colored clothing:** Kong on your own team wear blue shorts (enemies red), astronaut armbands/panels in team colors — all colorMode-aware (Protan/Deutan/Tritan), swapped per actor, FFA unchanged.
+- **Reliable match end online:** the server retransmits the frozen end state until the rollover, duplicate-tick end signals replay idempotently (kills/feed stay deduplicated, nothing plays twice), a watchdog finishes the match when end evidence was seen but no snapshot arrives for seconds, stale end signals from the previous match can never re-raise the endcard over a live match, and the endcard dismisses itself once its countdown expires while the connection is confirmed live — so the end-of-match screen always appears, never hangs, and never pops back over the next match.
+- **Per-mode public rooms:** PUBLIC MATCH follows the picked mode — separate always-on rooms per map for TDM, FFA, and Gun Game — so queuing public with an FFA or Gun Game selection actually lands in that mode instead of a pinned team mode.
+- **Menu-music mute toggle:** one-click mute switch in the menu topbar next to the callsign chip, persisted in prefs and applied live on top of the SETTINGS → AUDIO slider.
+- **Clean walls every match:** spray-paint decals are scrubbed at match end, on rematch, and on lobby/menu return, so tags never leak into the next match.
+- **Menu discoverability:** SPRAY and CHAT key hints in the controls keyline, plus a "Source available on GitHub" link in the menu footer.
 
 ## Upstream sync log
 
