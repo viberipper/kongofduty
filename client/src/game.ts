@@ -1570,7 +1570,7 @@ export class Game {
     this.net.send(JSON.stringify({ t: "ping", t0: now, rtt: this.ghost?.ping ?? 0 }));
   }
 
-  stop(): void {
+  stop(opts?: { keepLock?: boolean; keepFullscreen?: boolean }): void {
     this.running = false;
     // Deliberate teardown, so onclose must NOT read this as a drop and start
     // reconnecting into a stopped game.
@@ -1591,9 +1591,12 @@ export class Game {
     this.stepTimer = 0;
     this.udp?.close();
     this.udp = null;
-    document.exitPointerLock();
+    // IN-PLACE REMATCH (Quick Play -> PLAY AGAIN): the teardown must not drop
+    // the lock/fullscreen from under the new match — their async change events
+    // would land after deploy() is already inMatch() and open the pause menu.
+    if (!opts?.keepLock) document.exitPointerLock();
     this.keyboard()?.unlock();
-    if (document.fullscreenElement === document.documentElement) void document.exitFullscreen().catch(() => {});
+    if (!opts?.keepFullscreen && document.fullscreenElement === document.documentElement) void document.exitFullscreen().catch(() => {});
     this.clearInput();
     this.resetPrediction();
   }

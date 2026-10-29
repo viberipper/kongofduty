@@ -536,6 +536,10 @@ function onMatchEnd(s0: number, s1: number, board: EndRow[]): void {
   // without another CLICK-TO-PLAY. Bots/lobby endcards need the cursor for
   // their buttons, so they still release it.
   if (kind !== "yard" && document.pointerLockElement) document.exitPointerLock();
+  // PLAY-AGAIN REENTRANCY GUARD: one card, one rematch — a fast double
+  // click / double activation must not run two deploy()/game.start() in
+  // parallel. Per-card closure flag (plus the disabled button in endcard.ts).
+  let playAgainBusy = false;
   showEndcard({
     mode: state.mode,
     map: PAGE_MAP,
@@ -548,9 +552,36 @@ function onMatchEnd(s0: number, s1: number, board: EndRow[]): void {
     // feel stream: the server's clock started at the match end, before the final killcam played.
     nextIn: Math.max(1, (kind === "lobby" ? LOBBY_RETURN_S : PUBLIC_ROLLOVER_S) - game.sinceEndS()),
     onPlayAgain: () => {
-      game.stop();
+      if (playAgainBusy) return;
+      playAgainBusy = true;
+      // IN-PLACE REMATCH: this click IS the gesture — keep fullscreen across
+      // the teardown and re-take the endcard-released lock synchronously, so
+      // no fullscreen/pointerlock event fires over the new match and opens
+      // the pause menu, and no CLICK-TO-PLAY is needed (everLocked preserved
+      // like the yard rollover in onRematch above). Lock/fullscreen already
+      // lost (ESC on the endcard): the request below is still this gesture,
+      // so the normal resume path just works; if the re-lock hits the ~1 s
+      // ESC cooldown, the hint comes back and the next canvas click takes it.
+      const wantLock = !!document.fullscreenElement || hudState.everLocked;
+      game.stop({ keepLock: true, keepFullscreen: true });
       hideEndcard();
       void deploy(false);
+      if (wantLock) {
+        hudState.everLocked = true;
+        // Chrome throws SYNCHRONOUSLY on a re-lock inside the ~1 s ESC
+        // cooldown (not just a rejected promise) — without this try/catch
+        // that is an uncaught exception and everLocked stays wrongly true.
+        try {
+          const r = canvas.requestPointerLock() as unknown;
+          if (r && typeof (r as Promise<void>).catch === "function") {
+            (r as Promise<void>).catch(() => {
+              hudState.everLocked = false;
+            });
+          }
+        } catch {
+          hudState.everLocked = false;
+        }
+      }
     },
     onMenu: toMenu,
     // COUNTDOWN-EXPIRY FALLBACK (yard rollover): the card is still up ~2 s
@@ -686,6 +717,12 @@ function resumeFullscreen(): void {
 }
 
 function wirePause(): void {
+  // Firefox returns undefined from requestPointerLock (no promise to catch);
+  // a refused re-lock surfaces ONLY via this event. Re-arm the CLICK-TO-PLAY
+  // hint exactly like the promise-reject path in onPlayAgain above.
+  document.addEventListener("pointerlockerror", () => {
+    if (document.pointerLockElement !== canvas) hudState.everLocked = false;
+  });
   document.addEventListener("pointerlockchange", () => {
     const locked = document.pointerLockElement === canvas;
     if (locked) {

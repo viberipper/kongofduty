@@ -291,7 +291,13 @@ export function showEndcard(p: EndParams): MatchResult {
     const again = h("button", "btn btn--primary", "PLAY AGAIN");
     again.type = "button";
     again.dataset.sfx = "confirm";
-    again.addEventListener("click", () => p.onPlayAgain?.());
+    again.addEventListener("click", () => {
+      // REENTRANCY GUARD (with playAgainBusy in main.ts): no second
+      // deploy()/game.start() from a double click.
+      if (again.disabled) return;
+      again.disabled = true;
+      p.onPlayAgain?.();
+    });
     const menu = h("button", "btn", "MAIN MENU");
     menu.type = "button";
     menu.dataset.sfx = "back";
