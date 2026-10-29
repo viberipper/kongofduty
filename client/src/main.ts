@@ -276,6 +276,7 @@ function showLoading(map: string, mode: ModeId, kind: Kind | "menu"): void {
 function toMenu(): void {
   game.stop();
   closePause();
+  pauseFullscreenLost = false;
   hideEndcard();
   detachSpectate(game);
   detachLobby();
@@ -492,6 +493,7 @@ async function deploy(online: boolean, phase: MatchPhase | null = null, spectate
             if (settingsOpen()) closeSettings();
             hideEndcard();
             closePause();
+            pauseFullscreenLost = false;
             // The server scrubbed its tags at the rollover: scrub the meshes
             // too (the match/live event the old path relied on is not what a
             // pre-game lobby should depend on).
@@ -527,6 +529,7 @@ async function deploy(online: boolean, phase: MatchPhase | null = null, spectate
 
 function onMatchEnd(s0: number, s1: number, board: EndRow[]): void {
   closePause();
+  pauseFullscreenLost = false;
   const kind: EndKind = !state.online ? "bots" : state.room ? "lobby" : "yard";
   // YARD ROLLOVER KEEPS THE LOCK: the public match rolls straight into the
   // next one (no cursor needed — LEAVE is one ESC away), so play resumes
@@ -604,9 +607,17 @@ function fireMenuPad(a: MenuPadAction): void {
   else cycleMap(a === "map-next" ? 1 : -1);
 }
 
-function openPauseMenu(): void {
+/** TRUE seit einem Fullscreen-Exit mitten im Match (ESC) — Pause bietet 1-Klick-Rückkehr. */
+let pauseFullscreenLost = false;
+
+function openPauseMenu(opts?: { fullscreenLost?: boolean }): void {
   const info = modeInfo(PAGE_MAP, state.mode);
   hudState.paused = true;
+  // Nur wenn der Fullscreen wirklich weg ist (ESC im Fullscreen beendet ihn
+  // zusammen mit dem Pointer-Lock — der Browser reserviert ESC dafür, das lässt
+  // sich nicht abfangen). Fenster-Modus: Flag bleibt aus, Verhalten unverändert.
+  if (opts?.fullscreenLost) pauseFullscreenLost = true;
+  if (document.fullscreenElement) pauseFullscreenLost = false;
   openPause({
     mode: `${info.label} · ${info.size}`,
     map: mapLabel(PAGE_MAP),
@@ -622,6 +633,8 @@ function openPauseMenu(): void {
     },
     invite: state.online && state.room ? inviteLink(state.room, PAGE_MAP) : undefined,
     online: state.online,
+    fullscreenLost: pauseFullscreenLost,
+    onFullscreenResume: resumeFullscreen,
     onResume: resume,
     onLoadout: () => openLoadout({ inMatch: true }),
     // CLOSING SETTINGS RETURNS YOU TO THE GAME: DONE / ESC is a user
@@ -655,17 +668,53 @@ function resume(): void {
   }
 }
 
+/**
+ * FULLSCREEN + FORTSETZEN — ein Klick aus dem Pause-Menü nach ESC im
+ * Fullscreen: requestFullscreen + Pointer-Lock + Resume, alles aus dieser
+ * einen User-Geste (daher erlaubt). Kein Auto-Re-Enter ohne Geste — der
+ * schlägt fehl und wird nicht versucht. Klappt der Fullscreen nicht, läuft
+ * trotzdem der normale Resume-Pfad (Fenster-Modus).
+ */
+function resumeFullscreen(): void {
+  pauseFullscreenLost = false;
+  const el = document.documentElement;
+  if (!document.fullscreenElement && el.requestFullscreen) {
+    void el.requestFullscreen().then(() => resume(), () => resume());
+  } else {
+    resume();
+  }
+}
+
 function wirePause(): void {
   document.addEventListener("pointerlockchange", () => {
     const locked = document.pointerLockElement === canvas;
     if (locked) {
       hudState.everLocked = true;
       hudState.paused = false;
+      pauseFullscreenLost = false;
       closePause();
       return;
     }
     // Lost the lock mid-match (ESC, alt-tab): the pause menu, not a bare hint.
     if (inMatch() && hudState.everLocked && !settingsOpen() && !loadoutOpen()) openPauseMenu();
+  });
+  // FULLSCREEN-EXIT mitten im Match (ESC im Fullscreen beendet Lock UND
+  // Fullscreen — Browser-reserviert, nicht abfangbar): Pause-Menü öffnen, falls
+  // nicht schon, mit 1-Klick-Rückkehr. Kein Auto-Re-Enter (braucht eine Geste).
+  document.addEventListener("fullscreenchange", () => {
+    if (document.fullscreenElement) return;
+    // F11-/programmatischer Exit bei gehaltenem Lock: Spiel läuft weiter —
+    // keine Pause darüber öffnen. Nur bei verlorenem Lock pausieren.
+    if (document.pointerLockElement) return;
+    if (inMatch() && !settingsOpen() && !loadoutOpen()) {
+      // ESC-Doppel-Event (pointerlockchange + fullscreenchange): Pause ist
+      // schon offen, dann nur auf die Fullscreen-Rückkehr-Variante hochstufen.
+      if (pauseOpen()) {
+        if (!pauseFullscreenLost) openPauseMenu({ fullscreenLost: true });
+        return;
+      }
+      openPauseMenu({ fullscreenLost: true });
+    }
   });
 }
 

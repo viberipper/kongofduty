@@ -21,6 +21,9 @@ export interface PauseCtx {
   /** Invite link when this is a private match the player can share. */
   invite?: string;
   online: boolean;
+  /** Fullscreen ging verloren (ESC im Fullscreen) — biete 1-Klick-Rückkehr an. */
+  fullscreenLost?: boolean;
+  onFullscreenResume?: () => void;
   onResume: () => void;
   onLoadout: () => void;
   onSettings: () => void;
@@ -106,6 +109,17 @@ function render(confirming: boolean): void {
   };
   const resume = btn("RESUME", sub("ESC", "START"), "is-primary", () => c.onResume(), "confirm");
   col.append(resume);
+  // FULLSCREEN-VERLUST (ESC im Fullscreen beendet Lock + Fullscreen, der
+  // Browser lässt sich das nicht abnehmen): EIN Klick macht beides rückgängig
+  // (requestFullscreen + Pointer-Lock + Resume — alles aus dieser User-Geste,
+  // daher erlaubt). Nur da, wenn der Fullscreen wirklich weg ist — das
+  // Fenster-Verhalten bleibt unverändert.
+  let focusBtn: HTMLButtonElement = resume;
+  if (c.fullscreenLost && c.onFullscreenResume) {
+    const fs = btn("FULLSCREEN + RESUME", null, "is-primary", () => c.onFullscreenResume!(), "confirm");
+    col.append(fs);
+    focusBtn = fs;
+  }
   col.append(btn("LOADOUT", sub("NEXT SPAWN", "Y"), "", () => c.onLoadout()));
   col.append(btn("SETTINGS", sub("", "X"), "", () => c.onSettings()));
   if (!confirming) {
@@ -173,5 +187,5 @@ function render(confirming: boolean): void {
   }
   const spacer = h("div");
   root.append(col, spacer, side);
-  requestAnimationFrame(() => resume.focus({ preventScroll: true }));
+  requestAnimationFrame(() => focusBtn.focus({ preventScroll: true }));
 }
