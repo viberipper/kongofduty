@@ -1021,7 +1021,7 @@ async function runGate(opts: GateOpts): Promise<void> {
         : opts.kind === "invite"
           ? { kind: "invite", map: wantMap, room }
           : opts.kind === "yard"
-            ? { kind: "yard", map: wantMap }
+            ? { kind: "yard", map: wantMap, mode: asModeId(opts.mode) }
             : null;
     if (applyGateMap(wantMap, intent)) return;
   }

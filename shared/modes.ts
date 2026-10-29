@@ -206,9 +206,10 @@ export function modesFor(map: string): ModeInfo[] {
 }
 
 /**
- * THE PUBLIC MATCH (the server's always-on room on each map) is always the
- * map's TEAM mode — the server pins it (game-server.ts getRoom), so the label
- * on the JOIN PUBLIC tile can never disagree with the room it lands in.
+ * THE DEFAULT PUBLIC MODE — what a join without a mode lands in (old clients
+ * send none; the server maps that to TDM). New clients send the picked mode
+ * and land in that mode's yard (server/index.ts getOrCreateYard): the JOIN
+ * PUBLIC tile renders the selection, never this constant.
  */
 export const PUBLIC_MODE: ModeId = "tdm";
 

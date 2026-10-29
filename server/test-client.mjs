@@ -174,6 +174,62 @@ async function main() {
   console.log(`[pub] moved dist=${dist.toFixed(2)}m alive=${me2.alive}`);
   if (dist < 0.5) throw new Error("body did not move");
 
+  // ---------- 1b) PUBLIC GUN GAME — the picked mode's yard, not the TDM one ----------
+  // A modeless join lands in TDM (""); a join with mode gun must land in a
+  // separate always-live yard running the gun sim (snap.mode gun + ladder).
+  const tdmTickBefore = a.snaps.length ? a.snaps[a.snaps.length - 1].tick ?? -1 : -1;
+  const pgun = new Fake("pub-gun");
+  await pgun.connect(url());
+  pgun.send({ t: "join", name: "GUNNER", team: -1, mode: "gun", map: "nuketown", snapshotFormat: "compact-v1" });
+  const gwel = await pgun.waitFor((m) => m.find((x) => x.t === "welcome"));
+  console.log(`[pub-gun] welcome ok room=${gwel.room} name=${gwel.name} (tdm room=${wel.room})`);
+  if (gwel.room !== "yard:gun") throw new Error(`Gun yard welcome.room=${gwel.room}, expected yard:gun`);
+  if (wel.room !== "") throw new Error(`TDM yard welcome.room=${wel.room}, expected ""`);
+  const gsnap = await pgun.waitFor((m) => m.find((x) => x.t === "snap" && x.mode === "gun"));
+  console.log(`[pub-gun] snap mode=${gsnap.mode} players=${gsnap.players.length} gun0=${gsnap.players[0]?.gun}`);
+  if (gsnap.players.length !== 12) throw new Error(`Gun yard has ${gsnap.players.length} bodies, expected 12`);
+  if (gsnap.players[0]?.gun !== 0) throw new Error(`gun start value=${gsnap.players[0]?.gun}, expected 0`);
+  // The TDM yard next door is untouched: wait for a FRESH post-gun-join snap
+  // (tick beyond the pre-join one — a.snaps[last] could predate the gun join)
+  // and assert it is still TDM.
+  const tsnap = await a.waitFor((m) =>
+    m.find((x) => x.t === "snap" && x.mode === "tdm" && (x.tick ?? 0) > tdmTickBefore),
+  );
+  console.log(`[pub-gun] tdm fresh ok tick=${tsnap.tick} (was ${tdmTickBefore}) mode=${tsnap.mode} players=${tsnap.players.length}`);
+  if (tsnap.mode !== "tdm") throw new Error(`TDM yard mode=${tsnap.mode}, expected tdm`);
+  if (tsnap.players.length !== 12) throw new Error(`TDM yard has ${tsnap.players.length} bodies, expected 12`);
+  // Roster-level cross-talk: neither yard lists the other's human.
+  const tdmNames = tsnap.players.map((p) => p.name);
+  const gunNames = gsnap.players.map((p) => p.name);
+  if (tdmNames.includes(gwel.name)) throw new Error(`cross-talk: ${gwel.name} leaked into the TDM yard`);
+  if (gunNames.includes(wel.name)) throw new Error(`cross-talk: ${wel.name} leaked into the gun yard`);
+
+  // ---------- 1c) PUBLIC FFA — the yard:ffa branch (yardKey/getOrCreateYard) ----------
+  const pffa = new Fake("pub-ffa");
+  await pffa.connect(url());
+  pffa.send({ t: "join", name: "FFAER", team: -1, mode: "ffa", map: "nuketown", snapshotFormat: "compact-v1" });
+  const fwel = await pffa.waitFor((m) => m.find((x) => x.t === "welcome"));
+  console.log(`[pub-ffa] welcome ok room=${fwel.room} name=${fwel.name}`);
+  if (fwel.room !== "yard:ffa") throw new Error(`FFA yard welcome.room=${fwel.room}, expected yard:ffa`);
+  const fsnap = await pffa.waitFor((m) => m.find((x) => x.t === "snap" && x.mode === "ffa"));
+  console.log(`[pub-ffa] snap mode=${fsnap.mode} players=${fsnap.players.length}`);
+  if (fsnap.mode !== "ffa") throw new Error(`FFA yard mode=${fsnap.mode}, expected ffa`);
+  if (fsnap.players.length !== 12) throw new Error(`FFA yard has ${fsnap.players.length} bodies, expected 12`);
+  pffa.ws.close();
+
+  // ---------- 1d) MODELLESS JOIN — old clients land in the TDM yard ("") ----------
+  const pold = new Fake("pub-old");
+  await pold.connect(url());
+  pold.send({ t: "join", name: "OLDCLIENT", team: -1, map: "nuketown", snapshotFormat: "compact-v1" });
+  const owel = await pold.waitFor((m) => m.find((x) => x.t === "welcome"));
+  console.log(`[pub-old] welcome ok room=${owel.room} name=${owel.name}`);
+  if (owel.room !== "") throw new Error(`Modeless join welcome.room=${owel.room}, expected "" (TDM yard)`);
+  const osnap = await pold.waitFor((m) => m.find((x) => x.t === "snap" && x.mode === "tdm"));
+  console.log(`[pub-old] snap mode=${osnap.mode} players=${osnap.players.length}`);
+  if (osnap.players.length !== 12) throw new Error(`TDM yard has ${osnap.players.length} bodies, expected 12`);
+  pold.ws.close();
+  pgun.ws.close();
+
   // ---------- 2) PRIVATE MATCH ----------
   const h = new Fake("host");
   const g = new Fake("guest");

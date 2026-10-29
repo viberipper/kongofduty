@@ -33,7 +33,7 @@ import {
 } from "./lobby";
 import type { MatchPhase } from "@shared/matchphase";
 import { bootStage, hookBootErrors, resetBootProgress } from "./bootstage";
-import { LOBBY_RETURN_S, PUBLIC_MODE, PUBLIC_ROLLOVER_S, asModeId, modeInfo, simMode, type ModeId } from "@shared/modes";
+import { LOBBY_RETURN_S, PUBLIC_ROLLOVER_S, asModeId, modeInfo, simMode, type ModeId } from "@shared/modes";
 import { TEAM_COLORS, onPrefs, prefs, reducedMotion } from "./ui/prefs";
 import { initMenu, menuBusy, menuSelection, setCallsignChip, setMenuSelection, type MenuPadAction } from "./ui/menu";
 import { openSettings, closeSettings, settingsOpen, type SettingsDeps } from "./ui/settings";
@@ -365,12 +365,12 @@ function enterInvite(room: string, auto: boolean, follow?: { mode?: ModeId; wait
   });
 }
 
-/** PUBLIC MATCH: the always-on room of this map (pinned to its team mode). */
-function enterYard(): void {
+/** PUBLIC MATCH: the always-on yard of this map for the picked mode. */
+function enterYard(mode: ModeId): void {
   state.kind = "yard";
   state.room = "";
-  state.mode = PUBLIC_MODE;
-  openGate("yard", "", { auto: true, headline: headline(PUBLIC_MODE) }, (r) => {
+  state.mode = mode;
+  openGate("yard", "", { mode, auto: true, headline: headline(mode) }, (r) => {
     state.name = r.name;
     // The yard has no lobby by construction (always live), but deploying with a
     // phase wires attachLobby, which is what hears a bench seat (welcome.spectator).
@@ -389,18 +389,18 @@ function headline(mode: ModeId): string {
  */
 function launch(kind: "bots" | "host" | "yard"): void {
   const sel = menuSelection();
-  const mode = kind === "yard" ? PUBLIC_MODE : sel.mode;
+  const mode = sel.mode;
   if (sel.map !== PAGE_MAP) {
     menuBusy(true);
     uiSfx("confirm");
-    const intent = kind === "bots" ? { kind, map: sel.map, mode } : kind === "host" ? { kind, map: sel.map, mode } : { kind, map: sel.map };
+    const intent = kind === "bots" ? { kind, map: sel.map, mode } : kind === "host" ? { kind, map: sel.map, mode } : { kind, map: sel.map, mode };
     showLoading(sel.map, mode, kind);
     goToMap(sel.map, intent as Parameters<typeof goToMap>[1], PAGE_MAP);
     return;
   }
   if (kind === "bots") enterBots(mode);
   else if (kind === "host") enterHost(mode);
-  else enterYard();
+  else enterYard(mode);
 }
 
 /** The callsign chip: a name check and nothing else. */
@@ -768,7 +768,7 @@ async function boot(): Promise<void> {
   if (intent) {
     if (intent.kind === "bots") enterBots(intent.mode);
     else if (intent.kind === "host") enterHost(intent.mode, intent.room);
-    else if (intent.kind === "yard") enterYard();
+    else if (intent.kind === "yard") enterYard(asModeId(intent.mode));
     else enterInvite(intent.room, true, { mode: intent.mode, wait: intent.wait });
   } else if (joinCode) {
     // AN INVITE LINK LANDS ON THE GATE (confirm the callsign, see the lobby

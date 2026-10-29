@@ -8,7 +8,7 @@
  * selection persists (localStorage) so a returning player's last setup is
  * already highlighted.
  */
-import { asModeId, modeInfo, modesFor, PUBLIC_MODE, type ModeId } from "@shared/modes";
+import { asModeId, modeInfo, modesFor, type ModeId } from "@shared/modes";
 import { DEFAULT_MAP_ID, isMapId } from "@shared/maps";
 import { mapBlurb, mapCardUrl, mapIds, mapLabel } from "./flow";
 import { onPrefs, prefs, setPrefs } from "./prefs";
@@ -182,8 +182,10 @@ function paint(): void {
   const meta = $("tile-meta-play");
   if (meta) meta.textContent = `OFFLINE · VS ${bots} BOTS`;
   sub("tile-sub-lobby", `${info.label} ${info.size} · ${map}`);
-  const pub = modeInfo(sel.map, PUBLIC_MODE);
-  sub("tile-sub-multi", `${pub.label} ${pub.size} · ${map}`);
+  // The public tile follows the picked mode: one always-live yard per mode
+  // on the server (tdm/ffa/gun), so the label can never disagree with the
+  // room the tile lands in.
+  sub("tile-sub-multi", `${info.label} ${info.size} · ${map}`);
   sub("hero-map", map);
   sub("hero-mode", `${info.label} · ${info.size}`);
   sub("hero-blurb", mapBlurb(sel.map));

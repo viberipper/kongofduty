@@ -29,8 +29,11 @@
  * check is endsWith("/ws"), so the prefix is irrelevant there.
  *
  * Rooms (worker):
- *   ""      PUBLIC MATCH — always live, bot backfill up to seatsFor(map, mode),
- *           rollover on score limit or clock, then a fresh match.
+ *   "" / "yard:<mode>"
+ *           PUBLIC MATCH — one always-live yard per MODE (tdm keeps the
+ *           historic "" key, ffa/gun spawn lazily beside it), bot backfill up
+ *           to seatsFor(map, mode), rollover on score limit or clock, then a
+ *           fresh match.
  *   "CODE"  PRIVATE MATCH — pre-game lobby; the host starts via
  *           t:"startmatch", 3200 ms countdown, then live.
  */
@@ -1536,7 +1539,28 @@ const RELOCATED_TTL_MS = 60_000;
 if (!IS_WORKER && !argVal("--map=")) {
   // HUB mode: rooms live in the map workers — create nothing here.
 } else {
+  // The TDM yard stays warm from boot (modeless joins — old clients — land
+  // here); the FFA/GUN yards spawn lazily on first join (getOrCreateYard).
   rooms.set("", new Room("", "yard", "tdm"));
+}
+
+/**
+ * Room key of a public yard. TDM keeps the historic "" key so clients that
+ * send no mode (old builds) keep landing exactly where they always did;
+ * FFA/GUN live beside it under "yard:<mode>".
+ */
+function yardKey(mode: ModeId): string {
+  return mode === "tdm" ? "" : `yard:${mode}`;
+}
+
+/** The public yard for a mode — created on first join, always live after. */
+function getOrCreateYard(mode: ModeId): Room {
+  const key = yardKey(mode);
+  const existing = rooms.get(key);
+  if (existing) return existing;
+  const r = new Room(key, "yard", mode);
+  rooms.set(key, r);
+  return r;
 }
 
 function getOrCreateRoom(code: string, mode: ModeId): Room | null {
@@ -1544,16 +1568,13 @@ function getOrCreateRoom(code: string, mode: ModeId): Room | null {
   if (existing) return existing;
   // H2: unbounded room creation = memory + tick exhaustion. Cap private
   // rooms per worker; over-limit joins get err+close (fail-closed).
+  // (Kind-based: the lazy "yard:<mode>" rooms are not private rooms.)
   let privateCount = 0;
-  for (const [k] of rooms) if (k !== "") privateCount++;
+  for (const r of rooms.values()) if (r.kind === "private") privateCount++;
   if (privateCount >= MAX_PRIVATE_ROOMS) return null;
   const r = new Room(code, "private", mode);
   rooms.set(code, r);
   return r;
-}
-
-function yardRoom(): Room {
-  return rooms.get("") as Room;
 }
 
 /** The map a room code moved to, if it moved within the last minute. */
@@ -1584,7 +1605,7 @@ setInterval(() => {
         }
       }
     }
-    if (code !== "" && r.seats.size === 0) {
+    if (r.kind === "private" && r.seats.size === 0) {
       if (!r.emptySince) r.emptySince = now;
       if (now - r.emptySince > 5 * 60_000) rooms.delete(code);
     } else if (r.seats.size > 0) {
@@ -2221,7 +2242,7 @@ function onSocket(ws: WsConn, ip: string): void {
       if (room && seat) return;
       const mode: ModeId = m.mode === "gun" ? "gun" : m.mode === "ffa" ? "ffa" : "tdm";
       const code = cleanRoomCode(m.room);
-      const target = code ? getOrCreateRoom(code, mode) : yardRoom();
+      const target = code ? getOrCreateRoom(code, mode) : getOrCreateYard(mode);
       if (!target) {
         // H2: private-room cap hit.
         try {

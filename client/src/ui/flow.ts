@@ -28,7 +28,7 @@ export type Intent =
   | { kind: "bots"; map: string; mode: ModeId }
   /** `room`: re-open THIS code (a lobby the host moved to another map). */
   | { kind: "host"; map: string; mode: ModeId; room?: string }
-  | { kind: "yard"; map: string }
+  | { kind: "yard"; map: string; mode: ModeId }
   /** `wait`: the room is moving here — wait for its host to re-open it rather than calling it dead. */
   | { kind: "invite"; map: string; room: string; mode?: ModeId; wait?: boolean };
 
