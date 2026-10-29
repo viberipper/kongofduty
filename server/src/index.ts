@@ -225,6 +225,7 @@ import { packPlayers } from "../../shared/snapshot-wire";
 import { sanitizeLoadout, type Loadout } from "../../shared/loadout";
 import { seatsFor, simMode, type ModeId } from "../../shared/modes";
 import { GUN_KILLS_PER_TIER, asGunKills } from "../../shared/gungame";
+import { shuffledYardTeams } from "./yard-teams";
 
 // Seats per room: seatsFor(map, mode) — shipment 5v5/10 FFA, dust2/ares/
 // nuketown 6v6/12 (shared/modes.ts MAP_SEATS). No global cap anymore: the
@@ -1051,6 +1052,29 @@ class Room {
     this.broadcastLobby();
   }
 
+  /**
+   * PUBLIC/YARD TDM ONLY — re-deal every playable body (humans AND bots) onto
+   * two even teams at each rollover, BEFORE nextMatch() spawns the fresh match
+   * on the new sides. Spectators have no body and stay benched; their queue
+   * order is untouched. Private rooms never call this (the host owns their
+   * teams via startMatch/shuffle), FFA/GUN are teamless. The new sides ride
+   * the regular snapshots (PlayerSnap.team), so no client change is needed.
+   */
+  private shuffleYardTdm(): void {
+    const humans = this.playableHumans();
+    const bots = [...this.session.players.values()].filter((p) => p.bot);
+    const teams = shuffledYardTeams(humans.length + bots.length);
+    humans.forEach((s, i) => {
+      const t = teams[i]!;
+      s.team = t;
+      const body = this.session.players.get(s.id);
+      if (body) body.team = t;
+    });
+    bots.forEach((b, k) => {
+      b.team = teams[humans.length + k]!;
+    });
+  }
+
   // ------------------------------------------------------------ Lobby
   broadcastLobby(): void {
     if (this.kind !== "private") return;
@@ -1289,6 +1313,9 @@ class Room {
       if (Date.now() - this.overAt >= wait) {
         this.overAt = 0;
         this.overMatchEnd = null;
+        // YARD TDM ONLY: fresh sides every match (humans + bots, spectators
+        // benched). Private keeps host control, FFA/GUN are teamless.
+        if (this.kind === "yard" && this.mode === "tdm") this.shuffleYardTdm();
         this.session.nextMatch();
         // A new match starts on clean walls (the clients scrub theirs too).
         this.sprays.clear();
