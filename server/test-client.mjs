@@ -204,6 +204,47 @@ async function main() {
   if (tdmNames.includes(gwel.name)) throw new Error(`cross-talk: ${gwel.name} leaked into the TDM yard`);
   if (gunNames.includes(wel.name)) throw new Error(`cross-talk: ${wel.name} leaked into the gun yard`);
 
+  // ---------- 1b2) PUBLIC GUN GAME — second human joins while the first is inside ----------
+  // Same yard:gun room, second seat plays immediately (no spectator bench),
+  // exactly one bot makes room (total stays at seatCount), and neither gun
+  // name leaks into the TDM yard next door.
+  const gunSnapBefore = pgun.snaps.length ? pgun.snaps[pgun.snaps.length - 1] : gsnap;
+  const gunTickBefore = gunSnapBefore.tick ?? -1;
+  const botsBefore = gunSnapBefore.players.filter((p) => p.bot).length;
+  const totalBefore = gunSnapBefore.players.length;
+  const pgun2 = new Fake("pub-gun2");
+  await pgun2.connect(url());
+  pgun2.send({ t: "join", name: "GUNNER2", team: -1, mode: "gun", map: "nuketown", snapshotFormat: "compact-v1" });
+  const gwel2 = await pgun2.waitFor((m) => m.find((x) => x.t === "welcome"));
+  console.log(`[pub-gun2] welcome ok room=${gwel2.room} name=${gwel2.name} spectator=${gwel2.spectator} (first room=${gwel.room})`);
+  if (gwel2.room !== "yard:gun") throw new Error(`Second gun join welcome.room=${gwel2.room}, expected yard:gun`);
+  if (gwel2.room !== gwel.room) throw new Error(`Gun room split: first=${gwel.room} second=${gwel2.room}`);
+  if (gwel2.spectator) throw new Error("second gun human parked as spectator, expected immediate seat");
+  const gsnap2 = await pgun2.waitFor((m) => m.find((x) => x.t === "snap" && x.mode === "gun" && (x.tick ?? 0) > gunTickBefore));
+  const meGun2 = gsnap2.players.find((p) => p.id === gsnap2.you);
+  console.log(`[pub-gun2] snap mode=${gsnap2.mode} players=${gsnap2.players.length} me=${meGun2 ? "found" : "MISSING"} tick=${gsnap2.tick} (was ${gunTickBefore})`);
+  if (!meGun2) throw new Error("second gun body missing from snapshot");
+  if (meGun2.bot) throw new Error("second gun body flagged as bot");
+  if (gsnap2.players.length !== totalBefore) throw new Error(`Gun yard total=${gsnap2.players.length}, expected ${totalBefore} (seatCount)`);
+  const botsAfter = gsnap2.players.filter((p) => p.bot).length;
+  console.log(`[pub-gun2] bots before=${botsBefore} after=${botsAfter} total=${gsnap2.players.length}`);
+  if (botsAfter !== botsBefore - 1) throw new Error(`Gun bots went ${botsBefore}→${botsAfter}, expected exactly one fewer`);
+  // First seat still plays in the same yard post-join.
+  const gFresh1 = await pgun.waitFor((m) =>
+    m.find((x) => x.t === "snap" && x.mode === "gun" && (x.tick ?? 0) > gunTickBefore && x.players?.some((p) => p.name === gwel2.name)),
+  );
+  console.log(`[pub-gun2] first seat still live tick=${gFresh1.tick} players=${gFresh1.players.length}`);
+  if (!gFresh1.players.some((p) => p.name === gwel.name)) throw new Error(`first gun human ${gwel.name} missing after second join`);
+  // Cross-room isolation holds for BOTH gun humans.
+  const tdmTickBefore2 = a.snaps.length ? a.snaps[a.snaps.length - 1].tick ?? -1 : -1;
+  const tsnap2 = await a.waitFor((m) =>
+    m.find((x) => x.t === "snap" && x.mode === "tdm" && (x.tick ?? 0) > tdmTickBefore2),
+  );
+  const tdmNames2 = tsnap2.players.map((p) => p.name);
+  console.log(`[pub-gun2] tdm fresh ok tick=${tsnap2.tick} players=${tsnap2.players.length}`);
+  if (tdmNames2.includes(gwel.name)) throw new Error(`cross-talk: ${gwel.name} leaked into the TDM yard`);
+  if (tdmNames2.includes(gwel2.name)) throw new Error(`cross-talk: ${gwel2.name} leaked into the TDM yard`);
+
   // ---------- 1c) PUBLIC FFA — the yard:ffa branch (yardKey/getOrCreateYard) ----------
   const pffa = new Fake("pub-ffa");
   await pffa.connect(url());
@@ -229,6 +270,7 @@ async function main() {
   if (osnap.players.length !== 12) throw new Error(`TDM yard has ${osnap.players.length} bodies, expected 12`);
   pold.ws.close();
   pgun.ws.close();
+  pgun2.ws.close();
 
   // ---------- 2) PRIVATE MATCH ----------
   const h = new Fake("host");
