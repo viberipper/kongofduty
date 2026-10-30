@@ -17,6 +17,19 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ## Unreleased
 
+### Fixed
+
+- `fix(lean): tracer leaves the leaned muzzle` — the local shot tracer
+  started from a camera pose re-set to the un-leaned standing eye, so the
+  trace lines left the middle of the screen at visor height instead of the
+  leaned weapon; the muzzle is now read from the live camera pose the frame
+  actually drew (Pending commit — hash follows on commit.).
+- `fix(report): private room code redacted` — the bug report embeds the
+  private lobby code, which leaked the join code when pasted publicly; the
+  text now masks anything shaped like a room code, collapses line breaks and
+  strips bidi/zero-width controls so a field cannot forge report lines
+  (Pending commit — hash follows on commit.).
+
 ### Added
 
 - `feat(bots): tactical corner lean` — bots lean around cover with Q/E

@@ -58,18 +58,51 @@ function scrubbedQuery(): string {
   return map ? `?map=${encodeURIComponent(map)}` : "";
 }
 
+/**
+ * ROOM-CODE REDACTION. The report is pasted in public, so the join code must
+ * not travel with it (scrubbedQuery already strips ?join=CODE from the URL).
+ * The fact of a private room stays — only the code becomes `<redacted>`.
+ * Safety net over the finished text: anything shaped like an invite code
+ * (the server's cleanRoomCode pattern `^[A-Z0-9-]{3,16}$`) following `room`
+ * (case-insensitive, optional `:`/`=` and quotes) is redacted, so a code
+ * reaching the text through any field is still caught.
+ */
+function redactRoomCodes(text: string): string {
+  // Case-insensitive, tolerates `room:`, `room=`, extra spaces and quotes.
+  // The replacement drops the delimiter/quotes (normalised to `room <redacted>`,
+  // so the `· online room <redacted>` report line stays readable). `<redacted>`
+  // cannot re-match: `<`/`>` are outside [A-Z0-9-], so this is idempotent and
+  // String.replace makes a single pass (no loop).
+  return text.replace(/\broom[ \t]*[:=]?[ \t]*["']?[A-Z0-9-]{3,16}["']?/gi, "room <redacted>");
+}
+
+/**
+ * One line per field, always. Every value in the report is either generated
+ * here or comes from the session, and a value carrying a line break (or a
+ * bidi override, which can reorder the rendered line without one) would let an
+ * attacker forge whole lines in a public paste (`page`/`build` claims). So the
+ * text is collapsed to single spaces before the room-code pass.
+ */
+function oneLine(text: string): string {
+  return text
+    .replace(/[\r\n\t\v\f\u0085\u001c-\u001f\u2028\u2029]+/g, " ")
+    .replace(/[\u202a-\u202e\u2066-\u2069\u200b-\u200f]+/g, "");
+}
+
 export function formatReport(s: BugSnapshot, build: string, at = new Date()): string {
-  return [
-    "BANANA SHIPMENT BUG REPORT",
-    `time   ${at.toISOString()}`,
-    `build  ${build}`,
-    `map    ${s.map} · ${s.mode}${s.online ? ` · online${s.room ? ` room ${s.room}` : ""}` : " · offline"}`,
-    `feet   ${s.pos ? f3(s.pos) : "—"}`,
-    `eye    ${f3(s.eye)}`,
-    `aim    yaw ${s.yaw.toFixed(4)} rad (${deg(s.yaw)}) · pitch ${s.pitch.toFixed(4)} rad (${deg(s.pitch)})`,
-    `state  ${s.alive ? "alive" : "dead"} · ${s.weapon || "—"}`,
-    `page   ${location.pathname}${scrubbedQuery()}`,
-  ].join("\n");
+  return redactRoomCodes(
+    [
+      "BANANA SHIPMENT BUG REPORT",
+      `time   ${at.toISOString()}`,
+      `build  ${oneLine(build)}`,
+      `map    ${oneLine(`${s.map} · ${s.mode}${s.online ? ` · online${s.room ? ` room ${s.room}` : ""}` : " · offline"}`)}`,
+      `feet   ${s.pos ? f3(s.pos) : "—"}`,
+      `eye    ${f3(s.eye)}`,
+      `aim    yaw ${s.yaw.toFixed(4)} rad (${deg(s.yaw)}) · pitch ${s.pitch.toFixed(4)} rad (${deg(s.pitch)})`,
+      `state  ${s.alive ? "alive" : "dead"} · ${oneLine(s.weapon || "—")}`,
+      `page   ${oneLine(location.pathname)}${scrubbedQuery()}`,
+    ].join("\n"),
+  );
 }
 
 function remember(text: string): void {

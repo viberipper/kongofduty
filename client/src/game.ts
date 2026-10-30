@@ -4376,14 +4376,12 @@ export class Game {
     } else if (src === this.you) {
       const me = this.me();
       if (me) {
-        const eye = me.slide > 0 ? SLIDE_EYE : me.crouch ? CROUCH_EYE : EYE;
-        // Same residual offset the live camera carries, so the tracer leaves
-        // the muzzle the player is actually looking through.
-        this.camera.position.set(me.x + this.errX, me.y + this.errY + eye, me.z + this.errZ);
-        this.camera.rotation.order = "YXZ";
-        this.camera.rotation.y = this.yaw + Math.PI + this.recY + this.punchY;
-        this.camera.rotation.x = -(this.pitch + this.recP + this.punchP);
-        this.camera.updateMatrixWorld(true);
+        // Read the muzzle from the LIVE camera pose draw() set — lean
+        // (wall-clamped), eye smoothing, bob and step lag included. Never
+        // re-pose the camera here: a fresh pose without those terms parks the
+        // muzzle ~0.30 m off the leaned eye and the tracer reads as starting
+        // mid-visor. (The ray origin ox/oy/oz stays the authoritative leaned
+        // eye from leanEye; the start below is only the visual muzzle.)
         this.vm.root.updateWorldMatrix(true, true);
         start.copy(this.vm.muzzleWorld());
         local = true;
