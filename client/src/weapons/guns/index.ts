@@ -48,13 +48,39 @@ export type GunModel = {
 };
 
 const builders = new Map<string, (lod: "fp" | "tp") => GunModel>();
+/** Ids whose current builder is the grey-box placeholder (see ./placeholder.ts). */
+const placeholders = new Set<string>();
 
 /** The viewmodel workstream registers the real builders here. */
 export function registerGun(id: GunId, fn: (lod: "fp" | "tp") => GunModel): void {
   // Dev-only override guard: registration runs once at boot (no hot path, no
   // spam) — a warn here would have caught the placeholder-last import-order
   // regression (grey box dummies overwriting every real builder) instantly.
-  if (import.meta.env.DEV && builders.has(id)) console.warn(`[guns] builder for "${id}" overwritten (import order is last-wins — see register.ts)`);
+  //
+  // Replacing a PLACEHOLDER is the documented boot path (`register.ts` imports
+  // ./placeholder first on purpose), so it stays quiet — only a REAL builder
+  // replacing another real one is a mistake worth reporting.
+  if (import.meta.env.DEV && builders.has(id) && !placeholders.has(id))
+    console.warn(`[guns] builder for "${id}" overwritten (import order is last-wins — see register.ts)`);
+  placeholders.delete(id);
+  builders.set(id, fn);
+}
+
+/**
+ * Placeholder registration — grey boxes from `./placeholder`, replaced by the
+ * real builders later in the import order.
+ *
+ * Never downgrades a real builder: if `./placeholder` is pulled in LAST (the
+ * import-order regression the guard above exists for), the placeholder is
+ * dropped with a warning instead of turning the first-person guns into boxes.
+ */
+export function registerPlaceholderGun(id: GunId, fn: (lod: "fp" | "tp") => GunModel): void {
+  if (builders.has(id)) {
+    if (import.meta.env.DEV && !placeholders.has(id))
+      console.warn(`[guns] placeholder for "${id}" loaded after the real builder — import order broken (see register.ts)`);
+    return;
+  }
+  placeholders.add(id);
   builders.set(id, fn);
 }
 

@@ -1,11 +1,12 @@
 /**
  * PLACEHOLDER GUNS — plain boxes with the right proportions and anchors so the
  * third-person mount and the FX can be built and measured before the real
- * tactical models land. The real builders call registerGun() for the same ids
- * after this module and win. Import order: placeholder first, models second.
+ * tactical models land. Registered through `registerPlaceholderGun()`, which
+ * the real builders replace later in the import order (that swap is expected
+ * and quiet); the placeholder can never overwrite a real builder.
  */
 import * as THREE from "three";
-import { registerGun, type GunId, type GunModel } from "./index";
+import { registerPlaceholderGun, type GunId, type GunModel } from "./index";
 
 const MAT = new THREE.MeshStandardMaterial({ color: 0x1d1f21, roughness: 0.55, metalness: 0.6 });
 
@@ -41,7 +42,7 @@ function boxGun(id: GunId, len: number, h: number, barrel: number, fore: number 
   };
 }
 
-registerGun("ar", boxGun("ar", 0.52, 0.06, 0.22, 0.26));
-registerGun("smg", boxGun("smg", 0.38, 0.06, 0.08, 0.18));
-registerGun("sniper", boxGun("sniper", 0.72, 0.055, 0.42, 0.34));
-registerGun("pistol", boxGun("pistol", 0.17, 0.035, 0.02, 0.04));
+registerPlaceholderGun("ar", boxGun("ar", 0.52, 0.06, 0.22, 0.26));
+registerPlaceholderGun("smg", boxGun("smg", 0.38, 0.06, 0.08, 0.18));
+registerPlaceholderGun("sniper", boxGun("sniper", 0.72, 0.055, 0.42, 0.34));
+registerPlaceholderGun("pistol", boxGun("pistol", 0.17, 0.035, 0.02, 0.04));

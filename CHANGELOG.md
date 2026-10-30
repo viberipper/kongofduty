@@ -19,6 +19,13 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ### Fixed
 
+- `fix(guns): no false override warnings at boot` — the dev override guard
+  fired for the intended placeholder-to-real hand-off (four warnings every
+  load); placeholders now register through their own path, so only a real
+  builder collision warns — and a placeholder imported last is dropped with a
+  warning instead of turning the first-person guns into grey boxes (Pending
+  commit — hash follows on commit.).
+
 - `fix(lean): tracer leaves the leaned muzzle` — the local shot tracer
   started from a camera pose re-set to the un-leaned standing eye, so the
   trace lines left the middle of the screen at visor height instead of the

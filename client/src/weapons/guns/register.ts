@@ -10,7 +10,9 @@
  * (`builders.set`), and `./placeholder` registers grey box dummies for every
  * gun id. It MUST come first so the real builders (ar/smg/pistol/sniper)
  * overwrite the placeholders — never the other way round (all first-person
- * guns would render as grey boxes).
+ * guns would render as grey boxes). `./placeholder` goes through
+ * `registerPlaceholderGun()`, so that intended hand-off is quiet, while a
+ * real-builder collision still warns.
  */
 import "./placeholder";
 import "./ar";
