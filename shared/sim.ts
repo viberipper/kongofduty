@@ -2044,6 +2044,21 @@ export class GameSession {
     p.slide = 0;
     p.reload = 0;
     p.ads = 0;
+    p.lean = 0;
+    // A peek hold never survives the life it started in: the mind object lives
+    // on the body across respawns, and without this a corpse's lean would walk
+    // into the next life aimed at its own killer.
+    {
+      const m = BOT_MINDS.get(p);
+      if (m) {
+        m.leanSide = 0;
+        m.leanTarget = null;
+        m.leanStop = false;
+        m.leanGrace = 0;
+        m.leanUntil = 0;
+        m.leanCd = 0;
+      }
+    }
     // Frags are a per-life resource: restocked on every respawn, never picked up.
     p.nades = NADE_AMMO;
     p.nadeCd = 0;
@@ -4401,16 +4416,24 @@ export const BOT_TUNING = {
   crossNear: 0.5,
   /** TACTICAL LEAN (Q/E, the same mechanic players use — view-only, no damage
    *  or survivability bonus anywhere in this file). A bot leans only as a
-   *  stand-and-cover gesture, never on the move:
+   *  stand-and-cover PEEK, never on the move:
    *    leanMinD    no lean under this target distance (useless up close)
-   *    leanCoverD  cover counts when steel stands within this, laterally, on
-   *                the target's own side (a forced crouch under a low ceiling
-   *                counts too — the brain itself never crouches, see below)
+   *    leanCoverD  SUPERSEDED by the peek proof in botLean (kept for
+   *                instruments): cover is no longer "steel within X metres
+   *                laterally" but "body eye blocked AND leaned eye free", which
+   *                already proves geometry is in the way
    *    leanMaxSpd  no lean while sprinting or moving faster than this (m/s);
-   *                sized so a slow advance or strafe still leans while a walk,
-   *                run or sprint never does
-   *    leanMinLat  the target must sit this far off the nose (|lateral|/dist),
-   *                or there is no side worth leaning to
+   *                sized so a slow advance or strafe still leans — UNLESS a
+   *                proven peek stops the sprint first (peek-stop: sprint off,
+   *                feet planted for the hold, then normal walking resumes)
+   *    leanStopGrace  forgiveness on the speed gate after a peek-stop start
+   *                (seconds), while the sprint momentum bleeds off under the
+   *                planted feet
+   *    leanMinLat  SUPERSEDED with the peek proof (kept for instruments): by
+   *                the time botLean runs combat has turned the aim onto the
+   *                target, so an off-nose threshold only ever passed while the
+   *                aim was still swinging and blocked every settled peek. The
+   *                lateral sign still orders the two tried sides.
    *    leanHoldMin/Max  how long a lean is held (side never flips mid-hold)
    *    leanCdMin/Max    quiet time after a hold before the next one may start
    *    leanChance  eligible moments actually taken — roughly three in four,
@@ -4430,6 +4453,10 @@ export const BOT_TUNING = {
   leanChance: 0.72,
   leanRetryMin: 0.4,
   leanRetryMax: 0.8,
+  /** Seconds the speed gate forgives after a peek-stop start (see botLean):
+   *  a planted bot sheds sprint momentum in ~0.2 s (friction 13/s), so 0.35
+   *  is the stop plus margin — never a licence to lean on the move. */
+  leanStopGrace: 0.35,
 };
 
 /**
@@ -6246,6 +6273,19 @@ type BotMind = {
   leanSide: -1 | 0 | 1;
   leanUntil: number;
   leanCd: number;
+  /** Peek hold: id of the enemy the lean is peeking at (null when none). The
+   *  hold is verified against THIS body every tick — body eye free means the
+   *  bot stepped out and the lean falls away — so the side can never drift
+   *  onto a different fight mid-hold. */
+  leanTarget: string | null;
+  /** Peek-stop: this hold braked a sprint/run into a stand-and-peek. While
+   *  true the hold owns the feet (sprint off, no walk input — aim and trigger
+   *  untouched), and walking resumes the tick it ends. False for ordinary
+   *  slow holds, which keep their strafe and their old gates. */
+  leanStop: boolean;
+  /** Mind-clock time until which the speed gate is forgiven after a
+   *  peek-stop start, while the sprint momentum bleeds off (0 = no grace). */
+  leanGrace: number;
 };
 
 const BOT_MINDS = new WeakMap<SimPlayer, BotMind>();
@@ -6335,6 +6375,9 @@ function botMind(s: GameSession, p: SimPlayer): BotMind {
     leanSide: 0,
     leanUntil: 0,
     leanCd: 0,
+    leanTarget: null,
+    leanStop: false,
+    leanGrace: 0,
   };
   BOT_MINDS.set(p, m);
   return m;
@@ -6480,40 +6523,145 @@ function botFrag(s: GameSession, p: SimPlayer, m: BotMind, target: SimPlayer | n
 }
 
 /**
- * TACTICAL LEAN — bots use Q/E the way players do: only when it means
- * something, never as a permanent stance, never on the move.
+ * TACTICAL LEAN — bots use Q/E the way players do: a peek around real cover,
+ * never a stance, never on the move.
  *
- * The side is the side the target sits on, relative to the bot's own gaze
- * (sign of the lateral target offset along leanEye's screen-right axis). A
- * hold starts only when ALL of these are true — visible target past
- * `leanMinD`, steel within `leanCoverD` laterally on that side (a body held
- * down under a low ceiling counts as covered too — the brain itself never
- * issues crouch, see the planting note in botBrain), not sprinting and slow,
- * no dry reload in progress, hands free — and even then only with
- * `leanChance`, so roughly three in four eligible moments are taken while
- * the rest passes unleaned. The hold lasts a
- * rolled 0.4–1.1 s, the side never flips mid-hold, and a cooldown
- * follows before the next one may start. Losing the target aborts the hold at
- * a dt-scaled chance (~0.5 s mean) rather than instantly.
+ * PEEK DESIGN (cover-bound, never cosmetic): perception hands combat a target
+ * the BODY eye sees, or — only when no body eye sees anyone — a PEEK target
+ * visible from a leaned eye (leanEye, the same 0.30 m wall-clamped shift Q/E
+ * gives a human) over the nearest 3 candidates, preferred side first. A lean
+ * hold starts only when the body eye is BLOCKED on that target (trace short
+ * of dist - 0.35) and a leaned eye is FREE: that pair already proves cover
+ * geometry stands in the way, so no separate solid-proximity test exists —
+ * in the open both eyes agree and no lean ever starts. The hold keeps its
+ * side (never flips mid-hold) while the peek target lives and stays
+ * peek-only, and drops the SAME tick any of that stops being true: body eye
+ * free (the bot stepped out), leaned eye blind or wall-clamped (cover closed
+ * or the strafe ate the shift), held target dead or gone, or the ordinary
+ * timeout/sprint/speed/reload/frag gates. There is deliberately no decay
+ * tail: with the hold tied to a tracked target id every verdict is exact, so
+ * a lingering lean would only ever be an unjustified one. A cooldown follows
+ * every hold before the next one may start.
+ * Everything else is untouched: slow/frag gates, the min
+ * distance gate, chance + retry/cooldown timing. The sprint/speed gates
+ * admit one exception: the peek-stop below.
+ *
+ * PEEK-STOP (why sprinters ever peek at all): most peek opportunities arise
+ * while the bot is sprinting, and sprinting excludes the lean by design —
+ * so bots used to run past cover with a man behind it. When the sight pair
+ * above PROVES a peek (body blocked, leaned eye free) and the only thing in
+ * the way is speed, the bot does what shooter bots do: it stops for the
+ * peek. Sprint (and tac) is switched off for the move, the feet plant for
+ * the hold, and walking resumes the tick the hold ends — no permanent stop.
+ * The stop happens ONLY on a proven peek, never as a general rule (no peek
+ * when the body eye already sees the man), and never while the hands or the
+ * feet are spoken for: any reload or swap, a slide, a watchdog escape, an
+ * active reposition, a hurt bot breaking contact (hp < 35), a frag cooking,
+ * or a yielded trigger (squad discipline) all veto the start — standing
+ * or stop — and take the
+ * usual retry beat instead. The hold keeps the same 0.4–1.1 s / 0.6–1.4 s /
+ * 0.72 timing, and the speed gate forgives the first `leanStopGrace`
+ * seconds while the planted momentum bleeds off.
  *
  * FAIRNESS: this writes cmd.lean only — the same view-only shift (0.30 m,
  * wall-clamped in leanEye) every player gets. No damage, accuracy, or
- * hitbox term anywhere in this function reads or writes it.
+ * hitbox term anywhere in this function reads or writes it, and a peek
+ * target pays the normal reaction plus a small extra read (see the
+ * acquisition block in thinkBot), so bots never pre-hold through a wall.
  */
+/**
+ * Does the eye at (ex, ey, ez) see enemy `o`? The same eye-to-eye trace and
+ * the same 0.35 m graze tolerance as the body-eye perception loop in
+ * thinkBot, so "body blocked, lean free" and the perception verdict can
+ * never disagree about what counts as seen.
+ */
+function botEyeSees(s: GameSession, ex: number, ey: number, ez: number, o: SimPlayer): boolean {
+  const dx = o.x - ex;
+  const dy = s.eyeY(o) - ey;
+  const dz = o.z - ez;
+  const dist = Math.hypot(dx, dy, dz);
+  if (dist < 1e-6) return true;
+  const tr = traceWorld(ex, ey, ez, dx / dist, dy / dist, dz / dist, dist);
+  return tr.t >= dist - 0.35;
+}
+
+// START/HOLD PARITY: the same hands, feet and discipline that refuse a lean
+// start also break a running hold. Both helpers are shared by the hold-abort
+// and the start veto below so the two can never drift apart again (a start
+// without the veto flickers for one tick: start now, abort next tick, and
+// the abort burns the full hold cooldown instead of the short retry beat).
+function botLeanBusy(p: SimPlayer, m: BotMind): boolean {
+  return p.reload > 0 || p.swap > 0 || p.slide > 0 || m.escape > 0 || m.reposition > 0 || p.hp < 35;
+}
+
+function botLeanYielding(s: GameSession, p: SimPlayer, tgtId: string, dh: number): boolean {
+  const hold = dh <= BOT_RANGE.crossFree ? BOT_TUNING.crossNear : BOT_TUNING.crossHold;
+  const press = botPress(s).get(tgtId);
+  return !!press && press.by !== p.id && s.time - press.t < hold;
+}
+
 function botLean(s: GameSession, p: SimPlayer, m: BotMind, cmd: InputCmd, target: SimPlayer | null, dt: number): void {
+  const eye = s.eyeY(p);
   if (m.leanSide !== 0) {
+    // A peek-stop hold owns the feet for its duration: no sprint, no walk
+    // input — the aim and the trigger are untouched, so the bot fights from
+    // the peek and walks on the tick it ends. An ordinary slow hold keeps
+    // its strafe and its old gates.
+    if (m.leanStop) {
+      cmd.sprint = false;
+      cmd.tac = false;
+      cmd.ax = 0;
+      cmd.az = 0;
+      m.lastAx = 0;
+      m.lastAz = 0;
+    }
+    const spd = Math.hypot(p.vx, p.vz);
+    // HOLD-ABORT PARITY with the start veto below: the same hands,
+    // feet and discipline that refuse a stop also break a running hold, or a
+    // bot that starts reloading, swapping, sliding, fleeing (escape), flanking
+    // (reposition), breaking contact hurt (hp < 35) or yielding its trigger
+    // mid-peek would keep its feet planted by the hold for up to 1.1 s.
     let end =
       m.t >= m.leanUntil ||
-      cmd.sprint ||
-      Math.hypot(p.vx, p.vz) > BOT_TUNING.leanMaxSpd ||
-      (p.reload > 0 && p.ammo <= 0) ||
+      (!m.leanStop && (cmd.sprint || spd > BOT_TUNING.leanMaxSpd)) ||
+      (m.leanStop && spd > BOT_TUNING.leanMaxSpd && m.t > m.leanGrace) ||
+      botLeanBusy(p, m) ||
       m.fragCook > 0 ||
       cmd.nadeHold === true;
-    // A target that reappears on the other side does not flip the hold: it
-    // runs its course, then the cooldown decides what comes next.
-    if (!end && !target && s.nextRand() < dt * 2.0) end = true;
+    if (!end) {
+      // PEEK-HOLD VERIFICATION against the HELD target, not whoever the gun
+      // faces this tick (the side never flips mid-hold). Every exit here is
+      // immediate: with the hold tied to a tracked id each verdict is exact,
+      // so a decay tail would only prolong an unjustified lean.
+      const held: SimPlayer | null | undefined =
+        target && target.id === m.leanTarget ? target : m.leanTarget ? s.players.get(m.leanTarget) : null;
+      if (!held || !held.alive || (s.mode !== "ffa" && held.team === p.team)) {
+        // Dead, left, or never a valid enemy: nothing left to peek at.
+        end = true;
+      } else if (botEyeSees(s, p.x, eye, p.z, held)) {
+        // Stepped out of cover: the body eye sees the man too, so there is
+        // nothing left to peek around and the lean falls away at once.
+        end = true;
+      } else {
+        const le = leanEye(p.x, eye, p.z, cmd.yaw, m.leanSide);
+        // Wall-clamped (the strafe ate the 0.30 m shift) or cover closed the
+        // leaned eye too: the lean buys nothing anymore and falls away.
+        if ((le.x === p.x && le.z === p.z) || !botEyeSees(s, le.x, eye, le.z, held)) end = true;
+        else {
+          // YIELDING (start-veto parity): a teammate pressed this same target
+          // inside the squad-discipline window, so the trigger — and with it
+          // the peek-stop feet — is yielded at once instead of holding the
+          // plant while another bot works the angle.
+          const dh = Math.hypot(held.x - p.x, held.z - p.z);
+          if (botLeanYielding(s, p, held.id, dh)) end = true;
+        }
+      }
+    }
     if (end) {
       m.leanSide = 0;
+      m.leanTarget = null;
+      m.leanStop = false;
+      m.leanGrace = 0;
       m.leanUntil = 0;
       m.leanCd = BOT_TUNING.leanCdMin + s.nextRand() * (BOT_TUNING.leanCdMax - BOT_TUNING.leanCdMin);
       cmd.lean = 0;
@@ -6524,38 +6672,70 @@ function botLean(s: GameSession, p: SimPlayer, m: BotMind, cmd: InputCmd, target
   }
   cmd.lean = 0;
   if (!target || m.leanCd > 0 || p.protect > 0 || m.fragCook > 0 || cmd.nadeHold === true) return;
-  if (cmd.sprint || Math.hypot(p.vx, p.vz) > BOT_TUNING.leanMaxSpd) return;
-  if (p.reload > 0 && p.ammo <= 0) return;
+  // No lean at a man the body eye already sees: that is the open-field case,
+  // and it is answered with the rifle, not with Q/E.
+  if (botEyeSees(s, p.x, eye, p.z, target)) return;
   const dx = target.x - p.x;
   const dz = target.z - p.z;
   const dh = Math.hypot(dx, dz);
   if (dh < BOT_TUNING.leanMinD) return;
-  // Screen-right, the same axis leanEye shifts the eye along.
+  // Screen-right, the same axis leanEye shifts the eye along. The sign picks
+  // which side is tried first — there is deliberately NO off-nose threshold:
+  // by the time this runs combat has already turned the aim onto the target,
+  // so a lateral gate would only ever pass while the aim is still swinging
+  // and block every settled peek. Whether the side is worth taking is proven
+  // by the sight pair below, not by an angle.
   const rx = -Math.cos(cmd.yaw);
   const rz = Math.sin(cmd.yaw);
   const lat = dx * rx + dz * rz;
-  if (Math.abs(lat) / dh < BOT_TUNING.leanMinLat) return;
-  const side = (lat > 0 ? 1 : -1) as -1 | 1;
-  // Cover on THIS side (a body that would not fit there). A forced crouch
-  // counts as cover too: the brain never sets cmd.crouch (see the planting
-  // note in botBrain), so p.crouch is true only while roomToStand keeps the
-  // body down under a low ceiling.
-  const fromY = walkFromY(p.y);
-  let cover = p.crouch === true;
-  for (let i = 0; i < 2 && !cover; i++) {
-    const d = i === 0 ? BOT_TUNING.leanCoverD * 0.5 : BOT_TUNING.leanCoverD;
-    if (botBlocked(p.x + rx * side * d, p.z + rz * side * d, BOT_CLEAR_R, false, fromY)) cover = true;
+  const pref: -1 | 1 = lat > 0 ? 1 : -1;
+  // The lean has to BUY sight: body blocked (proven above) and a leaned eye
+  // free, preferred side first. Whatever this finds, the open field cannot —
+  // both eyes agree there — so a hold that starts here always stands in cover.
+  let chosen: -1 | 0 | 1 = 0;
+  for (let k = 0; k < 2 && chosen === 0; k++) {
+    const side: -1 | 1 = k === 0 ? pref : pref > 0 ? -1 : 1;
+    const le = leanEye(p.x, eye, p.z, cmd.yaw, side);
+    if (le.x === p.x && le.z === p.z) continue; // wall-clamped: the shift died in steel
+    if (botEyeSees(s, le.x, eye, le.z, target)) chosen = side;
   }
-  if (!cover) return;
+  if (chosen === 0) return;
   // A refused roll waits a beat instead of rolling every tick (which would be
   // a 72% chance per tick — i.e. always within a few ticks).
   if (s.nextRand() >= BOT_TUNING.leanChance) {
     m.leanCd = BOT_TUNING.leanRetryMin + s.nextRand() * (BOT_TUNING.leanRetryMax - BOT_TUNING.leanRetryMin);
     return;
   }
-  m.leanSide = side;
+  // PEEK-STOP: the sight pair above proved a peek and the only thing in the
+  // way is speed. Stop for the peek — sprint off, feet planted — and walk on
+  // when the hold ends. START/HOLD PARITY: the start below is vetoed by the
+  // same hands, feet and discipline that break a running hold (botLeanBusy
+  // plus a yielded trigger) — for a standing start exactly as for a peek-stop
+  // start, so a vetoed peek takes the usual retry beat instead of starting
+  // and aborting on the next tick. A vetoed stop never sprints through the
+  // opportunity.
+  if (botLeanBusy(p, m) || botLeanYielding(s, p, target.id, dh)) {
+    m.leanCd = BOT_TUNING.leanRetryMin + s.nextRand() * (BOT_TUNING.leanRetryMax - BOT_TUNING.leanRetryMin);
+    return;
+  }
+  let stop = false;
+  if (cmd.sprint || Math.hypot(p.vx, p.vz) > BOT_TUNING.leanMaxSpd) {
+    stop = true;
+  }
+  m.leanSide = chosen;
+  m.leanTarget = target.id;
+  m.leanStop = stop;
+  m.leanGrace = stop ? m.t + BOT_TUNING.leanStopGrace : 0;
   m.leanUntil = m.t + BOT_TUNING.leanHoldMin + s.nextRand() * (BOT_TUNING.leanHoldMax - BOT_TUNING.leanHoldMin);
-  cmd.lean = side;
+  if (stop) {
+    cmd.sprint = false;
+    cmd.tac = false;
+    cmd.ax = 0;
+    cmd.az = 0;
+    m.lastAx = 0;
+    m.lastAz = 0;
+  }
+  cmd.lean = chosen;
 }
 
 /**
@@ -7247,6 +7427,43 @@ function thinkBot(s: GameSession, p: SimPlayer, dt: number): void {
       break;
     }
   }
+  // PEEK PASS — only when the body eye sees nobody. Over the nearest few
+  // candidates (already distance-sorted above), test the leaned eyes a player
+  // would actually peek with: leanEye, the same 0.30 m wall-clamped shift Q/E
+  // gives a human, then the same eye-to-eye trace. The side the candidate
+  // sits on (screen-right axis, the axis leanEye shifts along) is tried
+  // first, the other side second. The first candidate either leaned eye sees
+  // becomes the target and pays the normal reaction (plus a small peek read
+  // in the acquisition block below) — sight a player could have, never more.
+  let peekSide: -1 | 0 | 1 = 0;
+  if (!target) {
+    const prx = -Math.cos(p.yaw);
+    const prz = Math.sin(p.yaw);
+    const nPeek = Math.min(3, BOT_PERCEPTION_PLAYERS.length);
+    for (let i = 0; i < nPeek && !target; i++) {
+      const o = BOT_PERCEPTION_PLAYERS[i]!;
+      const pdx = o.x - p.x;
+      const pdz = o.z - p.z;
+      const pdh = Math.hypot(pdx, pdz);
+      if (pdh < BOT_TUNING.leanMinD) continue;
+      // No off-nose threshold here: a man dead ahead behind a container edge
+      // is still a peek (either leaned eye may see him), and combat turns
+      // onto him before botLean re-verifies anyway — an angle gate at this
+      // facing would only flicker with the walk direction. The sight pair is
+      // the gate; the lateral sign below only orders the two sides.
+      const plat = pdx * prx + pdz * prz;
+      const pref: -1 | 1 = plat > 0 ? 1 : -1;
+      for (let k = 0; k < 2 && !target; k++) {
+        const side: -1 | 1 = k === 0 ? pref : pref > 0 ? -1 : 1;
+        const le = leanEye(p.x, eye, p.z, p.yaw, side);
+        if (le.x === p.x && le.z === p.z) continue; // wall-clamped: the shift died in steel
+        if (botEyeSees(s, le.x, eye, le.z, o)) {
+          target = o;
+          peekSide = side;
+        }
+      }
+    }
+  }
 
   const cmd: InputCmd = {
     seq: ++p.seq,
@@ -7306,6 +7523,10 @@ function thinkBot(s: GameSession, p: SimPlayer, dt: number): void {
       if (fresh) m.flank = s.nextRand() < 0.5 ? -1 : 1;
       // A sniper pays for its one-shot with a slower read of a new face.
       if (fresh && p.weapon === "sniper") p.botReact += 0.3;
+      // A peek target costs one extra read on top: the bot is acquiring a man
+      // it can only see around cover, so it must not snap onto a leaned eye's
+      // first frame the way it would onto an open-field sighting.
+      if (fresh && peekSide !== 0) p.botReact += 0.15;
       // Start the first-LOS -> first-shot stopwatch on a FRESH sighting only:
       // re-acquiring a man you were already fighting is not a reaction, and
       // averaging those in is what would make the number flatter than the feel.

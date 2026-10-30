@@ -4906,8 +4906,31 @@ export class Game {
         // the eye (shared/sim.ts `leanEye`, same 0.3 m shift, wall-clamped).
         const leanTgt = ((this.keys.leanR ? 1 : 0) - (this.keys.leanL ? 1 : 0)) * (me.alive ? 1 : 0);
         this.leanSm += (leanTgt - this.leanSm) * (1 - Math.exp(-12 * dt));
-        const leanX = -Math.cos(this.yaw) * this.leanSm * 0.3;
-        const leanZ = Math.sin(this.yaw) * this.leanSm * 0.3;
+        // WALL-CLAMPED LEAN (render side of shared/sim.ts `leanEye`, same
+        // 0.30 m shift): the shot eye stops at the first solid, so the camera
+        // must too — otherwise leaning into a wall parks the near plane inside
+        // the steel (visual wallhack). The trace runs from the unshifted body
+        // eye along the smoothed shift and only shortens the applied distance
+        // (same all-or-nothing epsilon as `segmentClear`: full offset while
+        // clear, 0 at full blockade). `leanSm` keeps easing underneath at its
+        // own rate and is never written back to, so there is no per-frame snap
+        // and no feedback loop — walking along a wall slides the free distance
+        // smoothly instead of jittering.
+        const leanDist = this.leanSm * 0.3;
+        let leanClamped = leanDist;
+        const leanLen = Math.abs(leanDist);
+        if (leanLen > 1e-4) {
+          const sgn = leanDist > 0 ? 1 : -1;
+          const ldx = -Math.cos(this.yaw) * sgn;
+          const ldz = Math.sin(this.yaw) * sgn;
+          const baseX = me.x + this.errX;
+          const baseY = me.y - this.stepLag + this.errY + this.eyeSmooth + bob;
+          const baseZ = me.z + this.errZ;
+          const tr = traceWorld(baseX, baseY, baseZ, ldx, 0, ldz, leanLen);
+          leanClamped = sgn * (tr.t >= leanLen - 1e-4 ? leanLen : Math.max(0, tr.t - 1e-4));
+        }
+        const leanX = -Math.cos(this.yaw) * leanClamped;
+        const leanZ = Math.sin(this.yaw) * leanClamped;
         this.camera.position.set(me.x + this.errX + leanX, me.y - this.stepLag + this.errY + this.eyeSmooth + bob, me.z + this.errZ + leanZ);
         // weapons stream: punch springs + trauma (visual) and the scope sway (aim).
         this.feel.update(dt);

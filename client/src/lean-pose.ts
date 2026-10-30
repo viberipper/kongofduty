@@ -5,10 +5,11 @@
  *
  * Each pose was built the way an animator poses a lean:
  *   - the pelvis slides toward the lean side and rolls about the forward axis,
- *   - both legs are solved with a two-bone IK so the feet stay planted,
+ *   - both legs are solved with a two-bone IK so the feet stay near-planted
+ *     (measured foot drift ≤ 1.2 cm in model units),
  *   - waist/spine roll into the lean, neck and head counter-roll to keep the
  *     eye line level,
- * and it is calibrated so the head ends up exactly `LEAN_SHIFT` (0.30 m in
+ * and it is calibrated so the head lands at `LEAN_SHIFT` (0.30 m in
  * world units) to the side — the same offset the camera and the shot eye take.
  *
  * `loc` is in the parent bone's rest axes (what `Bone.position` uses), `rot`
@@ -22,9 +23,9 @@
  * lean; at runtime applyLeanPose interpolates per bone between the standing
  * and the crouch table by crouchW (0..1) and applies the blend once. The
  * crouch tables were authored the same way (crouch base first, then the same
- * slide/roll/counter logic, legs re-solved onto the planted feet with an
+ * slide/roll/counter logic, legs re-solved onto the near-planted feet with an
  * analytic 3D two-bone IK), with the slide re-calibrated to 0.0485 so the head
- * still lands exactly on LEAN_SHIFT while foot drift stays 0.
+ * still lands at `LEAN_SHIFT` while foot drift stays ≤ 1.2 cm model units.
  *
  * Not hand-edited: regenerate from the Blender script if the rig changes.
  */

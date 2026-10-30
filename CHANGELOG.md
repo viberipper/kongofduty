@@ -20,12 +20,14 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 ### Added
 
 - `feat(bots): tactical corner lean` — bots lean around cover with Q/E
-  like players: only standing behind side cover with a distant target off
-  to one side, never while sprinting or moving fast, held 0.4–1.1 s
-  without mid-hold flips and followed by a cooldown, taken only about
-  three times in four so it stays situational; same view-only 0.30 m eye
-  shift with no damage, accuracy, or hitbox bonus (Pending commit — hash
-  follows on commit.).
+  like players: only on proven cover verified against the map geometry
+  (solids/walls/containers/props) where the body eye is blocked and only
+  the leaned eye clears the target (a true peek), never in the open
+  field, pausing briefly out of sprint for the peek (no lean in sprint,
+  no permanent lean), held 0.4–1.1 s without mid-hold flips and followed
+  by a cooldown, taken only about three times in four so it stays
+  situational; same view-only 0.30 m eye shift with no damage, accuracy,
+  or hitbox bonus (Pending commit — hash follows on commit.).
 
 ### Fixed
 
@@ -35,9 +37,17 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 - `fix(lean): Blender-authored lean pose on the model` — lean was only a
   rigid root tilt on the model so the feet slid; now it layers the
   Blender-authored pose, including its baked crouch variant blended by
-  crouchW with the feet staying planted, and latch/overlay gaps
+  crouchW with the feet near-planted (measured foot drift ≤ 1.2 cm in model
+  units), and latch/overlay gaps
   (`Hip`/`Waist`/`NeckTwist02`, `hip.position.x`) plus the aim-slerp order
   are fixed too (Pending commit — hash follows on commit.).
+- `fix(lean): camera lean offset wall-clamped` — the leaned camera eye is
+  clamped against walls so it can never see through them (Pending commit
+  — hash follows on commit.).
+- `fix(bots): lean hold breaks on flee/reposition/swap/slide/reload/low HP` — the tactical lean
+  hold aborts correctly on fleeing, repositioning, swapping, sliding,
+  reloading, low HP, or when a squadmate already holds that target (Pending commit
+  — hash follows on commit.).
 
 ## 2026-10-30
 
