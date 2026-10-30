@@ -347,6 +347,25 @@ export class Game {
   private sensAds = 0;
   private lastLookT = 0;
   /**
+   * SINGLE-FRAME LOOK CAP (wall-flick fix). movementX/Y bursts (lock
+   * re-acquire, DPI jumps, high-poll-rate stacking) arrive as mousemove
+   * events, and the ±160 px spike clamp alone still lets ONE event turn
+   * ~89° at max sens — plus N events stack unboundedly per frame. This
+   * token bucket bounds the applied look to LOOK_BURST rad instantly and
+   * LOOK_RATE rad/s sustained (~1900°/s: honest flicks up to that rate,
+   * e.g. a 180° in 100 ms, pass; faster sustained turns are capped, and
+   * a teleport does not). Refill uses the event clock
+   * so it is refresh-rate independent. lookGapUntil drops the re-acquire
+   * burst after a pointer-lock re-acquire (see bindInput).
+   */
+  private static readonly LOOK_BURST = 0.55;
+  private static readonly LOOK_RATE = 0.55 / (1 / 60);
+  private lookTokens = Game.LOOK_BURST;
+  private lookBudgetT = 0;
+  private lookGapUntil = 0;
+  /** Set on the first pointer lock; the gap guard only fires on re-acquire. */
+  private lookHadLock = false;
+  /**
    * Corner-lean view state (Q/E, view-only). leanSm eases toward the held
    * keys every render frame so the eye glides instead of stepping.
    */
@@ -2217,7 +2236,17 @@ export class Game {
     document.addEventListener("pointerlockchange", () => {
       this.locked = document.pointerLockElement === this.canvas;
       if (!this.locked) { this.keyboard()?.unlock(); this.clearInput(); }
-      else if (document.fullscreenElement) void this.keyboard()?.lock(this.gameKeyCodes).catch(() => {});
+      else {
+        // RE-ACQUIRE BURST GUARD: the first events after a re-acquire carry
+        // stale accumulated movement (ESC/pause/alt-tab). Swallow ~50 ms of
+        // look — below human reaction time, so no honest input is lost.
+        // Skipped on the very first lock (no stale movement to swallow).
+        const now = performance.now();
+        if (this.lookHadLock) this.lookGapUntil = now + 50;
+        this.lookHadLock = true;
+        this.lastLookT = now;
+        if (document.fullscreenElement) void this.keyboard()?.lock(this.gameKeyCodes).catch(() => {});
+      }
     });
     window.addEventListener("blur", () => this.clearInput());
     document.addEventListener("fullscreenchange", () => {
@@ -2231,30 +2260,66 @@ export class Game {
       let dx = e.movementX;
       let dy = e.movementY;
       if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+      const nowMs = performance.now();
+      // POINTER-LOCK GAP: drop the re-acquire burst (see pointerlockchange).
+      if (nowMs < this.lookGapUntil) return;
       dx = Math.max(-160, Math.min(160, dx));
       dy = Math.max(-160, Math.min(160, dy));
       const me = this.me();
-      const ads = me?.ads ?? 0;
+      // NaN SELF-HEAL: one poisoned value (snapshot ads, sens, zoom) used to
+      // stick yaw/pitch at NaN forever — a permanent wall-stare. Clamp the
+      // inputs and recover the state instead.
+      const adsRaw = me?.ads ?? 0;
+      const ads = Number.isFinite(adsRaw) ? Math.max(0, Math.min(1, adsRaw)) : 0;
+      if (!Number.isFinite(this.sensAds)) this.sensAds = ads;
+      if (!Number.isFinite(this.yaw)) this.yaw = Number.isFinite(me?.yaw) ? me!.yaw : 0;
+      if (!Number.isFinite(this.pitch)) this.pitch = 0;
       // weapons stream: through a scope the turn rate follows the zoom (same
       // feel per screen-width at 4x as at the hip); sights keep the ADS slow-down.
       // UI stream hook: sens / ADS multiplier / invert Y come from SETTINGS (ui/prefs.ts).
       // ADS is eased (see sensAds), never stepped: the snapshot flips late
       // while the FOV lerps, and stepping here is the aiming skip.
-      const nowMs = performance.now();
       const ldt = Math.max(0.001, Math.min(0.1, (nowMs - this.lastLookT) / 1000 || 0.008));
       this.lastLookT = nowMs;
       this.sensAds += (ads - this.sensAds) * (1 - Math.exp(-18 * ldt));
       const a = this.sensAds;
       const pf = prefs();
-      const zoom = this.whud.scoped ? (Math.tan((this.fov * Math.PI) / 360) / Math.tan((vfov() * Math.PI) / 360)) * 1.15 : 1 - a * 0.38;
+      const zoomRaw = this.whud.scoped ? (Math.tan((this.fov * Math.PI) / 360) / Math.tan((vfov() * Math.PI) / 360)) * 1.15 : 1 - a * 0.38;
+      // ZOOM FINITE-CLAMP: a NaN fov/vfov (or tan pole) must not poison s —
+      // an unclamped NaN zoom returns early on every event (dead look).
+      const zoom = Number.isFinite(zoomRaw) ? Math.max(0.05, Math.min(4, zoomRaw)) : 1;
       // SENS CLAMP AT THE USE SITE (review LOW-MED): prefs() is sanitised on
       // load/set, but a mutated object must never become a spin multiplier —
       // sens and the ADS multiplier are both pinned to 0.1–3 here.
       const sensBase = Number.isFinite(pf.sens) ? pf.sens : 1;
       const adsMult = Number.isFinite(pf.adsSens) ? pf.adsSens : 1;
       const s = Math.max(0.1, Math.min(3, sensBase)) * 0.00215 * zoom * (1 + a * (Math.max(0.1, Math.min(3, adsMult)) - 1));
-      this.yaw -= dx * s;
-      this.pitch = Math.max(-1.4, Math.min(1.4, this.pitch + dy * s * (pf.invertY ? -1 : 1)));
+      if (!Number.isFinite(s) || s <= 0) return;
+      let dyaw = -dx * s;
+      let dpitch = dy * s * (pf.invertY ? -1 : 1);
+      if (!Number.isFinite(dyaw) || !Number.isFinite(dpitch)) return;
+      // SINGLE-FRAME CAP (token bucket, see the field note): refill since the
+      // last look event, then scale the event down to what the bucket holds.
+      // Honest flicks are many small events across frames and pass untouched;
+      // only an impossible single-frame jump gets clipped.
+      if (!Number.isFinite(this.lookTokens) || !Number.isFinite(this.lookBudgetT)) {
+        this.lookTokens = Game.LOOK_BURST;
+        this.lookBudgetT = nowMs;
+      }
+      this.lookTokens = Math.min(Game.LOOK_BURST, this.lookTokens + Math.max(0, nowMs - this.lookBudgetT) * Game.LOOK_RATE / 1000);
+      this.lookBudgetT = nowMs;
+      const cost = Math.hypot(dyaw, dpitch);
+      if (cost > this.lookTokens) {
+        if (this.lookTokens <= 0) return;
+        const k = this.lookTokens / cost;
+        dyaw *= k;
+        dpitch *= k;
+        this.lookTokens = 0;
+      } else {
+        this.lookTokens -= cost;
+      }
+      this.yaw = angWrap(this.yaw + dyaw);
+      this.pitch = Math.max(-1.4, Math.min(1.4, this.pitch + dpitch));
     });
   }
 
@@ -2424,9 +2489,27 @@ export class Game {
     const lookMag = Math.hypot(sticks.lookX, sticks.lookY);
     if (lookMag > 0.0005 && dt > 0 && Number.isFinite(dt)) {
       const me = this.me();
-      const ads = me?.ads ?? (this.ghost as unknown as { ads?: number } | null)?.ads ?? 0;
-      const zoom = this.whud.scoped ? (Math.tan((this.fov * Math.PI) / 360) / Math.tan((vfov() * Math.PI) / 360)) * 1.15 : 1 - ads * 0.38;
-      let rate = pf.padSens * 2.6 * zoom * (1 + ads * (pf.padAdsSens - 1));
+      // ADS CLAMP (mouse parity): snapshot ads pinned to 0–1, NaN -> 0.
+      const adsRaw = me?.ads ?? (this.ghost as unknown as { ads?: number } | null)?.ads ?? 0;
+      const ads = Number.isFinite(adsRaw) ? Math.max(0, Math.min(1, adsRaw)) : 0;
+      // NaN SELF-HEAL (mouse parity): angWrap(NaN) = NaN sticks yaw forever.
+      if (!Number.isFinite(this.yaw)) this.yaw = Number.isFinite(me?.yaw) ? me!.yaw : 0;
+      if (!Number.isFinite(this.pitch)) this.pitch = 0;
+      if (!Number.isFinite(this.sensAds)) this.sensAds = ads;
+      // ADS EASE (mouse parity, ~18/s like the FOV lerp): the snapshot flips
+      // late while the FOV is still mid-lerp — raw ads here steps the turn
+      // rate mid-zoom (pad aim skip). sensAds tracks the picture instead.
+      const adt = Math.max(0.001, Math.min(0.1, dt));
+      this.sensAds += (ads - this.sensAds) * (1 - Math.exp(-18 * adt));
+      const a = this.sensAds;
+      const zoomRaw = this.whud.scoped ? (Math.tan((this.fov * Math.PI) / 360) / Math.tan((vfov() * Math.PI) / 360)) * 1.15 : 1 - a * 0.38;
+      // ZOOM FINITE-CLAMP (mouse parity): a NaN fov/vfov (or tan pole) must
+      // not poison rate -> NaN yaw (yaw-poison).
+      const zoom = Number.isFinite(zoomRaw) ? Math.max(0.05, Math.min(4, zoomRaw)) : 1;
+      // SENS CLAMP AT THE USE SITE (mouse parity): pad sens + ADS mult pinned to 0.1–3.
+      const padBase = Number.isFinite(pf.padSens) ? pf.padSens : 1;
+      const padAdsMult = Number.isFinite(pf.padAdsSens) ? pf.padAdsSens : 1;
+      let rate = Math.max(0.1, Math.min(3, padBase)) * 2.6 * zoom * (1 + a * (Math.max(0.1, Math.min(3, padAdsMult)) - 1));
       // Aim assist: slow the stick near a visible enemy + pull toward them.
       let yawPull = 0;
       let pitchPull = 0;
@@ -2439,9 +2522,12 @@ export class Game {
         }
       }
       const step = Math.min(0.1, dt);
-      this.yaw -= sticks.lookX * rate * step;
-      this.yaw += yawPull * step;
-      this.pitch = Math.max(-1.4, Math.min(1.4, this.pitch + sticks.lookY * rate * step * (pf.padInvertY ? -1 : 1) + pitchPull * step));
+      // YAW WRAP (mouse parity): stick delta + assist pull both wrapped.
+      // RATE FINITE-GUARD (mouse parity): poisoned rate never reaches angWrap.
+      if (Number.isFinite(rate) && rate > 0) {
+        this.yaw = angWrap(this.yaw - sticks.lookX * rate * step + yawPull * step);
+        this.pitch = Math.max(-1.4, Math.min(1.4, this.pitch + sticks.lookY * rate * step * (pf.padInvertY ? -1 : 1) + pitchPull * step));
+      }
     } else if (pf.padAimAssist && lookMag <= 0.0005) {
       // Idle stick: no magnet (it would fight the player's chosen aim).
     }
@@ -2542,7 +2628,11 @@ export class Game {
       const az = -Math.cos(best.yaw) * Math.cos(best.pitch);
       const wall = traceWorld(ex, ey, ez, ax, ay, az, Math.min(best.dist, 60));
       if (wall.t < best.dist - 0.6) return null;
-      const strength = prefs().padAimStrength;
+      // STRENGTH FINITE-CLAMP (mouse parity): a NaN/Infinity pref must not
+      // poison slow/pull via assistSlow/k — NaN survives Math.max/min and
+      // ends up in yaw (yaw-poison). Falls back to the prefs default 0.6.
+      const strengthRaw = prefs().padAimStrength;
+      const strength = Number.isFinite(strengthRaw) ? Math.max(0, Math.min(1, strengthRaw)) : 0.6;
       const slow = assistSlow(best.miss, strength);
       // Magnet: up to ~0.9 rad/s at full strength, fading with miss angle.
       const k = strength * 0.9 * Math.max(0, 1 - best.miss / 10);
