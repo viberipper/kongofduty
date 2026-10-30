@@ -62,6 +62,12 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   throwing/cooking a frag (incoming cover stays soaked); artillery and the
   streak blast respect it, and a cooked-to-zero frag kills its protected
   holder (`361b2eb`).
+- `fix(input): cap single-frame look spikes, lock-gap guard, NaN heal` —
+  mouse look is bounded per single frame by a token bucket (honest flicks
+  spread over frames pass, impossible one-frame jumps are clipped), look
+  is dropped for ~50 ms after a pointer-lock re-acquire, and poisoned
+  values heal instead of sticking yaw/pitch (finite clamps plus yaw wrap)
+  on mouse and pad (`5a5710d`).
 
 ## 2026-10-29
 
