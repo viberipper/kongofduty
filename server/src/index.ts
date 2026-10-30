@@ -694,6 +694,11 @@ type Seat = {
   loadout: Loadout;
   slot: number;
   team: Team;
+  /** PRIVATE LOBBY (review P1): true once the host explicitly dealt this seat
+   *  onto a side via lobbyMove/shuffle — startMatch keeps arranged sides and
+   *  balance-fills only unarranged (auto-dealt) seats. Host control beats
+   *  auto-balance in private rooms. */
+  arranged: boolean;
   /** Text chat: wall-clock ms of this seat's last accepted line (rate limit). */
   lastChat: number;
   closed: boolean;
@@ -840,18 +845,29 @@ class Room {
     p.netFed = false;
   }
 
-  humanTeamCounts(): [number, number] {
+  /** Bodies per team (humans + bots) — the ONLY balance signal. Counting
+   *  humans alone dealt every yard join onto team 0 while 12 bots already
+   *  held 6v6, and the arbitrary eviction below removed a team-1 bot:
+   *  7v5 on the first join, forever. */
+  teamCounts(): [number, number] {
     const counts: [number, number] = [0, 0];
     for (const p of this.session.players.values()) {
-      if (p.bot) continue;
       counts[p.team]++;
     }
     return counts;
   }
 
   pickTeam(): Team {
-    const c = this.humanTeamCounts();
-    return c[0] <= c[1] ? (0 as Team) : (1 as Team);
+    // Totals first (the 7v5 fix), humans as the tie-break (so consecutive
+    // solo joins alternate sides instead of stacking 6 humans onto team 0
+    // while bots compensate the totals).
+    const c = this.teamCounts();
+    if (c[0] !== c[1]) return c[0] < c[1] ? (0 as Team) : (1 as Team);
+    let h0 = 0, h1 = 0;
+    for (const p of this.session.players.values()) {
+      if (!p.bot) (p.team === 0 ? h0++ : h1++);
+    }
+    return h0 <= h1 ? (0 as Team) : (1 as Team);
   }
 
   botCount(): number {
@@ -920,6 +936,7 @@ class Room {
       loadout: sanitizeLoadout({ primary: "ar", secondary: "pistol", lethal: "frag" }),
       slot: 0,
       team: 0,
+      arranged: false,
       lastChat: 0,
       closed: false,
       msgTimes: [],
@@ -941,11 +958,34 @@ class Room {
       // Yard: human body from now on; private round only once it has
       // already started (in the pre-game lobby the body is created at START).
       if (this.kind === "yard" || this.phase !== "pregame") this.ensureBody(seat);
-      // Yard always full like this: as many humans + bots as seats.
+      // Yard always full like this: as many humans + bots as seats. The victim
+      // comes off the OVERFULL side (after the join, that is the joiner's own
+      // side on a balanced room, the other side on a skewed one), so the join
+      // re-balances instead of preserving a 7v5: joiner takes the minority,
+      // victim leaves the majority. OVERFULL-HUMAN EDGE (documented,
+      // accepted): a pure-human overfull side has no bot to take off — the
+      // loop stops instead of evicting a minority-side bot (which would
+      // freeze, not heal, a 7v5). The joiner (dealt onto the minority above)
+      // stays, no human is ever evicted, and the skew heals on the next
+      // leave. Rare: needs a 7-human stack on one side of a full yard.
       while (this.kind === "yard" && this.session.players.size > this.seatCount) {
         const before = this.session.players.size;
-        const d = [...this.session.players.values()].findLast((p) => p.bot);
-        if (!d || this.session.players.size === 0) break;
+        const bots = [...this.session.players.values()].filter((p) => p.bot);
+        if (!bots.length || this.session.players.size === 0) break;
+        const c: [number, number] = [0, 0];
+        for (const p of this.session.players.values()) c[p.team]++;
+        const victimTeam = (c[0] >= c[1] ? 0 : 1) as Team;
+        // ES2022-compatible findLast (Array.findLast is ES2023): newest bot
+        // of the overfull side first.
+        let d: (typeof bots)[number] | null = null;
+        for (let i = bots.length - 1; i >= 0; i--) {
+          const b = bots[i] as (typeof bots)[number];
+          if (b.team === victimTeam) {
+            d = b;
+            break;
+          }
+        }
+        if (!d) break;
         this.session.remove(d.id);
         if (this.session.players.size === before) break;
       }
@@ -1012,6 +1052,7 @@ class Room {
     s.afkWarned = false;
     s.slot = this.nextSlot();
     s.team = this.pickTeam();
+    s.arranged = false;
     this.ensureBody(s);
     this.send(s, { t: "promoted", slot: s.slot });
     this.broadcastLobby();
@@ -1025,24 +1066,25 @@ class Room {
     }
     // Clear everything (empty after lobby return from the last match) and rebuild.
     for (const id of [...this.session.players.keys()]) this.session.remove(id);
-    const ffa = this.mode !== "tdm";
-    const half = this.seatCount / 2;
+    // HOST ARRANGEMENT FIRST (review P1): seats the host dealt via lobbyMove/
+    // shuffle keep their side — the old alternation re-dealt every seat and
+    // silently dropped arranged wish-teams. Only unarranged (auto-dealt)
+    // seats fill the minority side, in join order; bot backfill then tops up
+    // the weaker team as before. Host control beats auto-balance in private.
     const c: [number, number] = [0, 0];
     const humans = this.playableHumans().sort((a, b) => a.joinedAt - b.joinedAt);
+    for (const s of humans) if (s.arranged) c[s.team]++;
     for (const s of humans) {
-      let team: Team;
-      if (ffa) {
-        team = c[0] <= c[1] ? 0 : 1 as Team;
-      } else {
-        team = (c[0] < half ? 0 : 1) as Team;
-      }
-      s.team = team;
+      if (!s.arranged) s.team = (c[0] <= c[1] ? 0 : 1) as Team;
+      c[s.team]++;
+    }
+    for (const s of humans) {
+      const team = s.team;
       s.moveBank = 0;
       s.queue.length = 0;
       const body = this.session.addPlayer(s.id, s.name, "bruiser", team, s.loadout.primary, "", false);
       body.netFed = true;
       body.ping = s.ping;
-      c[team]++;
     }
     // Bot backfill: the weaker team is filled up to the seat count.
     while (this.session.players.size < this.seatCount) {
@@ -1138,7 +1180,9 @@ class Room {
     const half = Math.ceil(teams.length / 2);
     teams.forEach((s, i) => {
       s.team = (i < half ? 0 : 1) as Team;
+      s.arranged = true;
     });
+    if (hostSeat && !hostSeat.spectator) hostSeat.arranged = true;
     this.broadcastLobby();
   }
 
@@ -1178,6 +1222,7 @@ class Room {
     if (spectator === false) {
       if (!target.spectator) {
         if (team === 0 || team === 1) {
+          target.arranged = true;
           if (target.team !== team) {
             target.team = team;
             this.broadcastLobby();
@@ -1191,6 +1236,7 @@ class Room {
       target.queue.length = 0;
       target.slot = this.nextSlot();
       target.team = team === 0 || team === 1 ? team : this.pickTeam();
+      target.arranged = team === 0 || team === 1;
       this.send(target, { t: "promoted", slot: target.slot });
       this.broadcastLobby();
       return;
@@ -1198,6 +1244,7 @@ class Room {
     if (team === 0 || team === 1) {
       if (target.spectator || target.team === team) return;
       target.team = team;
+      target.arranged = true;
       this.broadcastLobby();
       return;
     }
@@ -1206,6 +1253,7 @@ class Room {
     if (this.mode !== "tdm") return;
     if (target.spectator) return;
     target.team = (target.team === 0 ? 1 : 0) as Team;
+    target.arranged = true;
     this.broadcastLobby();
   }
 
