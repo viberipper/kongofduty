@@ -5098,11 +5098,12 @@ const SPAWN_POOLS: Map<string, Spawn[]> = new Map();
 
 /**
  * Authored teamless FFA points (MapDef.ffaSpawns: ARES RELAY's eight mid
- * lanes, Nuketown's six mid-street points; dust2 ships none yet). FFA on a
- * map that ships them spawns mid-map instead of on the team sides — exactly
- * there on ARES RELAY, plus validated nav nodes on Nuketown (see spawnPool).
- * Every point is teamless (team: 0); a future file that tags a side keeps
- * teamless FFA, because the builders neutralise the tag (never the sides).
+ * lanes, Nuketown's six mid-street points; dust2 ships none yet). They are
+ * SEEDS, not the pool: spawnPool() always augments them with validated nav
+ * nodes, because eight curated points on a 67 x 55 m map (ARES RELAY) leave
+ * three quarters of the walkable area spawnless and drop every FFA/GUN body
+ * into the same central band. Every point is teamless (team: 0); a future file
+ * that tags a side keeps teamless FFA, because the builders neutralise the tag.
  */
 function ffaAuthored(): Spawn[] | null {
   const list = MAP.ffaSpawns;
@@ -5110,14 +5111,40 @@ function ffaAuthored(): Spawn[] | null {
 }
 
 /**
- * THE NEUTRAL FFA POOL — the generic rule for every map WITHOUT authored
- * points (Shipment, dust2), so FFA is teamless everywhere, not just where a
- * map authors it. Both sides interleaved in deterministic order (alternating
- * teams, so the pool sequence never clusters one base) with the team tag
- * neutralised throughout, plus every validated nav node map-wide (spawnNodeOk:
- * standing room, in bounds, on its own storey) so mid-map is covered instead
- * of only the team ends. Selection stays enemy-distance + LOS (spawn());
- * team modes never see this pool.
+ * Minimum separation between two FFA spawn points, metres (with a storey
+ * tolerance, so a balcony point directly above a street point stays).
+ *
+ * The pools are assembled from three sources that overlap: authored points,
+ * the team sides, and the nav lattice. Measured before this rule existed:
+ * Nuketown had points at IDENTICAL coordinates (nearest-neighbour 0.00 m) and
+ * dust2 at 0.11 m — two players spawning inside each other. 1.5 m is a body
+ * width plus margin: still dense enough for a 35 m map to keep its 60+ points.
+ */
+const FFA_SPAWN_MIN_SEP = 1.5;
+
+/** One point per spot: drop pool entries that sit on one already taken. */
+function dedupeSpawns(points: Spawn[], minSep = FFA_SPAWN_MIN_SEP): Spawn[] {
+  const out: Spawn[] = [];
+  for (const s of points) {
+    let clash = false;
+    for (const o of out) {
+      if (Math.abs(o.y - s.y) > 1.2) continue;
+      if (Math.hypot(o.x - s.x, o.z - s.z) < minSep) {
+        clash = true;
+        break;
+      }
+    }
+    if (!clash) out.push(s);
+  }
+  return out;
+}
+
+/**
+ * THE NEUTRAL FFA POOL — both team sides interleaved in deterministic order
+ * (alternating, so the pool sequence never clusters one base) with the team
+ * tag neutralised, plus every validated nav node map-wide (spawnNodeOk:
+ * standing room, in bounds, on its own storey). Selection stays
+ * enemy-distance + LOS (spawn()); team modes never see this pool.
  */
 function ffaNeutralPool(): Spawn[] {
   const t0 = SPAWNS.filter((s) => s.team === 0);
@@ -5136,25 +5163,17 @@ function spawnPool(mode: string, team: 0 | 1): Spawn[] {
   let pool = SPAWN_POOLS.get(key);
   if (pool) return pool;
   if (mode === "ffa") {
+    // ONE RULE FOR EVERY MAP: authored seeds (where the map has them) plus
+    // the validated nav lattice, deduped. The old "authored points are the
+    // whole pool" branch shipped ARES RELAY with eight points covering a
+    // quarter of its walkable area — FFA and Gun Game then spawned every body
+    // into the same central band, which is exactly the clustering this fixes.
+    // Nuketown's special case is gone with it: the rule no longer needs a
+    // per-map exception.
     const authored = ffaAuthored();
-    if (!authored) {
-      // No authored points: the neutral pool — interleaved sides + nav
-      // nodes on any map shape, teamless throughout (ffaNeutralPool).
-      pool = ffaNeutralPool();
-    } else if (IS_NUKETOWN) {
-      // NUKETOWN-ONLY AUGMENTATION (per-map FFA policy, like the IS_NUKETOWN
-      // OOB clamp above): six authored points for twelve FFA seats is a
-      // forced double-up on every point. The six stay (curated mid-street),
-      // but validated nav nodes join them — the same navSpawn rule the
-      // neutral pool uses — so the pool outgrows the room. ARES RELAY's
-      // eight stay exact (precedent: no forced double on every point).
-      pool = [...authored];
-      pushValidatedNavSpawns(pool, 0);
-    } else {
-      // A map with authored FFA points spawns exactly there (curated,
-      // teamless).
-      pool = [...authored];
-    }
+    pool = authored ? [...authored] : ffaNeutralPool();
+    if (authored) pushValidatedNavSpawns(pool, 0);
+    pool = dedupeSpawns(pool);
   } else {
     const side = SPAWNS.filter((s) => s.team === team);
     pool = [...side];

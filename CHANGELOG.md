@@ -19,6 +19,17 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ### Fixed
 
+- `fix(spawns): spread FFA and Gun Game spawns over the whole map` — Ares
+  Relay let its eight authored mid-lane points be the entire FFA pool, so both
+  teamless modes spawned every body inside a 34 x 27 m band (25 % of the
+  walkable area, six of sixteen map cells); authored points are now seeds and
+  the validated nav lattice joins them on every map, which takes Ares to 210
+  points covering 100 % of the map and a simulated twelve-man fill from
+  51 x 50 % to the full footprint. Pool assembly also dedupes to 1.5 m, which
+  removes same-floor pairs as close as 0.11 m (dust2) and 0.43 m (Shipment);
+  Nuketown's 0.00 m pairs are real stacked floors and stay (Pending commit —
+  hash follows on commit.).
+
 - `fix(guns): no false override warnings at boot` — the dev override guard
   fired for the intended placeholder-to-real hand-off (four warnings every
   load); placeholders now register through their own path, so only a real
