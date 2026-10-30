@@ -17,6 +17,13 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ## Unreleased
 
+### Fixed
+
+- `fix(lean): de-inverted Q/E lean direction` — Q/E lean tilts to the
+  pressed side again via a render-only sign correction; value path,
+  binds, and rebinds untouched.
+  (Pending commit — hash follows on commit.)
+
 ## 2026-10-30
 
 ### Added

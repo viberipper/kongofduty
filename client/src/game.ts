@@ -4886,13 +4886,16 @@ export class Game {
         this.lastFeetY = me.y;
         this.stepLag = Math.max(0, this.stepLag - STEP_SMOOTH_RATE * dt);
         // CORNER LEAN (Q/E, view-only): ease toward the held keys, shift the
-        // eye along the strafe-right vector ((cos yaw, -sin yaw), the sim's
-        // +ax side) and bank the view. Dead bodies lean nothing; the capsule
-        // never moves — hit registration is untouched (shared/sim.ts `lean`).
+        // eye sideways — lean+ (E) is screen-right, i.e. the negated sim +ax
+        // side (-(cos yaw, -sin yaw); sim +ax is LEFT, see the l/r swap at the
+        // tick input mapping) — and bank the view (the yaw+PI camera banks
+        // right with -lean, so the bank sign below is already correct). Dead
+        // bodies lean nothing; the capsule never moves — hit registration is
+        // untouched (shared/sim.ts `lean`).
         const leanTgt = ((this.keys.leanR ? 1 : 0) - (this.keys.leanL ? 1 : 0)) * (me.alive ? 1 : 0);
         this.leanSm += (leanTgt - this.leanSm) * (1 - Math.exp(-12 * dt));
-        const leanX = Math.cos(this.yaw) * this.leanSm * 0.3;
-        const leanZ = -Math.sin(this.yaw) * this.leanSm * 0.3;
+        const leanX = -Math.cos(this.yaw) * this.leanSm * 0.3;
+        const leanZ = Math.sin(this.yaw) * this.leanSm * 0.3;
         this.camera.position.set(me.x + this.errX + leanX, me.y - this.stepLag + this.errY + this.eyeSmooth + bob, me.z + this.errZ + leanZ);
         // weapons stream: punch springs + trauma (visual) and the scope sway (aim).
         this.feel.update(dt);

@@ -2863,14 +2863,17 @@ export class BruiserActor {
     this.root.rotation.y = this.yawVis;
     this.root.rotation.x = 0;
     // CORNER LEAN (view-only): ease toward the snapped value, roll the root
-    // about the facing axis and shift it along strafe-right ((cos yaw,
-    // -sin yaw), the sim's +ax side). Dead bodies lean nothing.
+    // about the facing axis and shift it sideways — lean+ (E) is the
+    // operator's right, i.e. the negated sim +ax side (-(cos yaw, -sin yaw);
+    // sim +ax is LEFT). The root is yaw-only (unlike the yaw+PI camera), so
+    // its roll takes the opposite sign of the camera bank for the same lean.
+    // Dead bodies lean nothing.
     {
       const leanTgt = p.alive ? (p.lean === 1 ? 1 : p.lean === -1 ? -1 : 0) : 0;
       this.leanVis += (leanTgt - this.leanVis) * Math.min(1, dt * 12);
-      this.root.rotation.z = -this.leanVis * 0.1;
-      this.root.position.x += Math.cos(this.yawVis) * this.leanVis * 0.2;
-      this.root.position.z += -Math.sin(this.yawVis) * this.leanVis * 0.2;
+      this.root.rotation.z = this.leanVis * 0.1;
+      this.root.position.x += -Math.cos(this.yawVis) * this.leanVis * 0.2;
+      this.root.position.z += Math.sin(this.yawVis) * this.leanVis * 0.2;
     }
 
     const spd = Math.hypot(p.vx, p.vz);
