@@ -19,6 +19,18 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ### Fixed
 
+- `fix(lobby): real ping badges before a match` — only the in-match loop ever
+  reported an RTT, so a fresh lobby left every seat at 0 and the roster's 1 ms
+  clamp made everyone look like a 1 ms connection until a match had run on that
+  socket; the lobby now measures the pong and reports it once a second (seats
+  without a measurement show "—", the server re-pushes the roster every 2 s
+  instead of 5 s) (Pending commit — hash follows on commit.).
+- `fix(lobby): footer pinned to the window bottom` — `.nana-wrap`'s middle
+  `1fr` track keeps its auto minimum, so switching the mode to GUN GAME (the
+  extra "kills per gun" row) made the row taller than the viewport and pushed
+  the keyline footer off screen; the track is now `minmax(0, 1fr)` (Pending
+  commit — hash follows on commit.).
+
 - `fix(lobby): invite box under the teams, scrollable columns` — on a
   1080p-class viewport the right rail (map card, rules, mode/map setup, the
   invite box and the actions) was taller than the grid row, so SETTINGS and

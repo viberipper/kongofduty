@@ -1190,6 +1190,10 @@ export function attachLobby(game: GameLike, h: LobbyHooks, phase: MatchPhase, sp
       wireSocket();
       // Team columns come from the snapshot roster, which settles a beat after
       // the lobby message — repaint while the screen is up (cheap, 2 Hz).
+      // Shelf the paint at 2 Hz, and keep the lobby's ping clock running while
+      // the roster is on screen (see lobbyPingTick: the in-match loop is what
+      // used to be the only RTT source).
+      lobbyPingTick();
       if (diag.screen === "lobby") paint();
     }, 500);
   if (phase === "pregame") {
@@ -1272,12 +1276,58 @@ function wireSocket(): void {
   else ws.addEventListener("open", ask, { once: true });
 }
 
+/**
+ * LOBBY PING. The in-match loop (game.ts keepAlive) is the only thing that ever
+ * reported an RTT, so a fresh lobby showed every seat at 0 — the roster clamps
+ * that to "1 MS", i.e. everybody appeared to have a 1 ms connection until a
+ * match had run on that socket. The lobby therefore pings the same way it
+ * reports: measure the pong, hand the last measurement to the server, once a
+ * second, only while the lobby screen is up (a match has its own loop).
+ */
+let lobbyPingAt = 0;
+let lobbyRttMs = 0;
+
+function lobbyPingTick(): void {
+  if (diag.screen !== "lobby") return;
+  const ws = bound?.net;
+  if (!ws || ws.readyState !== 1) return;
+  const now = Date.now();
+  if (now - lobbyPingAt < 1000) return;
+  lobbyPingAt = now;
+  try {
+    // >= 1, so the server's 0 keeps meaning "no measurement yet" (the roster
+    // renders that as "—" rather than inventing a 1 ms line for everyone).
+    ws.send(JSON.stringify({ t: "ping", t0: now, rtt: lobbyRttMs }));
+  } catch {
+    /* closed under us */
+  }
+}
+
+/** A pong closes the loop: now - t0 is this client's round trip to the server. */
+function notePong(t0: number): void {
+  if (!Number.isFinite(t0)) return;
+  const rtt = Date.now() - t0;
+  if (!Number.isFinite(rtt) || rtt < 0 || rtt >= 1000) return;
+  lobbyRttMs = Math.max(1, Math.round(rtt));
+}
+
 function onServerMessage(ev: MessageEvent): void {
   const raw = typeof ev.data === "string" ? ev.data : "";
+  // Pongs are the lobby's ping clock: cheap prefix match, decoded only for the
+  // timestamp (they are 1/s, not part of the 32/s snapshot stream below).
+  if (raw.startsWith('{"t":"pong"')) {
+    try {
+      const pong = JSON.parse(raw) as { t0?: number };
+      if (typeof pong.t0 === "number") notePong(pong.t0);
+    } catch {
+      /* malformed pong: ignore, the next one comes in a second */
+    }
+    return;
+  }
   // THE HOT PATH IS THE ONE WE REFUSE TO PARSE. See the file header: snapshots
   // are 32/s of the largest payload in the game and this module needs nothing
   // from them, so they are rejected on a prefix compare, never decoded twice.
-  if (!raw || raw.startsWith('{"t":"snap"') || raw.startsWith('{"t":"pong"')) return;
+  if (!raw || raw.startsWith('{"t":"snap"')) return;
   let msg: ServerMsg;
   try {
     msg = JSON.parse(raw) as ServerMsg;
@@ -1611,9 +1661,15 @@ function rowHtml(m: LobbyMember | null, slot: number, you: string, openLabel: st
   }
   const badges =
     (m.host ? '<i class="badge badge--accent">HOST</i>' : "") + (m.id === you ? '<i class="badge">YOU</i>' : "");
-  // The seat's ping, coloured like the scoreboard's (green / amber / red).
-  const ms = Math.max(1, Math.round(m.ping ?? 0)); // a LAN / localhost round trip rounds to 0
-  const ping = m.ping !== undefined ? `<i class="nana-ping ${ms > 150 ? "is-bad" : ms > 80 ? "is-ok" : "is-good"}" title="Ping">${ms} MS</i>` : "";
+  // The seat's ping, coloured like the scoreboard's (green / amber / red). A
+  // seat that has not answered a pong yet reports 0, which is NOT a 1 ms
+  // connection: show "—" until there is a measurement (a real LAN trip clamps
+  // to 1 ms in the sender, so 0 is unambiguous).
+  const known = typeof m.ping === "number" && m.ping > 0;
+  const ms = known ? Math.round(m.ping as number) : 0;
+  const ping = known
+    ? `<i class="nana-ping ${ms > 150 ? "is-bad" : ms > 80 ? "is-ok" : "is-good"}" title="Ping">${ms} MS</i>`
+    : `<i class="nana-ping is-unknown" title="Ping not measured yet">—</i>`;
   // The row's place in ITS column (a team list reads 01, 02, 03…); a bench
   // row numbers the promotion queue.
   const num = m.spectator ? `#${slot}` : String(slot).padStart(2, "0");

@@ -1609,11 +1609,13 @@ class Room {
     if (!flushed && !this.session.over && this.session.tick % SNAP_EVERY === 0) this.broadcastSnaps();
     // LOBBY PING, LIVE: seats report rtt ~1/s (the ping handler stores it on
     // the seat), but the lobby only broadcasts on roster changes — so the
-    // ms badges would freeze at 0. Re-push at most every 5 s, and only when
+    // ms badges would freeze at 0. Re-push at most every 2 s, and only when
     // some seat's number actually moved (broadcastLobby records what it sent).
+    // 2 s, not 5: the first measurement otherwise leaves a fresh lobby on "—"
+    // for up to five seconds before anybody's number appears.
     if (this.kind === "private" && this.phase === "pregame") {
       const now = Date.now();
-      if (now - this.lastPingPush >= 5000) {
+      if (now - this.lastPingPush >= 2000) {
         let dirty = false;
         for (const s of this.seats.values()) {
           if (this.pushedPing.get(s.id) !== s.ping) {

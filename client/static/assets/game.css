@@ -79,3 +79,10 @@
 .nana-col::-webkit-scrollbar,.nana-side::-webkit-scrollbar{width:8px}
 .nana-col::-webkit-scrollbar-thumb,.nana-side::-webkit-scrollbar-thumb{background:var(--c-line-2)}
 .nana-col .nana-invite-row .field{min-width:0}
+/* FOOTER PINNED TO THE WINDOW BOTTOM. `.nana-wrap` is height:100% with rows
+   `auto 1fr auto`, but a `1fr` track is `minmax(auto, 1fr)`: its auto MINIMUM
+   is the grid's min-content height, so switching to GUN GAME (the extra
+   "KILLS PER GUN" row in the right rail) made the middle row taller than the
+   viewport and pushed the keyline footer off the bottom. The explicit 0 minimum
+   lets the row shrink; the columns scroll inside it (see the block above). */
+.nana-wrap{grid-template-rows:auto minmax(0,1fr) auto}.nana-ping.is-unknown{color:var(--c-text-4)}
