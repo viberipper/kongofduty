@@ -435,6 +435,160 @@ async function main() {
   console.log(`[gun] live players=${glive.players.length} gun0=${glive.players[0]?.gun}`);
   if (glive.players[0]?.gun !== 0) throw new Error(`gun start value=${glive.players[0]?.gun}, expected 0`);
 
+  // ---------- 5) PRIVATE LOBBY: host move + host handover ----------
+  // Room MV-TEST: pregame move/bench/promote/team-toggle are host-only (a
+  // guest move is ignored with no broadcast), then the chair moves to the
+  // guest and the NEW host starts the match.
+  const mh = new Fake("mv-host");
+  const mg = new Fake("mv-guest");
+  await mh.connect(url());
+  await mg.connect(url());
+  mh.send({ t: "join", name: "MV-HOST", room: "MV-TEST", mode: "tdm", map: "nuketown", snapshotFormat: "compact-v1", lobby: true });
+  mg.send({ t: "join", name: "MV-GUEST", room: "MV-TEST", mode: "tdm", map: "nuketown", snapshotFormat: "compact-v1", lobby: true });
+  const mhw = await mh.waitFor((m) => m.find((x) => x.t === "welcome"));
+  const mgw = await mg.waitFor((m) => m.find((x) => x.t === "welcome"));
+  await mh.waitFor((m) => m.find((x) => x.t === "lobby" && x.players?.length === 2));
+  console.log(`[mv] lobby host=${mhw.id} guest=${mgw.id}`);
+  // 5a) guest start is refused
+  mg.msgs.length = 0;
+  mg.send({ t: "startmatch" });
+  const deny = await mg.waitFor((m) => m.find((x) => x.t === "err"));
+  if (!/ONLY THE LOBBY HOST/.test(deny.msg)) throw new Error(`guest start err=${deny.msg}, expected host-only refusal`);
+  console.log("[mv] guest start refused ok");
+  // 5b) host benches the guest
+  mh.msgs.length = 0; mg.msgs.length = 0;
+  mh.send({ t: "lobbymove", id: mgw.id, spectator: true });
+  const benched = await mh.waitFor((m) => m.find((x) => x.t === "lobby" && x.players?.length === 1 && x.spectators?.length === 1));
+  if (benched.spectators[0]?.id !== mgw.id) throw new Error("benched spectator is not the guest");
+  console.log("[mv] host bench ok");
+  // 5c) guest move is ignored (no broadcast anywhere)
+  await sleep(650); // past the host's 500 ms lobby-write gate before the next host write below
+  mh.msgs.length = 0; mg.msgs.length = 0;
+  mg.send({ t: "lobbymove", id: mhw.id, spectator: true });
+  await sleep(700);
+  if (mh.msgs.some((x) => x.t === "lobby") || mg.msgs.some((x) => x.t === "lobby")) throw new Error("guest lobbymove broadcast, expected ignore");
+  console.log("[mv] guest move ignored ok");
+  // 5d) host promotes back
+  mh.send({ t: "lobbymove", id: mgw.id, spectator: false });
+  await mh.waitFor((m) => m.find((x) => x.t === "lobby" && x.players?.length === 2));
+  await mg.waitFor((m) => m.find((x) => x.t === "promoted"));
+  console.log("[mv] host promote ok");
+  // 5e) bare move = team toggle, roster intact
+  await sleep(650);
+  mh.msgs.length = 0;
+  mh.send({ t: "lobbymove", id: mgw.id });
+  const toggled = await mh.waitFor((m) => m.find((x) => x.t === "lobby" && x.players?.length === 2));
+  if (toggled.players.some((p) => p.id === mgw.id) !== true) throw new Error("guest missing after team toggle");
+  console.log("[mv] host team-toggle ok");
+  // 5f) host hands the chair over
+  await sleep(650);
+  mh.msgs.length = 0; mg.msgs.length = 0;
+  mh.send({ t: "lobbyhost", id: mgw.id });
+  const handed = await mh.waitFor((m) => m.find((x) => x.t === "lobby" && x.host === mgw.id));
+  if (handed.host !== mgw.id) throw new Error("host handover did not land");
+  console.log("[mv] host handover ok");
+  // 5g) the NEW host starts
+  await sleep(650);
+  mg.msgs.length = 0;
+  mg.send({ t: "startmatch" });
+  await mg.waitFor((m) => m.find((x) => x.t === "start"));
+  await sleep(3600);
+  const mvlive = mg.snaps.find((s) => s.phase === "live");
+  if (!mvlive) throw new Error("mv: no live snapshot after handover start");
+  console.log(`[mv] new-host start live ok players=${mvlive.players.length}`);
+
+  // ---------- 6) LATE-JOIN into the live private match ----------
+  // Full room (2 humans + bot fill = 12): joiner benches; the gate says so too.
+  const lateFull = new Fake("mv-late-full");
+  await lateFull.connect(url());
+  lateFull.send({ t: "join", name: "MV-LATE", room: "MV-TEST", mode: "tdm", map: "nuketown", snapshotFormat: "compact-v1", lobby: true });
+  const lateFullWel = await lateFull.waitFor((m) => m.find((x) => x.t === "welcome"));
+  if (!lateFullWel.spectator) throw new Error("late join to a full live room got a playable seat, expected bench");
+  console.log("[mv-late] full-room join benched ok");
+  const lk = new Fake("mv-check");
+  await lk.connect(url());
+  lk.send({ t: "checkname", name: "LOOKER2", room: "MV-TEST" });
+  const lkNc = await lk.waitFor((m) => m.find((x) => x.t === "namecheck"));
+  if (!lkNc.room || lkNc.room.phase !== "live") throw new Error(`late namecheck phase=${lkNc.room?.phase}, expected live`);
+  if (!lkNc.room.spectate) throw new Error("late namecheck spectate=false on a full live room, expected true");
+  console.log("[mv-late] namecheck spectate ok");
+  lk.ws.close();
+  // Free exactly one body with an empty bench: benched late joiner leaves,
+  // then the old host leaves (no bot refill in private rooms).
+  lateFull.ws.close();
+  await sleep(600);
+  const tickBeforeLate = mg.snaps.length ? (mg.snaps[mg.snaps.length - 1].tick ?? -1) : -1;
+  mh.ws.close();
+  await sleep(800);
+  // A freed seat joins straight into the RUNNING match — no reset: the tick
+  // keeps climbing and the seated host is still listed beside the newcomer.
+  const late2 = new Fake("mv-late2");
+  await late2.connect(url());
+  late2.send({ t: "join", name: "MV-LATE2", room: "MV-TEST", mode: "tdm", map: "nuketown", snapshotFormat: "compact-v1", lobby: true });
+  const late2Wel = await late2.waitFor((m) => m.find((x) => x.t === "welcome"));
+  if (late2Wel.spectator) throw new Error("late join to a freed live seat benched, expected direct seat");
+  const late2Snap = await late2.waitFor((m) =>
+    m.find((x) => x.t === "snap" && x.phase === "live" && (x.tick ?? 0) > tickBeforeLate && x.players?.some((p) => p.id === late2Wel.id)),
+  );
+  if (!late2Snap.players.some((p) => p.name === mgw.name)) throw new Error(`seated host ${mgw.name} missing after late join (match reset?)`);
+  if (late2Snap.players.length !== 12) throw new Error(`live total=${late2Snap.players.length} after late join, expected 12`);
+  console.log(`[mv-late] freed-seat join live ok tick=${late2Snap.tick} (was ${tickBeforeLate}) players=${late2Snap.players.length}`);
+
+  // ---------- 7) HOST-LEAVE transfers by join order (NOT ping) ----------
+  // Seat.ping rides the client's self-reported rtt and is spoofable
+  // (rtt:1 would steal the chair), so the succession ignores ping entirely:
+  // the oldest remaining seat wins even though the YOUNGEST seat reports the
+  // lowest ping.
+  const ph = new Fake("ping-host");
+  const p1 = new Fake("ping-1");
+  const p2 = new Fake("ping-2");
+  await ph.connect(url());
+  await p1.connect(url());
+  await p2.connect(url());
+  ph.send({ t: "join", name: "PING-HOST", room: "PING-TEST", mode: "tdm", map: "nuketown", snapshotFormat: "compact-v1", lobby: true });
+  const phw = await ph.waitFor((m) => m.find((x) => x.t === "welcome"));
+  // Sequential joins (each welcome awaited) so the server seats PING-TWO
+  // strictly before PING-ONE — arrival order, not timestamp luck, decides.
+  p2.send({ t: "join", name: "PING-TWO", room: "PING-TEST", mode: "tdm", map: "nuketown", snapshotFormat: "compact-v1", lobby: true });
+  const p2w = await p2.waitFor((m) => m.find((x) => x.t === "welcome"));
+  p1.send({ t: "join", name: "PING-ONE", room: "PING-TEST", mode: "tdm", map: "nuketown", snapshotFormat: "compact-v1", lobby: true });
+  const p1w = await p1.waitFor((m) => m.find((x) => x.t === "welcome"));
+  await ph.waitFor((m) => m.find((x) => x.t === "lobby" && x.players?.length === 3));
+  if (phw.id === undefined || p1w.id === undefined || p2w.id === undefined) throw new Error("ping room welcomes missing ids");
+  // Host 120 ms, p2 60 ms, p1 20 ms (lowest — but youngest, must NOT win).
+  ph.send({ t: "ping", t0: Date.now(), rtt: 120 });
+  await sleep(300);
+  p2.send({ t: "ping", t0: Date.now(), rtt: 60 });
+  await sleep(300);
+  p1.send({ t: "ping", t0: Date.now(), rtt: 20 });
+  await sleep(500);
+  p1.msgs.length = 0; p2.msgs.length = 0;
+  ph.ws.close();
+  const pingHost = await p2.waitFor((m) => m.find((x) => x.t === "lobby" && x.host === p2w.id));
+  console.log(`[ping] host-leave transfer host=${pingHost.host} (oldest remaining ${p2w.name}; lowest ping ${p1w.name} ignored)`);
+  if (pingHost.host !== p2w.id) throw new Error(`host went to ${pingHost.host}, expected oldest-remaining ${p2w.id}`);
+  const pingHost2 = await p1.waitFor((m) => m.find((x) => x.t === "lobby" && x.host === p2w.id));
+  if (pingHost2.host !== p2w.id) throw new Error("remaining seats disagree on the new host");
+  p1.ws.close(); p2.ws.close();
+  // Fallback with no ping numbers at all: join order (oldest seat) wins.
+  const fh = new Fake("fb-host");
+  const fg = new Fake("fb-guest");
+  await fh.connect(url());
+  await fg.connect(url());
+  fh.send({ t: "join", name: "FB-HOST", room: "FB-TEST", mode: "tdm", map: "nuketown", snapshotFormat: "compact-v1", lobby: true });
+  fg.send({ t: "join", name: "FB-GUEST", room: "FB-TEST", mode: "tdm", map: "nuketown", snapshotFormat: "compact-v1", lobby: true });
+  await fh.waitFor((m) => m.find((x) => x.t === "welcome"));
+  const fgw = await fg.waitFor((m) => m.find((x) => x.t === "welcome"));
+  await fg.waitFor((m) => m.find((x) => x.t === "lobby" && x.players?.length === 2));
+  fg.msgs.length = 0;
+  fh.ws.close();
+  const fbHost = await fg.waitFor((m) => m.find((x) => x.t === "lobby" && x.host === fgw.id));
+  if (fbHost.host !== fgw.id) throw new Error("no-ping fallback did not hand the chair to the oldest seat");
+  console.log("[ping] no-ping fallback (join order) ok");
+  fg.ws.close();
+  mg.ws.close();
+  late2.ws.close();
+
   // shut the hub worker back down (spawned case)
   if (proc) {
     await new Promise((r) => setTimeout(r, 300));

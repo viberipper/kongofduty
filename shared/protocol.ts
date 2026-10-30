@@ -555,6 +555,17 @@ export type ClientMsg =
   | { t: "checkname"; name: string; room?: string }
   /** HOST ONLY: leave pre-game and run the countdown. Ignored from anyone else. */
   | { t: "startmatch" }
+  /**
+   * HOST, PRE-GAME ONLY: move a seat between teams / bench (lobbyMove) or hand
+   * the host chair over (lobbyHost). `lobbymove` with neither `team` nor
+   * `spectator` toggles the target's team (TDM); `spectator: true` benches them
+   * (slot 0), `spectator: false` promotes them when a playable seat is free.
+   * `lobbyhost` makes the target seat the new host. Anyone else, or a target
+   * seat that is not in the room, is ignored.
+   */
+  | { t: "lobbymove"; id: string; team?: Team; spectator?: boolean }
+  /** HOST ONLY: hand the host chair to another seat in the room. */
+  | { t: "lobbyhost"; id: string }
   /** "Send me the lobby again" — used after a reconnect or a late listener. */
   | { t: "lobbyq" };
 

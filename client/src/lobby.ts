@@ -1455,8 +1455,51 @@ function wireButtons(): void {
     const ws = bound?.net;
     if (ws?.readyState === 1) ws.send(JSON.stringify({ t: "shuffle" }));
   });
+  // Host roster controls: delegated (rows re-render on every paint).
+  d.roster.addEventListener("click", onRosterClick);
+  d.specs.addEventListener("click", onRosterClick);
 }
 
+/** HOST: move a seat between teams / bench (lobbymove). */
+function lobbyMove(id: string, extra?: { team?: 0 | 1; spectator?: boolean }): void {
+  const ws = bound?.net;
+  if (!ws || ws.readyState !== 1 || state?.phase !== "pregame") return;
+  hooks?.sfx?.("ui");
+  ws.send(JSON.stringify({ t: "lobbymove", id, ...extra }));
+}
+
+/** HOST: hand the chair to another seat (lobbyhost). */
+function lobbyHost(id: string): void {
+  const ws = bound?.net;
+  if (!ws || ws.readyState !== 1) return;
+  hooks?.sfx?.("ui");
+  ws.send(JSON.stringify({ t: "lobbyhost", id }));
+}
+
+/**
+ * HOST ROSTER CLICKS — one delegated listener per list (rows are re-rendered
+ * as innerHTML on every paint, so per-button wiring would die with the paint).
+ */
+function onRosterClick(e: Event): void {
+  const btn = (e.target as HTMLElement | null)?.closest?.("button[data-act]") as HTMLElement | null;
+  if (!btn) return;
+  const id = btn.dataset.id;
+  if (!id) return;
+  switch (btn.dataset.act) {
+    case "team":
+      lobbyMove(id);
+      break;
+    case "bench":
+      lobbyMove(id, { spectator: true });
+      break;
+    case "play":
+      lobbyMove(id, { spectator: false });
+      break;
+    case "host":
+      lobbyHost(id);
+      break;
+  }
+}
 /** HOST: ask the server for a new mode or map (lobbyset). */
 function lobbySet(change: { mode?: ModeId; map?: string; gunKills?: number }): void {
   const ws = bound?.net;
@@ -1557,7 +1600,7 @@ async function copyLink(): Promise<void> {
 }
 
 /** One roster line. A bench row numbers the queue (#3), not a seat. */
-function rowHtml(m: LobbyMember | null, slot: number, you: string, openLabel: string): string {
+function rowHtml(m: LobbyMember | null, slot: number, you: string, openLabel: string, iAmHost = false, teamGame = true): string {
   if (!m) {
     return `<li class="nana-row open"><span class="nana-slot">${String(slot).padStart(2, "0")}</span><span class="nana-name">${openLabel}</span></li>`;
   }
@@ -1569,7 +1612,19 @@ function rowHtml(m: LobbyMember | null, slot: number, you: string, openLabel: st
   // The row's place in ITS column (a team list reads 01, 02, 03…); a bench
   // row numbers the promotion queue.
   const num = m.spectator ? `#${slot}` : String(slot).padStart(2, "0");
-  return `<li class="nana-row taken${m.id === you ? " you" : ""}" data-taken="1"><span class="nana-slot">${num}</span><span class="nana-name">${esc(m.name)}</span><span class="nana-badges">${ping}${badges}</span></li>`;
+  // HOST CONTROLS (pre-game lobby only — the server enforces host + pregame):
+  // move a seat to the other team / bench / back into play, or hand the chair
+  // over. Rendered as data-act buttons; one delegated listener (wireButtons)
+  // sends lobbymove/lobbyhost. Probes keep reading .nana-name; self rows and
+  // guests get no buttons.
+  let ctl = "";
+  if (iAmHost && m.id !== you) {
+    const id = esc(m.id);
+    ctl = m.spectator
+      ? `<span class="nana-ctl"><button type="button" class="btn btn--sm" data-act="play" data-id="${id}" title="Move into a free seat">PLAY</button><button type="button" class="btn btn--sm" data-act="host" data-id="${id}" title="Make this player the host">HOST</button></span>`
+      : `<span class="nana-ctl">${teamGame ? `<button type="button" class="btn btn--sm" data-act="team" data-id="${id}" title="Move to the other team">TEAM</button>` : ""}<button type="button" class="btn btn--sm" data-act="bench" data-id="${id}" title="Move to spectators">BENCH</button><button type="button" class="btn btn--sm" data-act="host" data-id="${id}" title="Make this player the host">HOST</button></span>`;
+  }
+  return `<li class="nana-row taken${m.id === you ? " you" : ""}" data-taken="1"><span class="nana-slot">${num}</span><span class="nana-name">${esc(m.name)}</span><span class="nana-badges">${ping}${badges}</span>${ctl}</li>`;
 }
 
 let paintKey = "";
@@ -1632,6 +1687,9 @@ function paint(): void {
   d.speccount.textContent = `${s.spectators.length} / ${s.maxSpectators}`;
 
   const openLabel = s.botFill > 0 ? "OPEN · BOT ON START" : "OPEN";
+  // Host controls need the chair BEFORE the rows are built (rowHtml renders
+  // the buttons; the paint dedupe key below already includes s.host via s).
+  const iAmHost = s.host === s.you;
   if (info.teams) {
     // TWO COLUMNS, RELATIVE: your team (blue) and the enemy (red). A seat is
     // placed by the team the server gave it (snapshot roster); a player whose
@@ -1649,7 +1707,7 @@ function paint(): void {
     const col = (side: 0 | 1): string => {
       const list = cols[side]!;
       let rows = "";
-      for (let i = 0; i < half; i++) rows += rowHtml(list[i] ?? null, i + 1, s.you, openLabel);
+      for (let i = 0; i < half; i++) rows += rowHtml(list[i] ?? null, i + 1, s.you, openLabel, iAmHost, true);
       const label = spectatorView ? (side === 0 ? "TEAM 1" : "TEAM 2") : side === 0 ? "YOUR TEAM" : "ENEMY TEAM";
       return `<div class="nana-team ${side === 0 ? "ally" : "enemy"}"><header><b>${label}</b><i>${list.length} / ${half}</i></header><ol class="nana-list">${rows}</ol></div>`;
     };
@@ -1661,7 +1719,7 @@ function paint(): void {
     let a = "";
     let b = "";
     for (let i = 0; i < s.maxPlayable; i++) {
-      const r = rowHtml(s.players[i] ?? null, i + 1, s.you, openLabel);
+      const r = rowHtml(s.players[i] ?? null, i + 1, s.you, openLabel, iAmHost, false);
       if (i < half) a += r;
       else b += r;
     }
@@ -1671,9 +1729,8 @@ function paint(): void {
       `<div class="nana-team"><header><b>&nbsp;</b><i></i></header><ol class="nana-list">${b}</ol></div>`;
   }
   show(d.benchPanel, s.spectators.length > 0);
-  d.specs.innerHTML = s.spectators.map((m, i) => rowHtml(m, i + 1, s.you, "")).join("");
+  d.specs.innerHTML = s.spectators.map((m, i) => rowHtml(m, i + 1, s.you, "", iAmHost, info.teams)).join("");
 
-  const iAmHost = s.host === s.you;
   const queue = s.spectators.findIndex((m) => m.id === s.you);
   const iAmSpec = queue >= 0;
   paintSetup(s, iAmHost);

@@ -829,17 +829,34 @@ class Room {
   }
 
   // ------------------------------------------------------------ Join/Leave
-  addSeat(ws: WsConn, name: string, packed: boolean): Seat {
+  addSeat(ws: WsConn, name: string, packed: boolean): Seat | null {
     const clean = dedupeName(cleanName(name), this.allNames());
     const id = nextSeatId();
-    const playableFull = this.playableHumans().length >= this.seatCount;
+    // PRIVATE + LIVE/COUNTDOWN: the room is already simulating — a seat is
+    // free only while fewer BODIES (humans + bots) than seatCount exist. A
+    // leave frees exactly one body (dropSeat removes it and refills nothing in
+    // private rooms), so a late joiner takes that freed body; a full room
+    // parks the joiner on the bench (promotion on the next leave). Pregame
+    // (and the yard) keep the human-count rule below.
+    const bodyCount = this.session.players.size;
+    const playableFull =
+      this.kind === "private" && this.phase !== "pregame"
+        ? bodyCount >= this.seatCount
+        : this.playableHumans().length >= this.seatCount;
     const spectFull = this.spectators().length >= MAX_SPECTATORS;
+    // BENCH OVERFLOW GUARD (review MED): spectator used to be
+    // `playableFull || spectFull` — a full bench parked a joiner on the bench
+    // as spectator #MAX+1 even with a playable seat free, and a full room
+    // seated past MAX_SPECTATORS with no refuse. Now: playable free → always
+    // playable (a full bench never forces spectator); both full → refuse
+    // (null; the caller sends err+close like the server-full path).
+    if (playableFull && spectFull) return null;
     const seat: Seat = {
       ws,
       id,
       name: clean,
       joinedAt: Date.now(),
-      spectator: playableFull || spectFull,
+      spectator: playableFull,
       packed,
       queue: [],
       ping: 0,
@@ -902,7 +919,17 @@ class Room {
     // Body gone (no frozen corpse left in the yard).
     this.session.remove(seat.id);
     if (this.kind === "private" && this.host === seat.id) {
-      const rest = this.playableHumans().sort((a, b) => a.joinedAt - b.joinedAt);
+      // HOST-LEAVE TRANSFER: the remaining seat that joined first takes the
+      // chair, so the lobby never orphans while players remain. Join order
+      // (joinedAt) is the ONLY criterion — deliberately NOT ping: Seat.ping
+      // rides the client's own ~1/s `ping` report (display-only, see the ping
+      // handler) and is client-spoofable (`rtt: 1` would win the chair), so no
+      // client input may decide the succession. All remaining seats (playable
+      // + bench) qualify, so a host that leaves spectators behind still
+      // hands over. id breaks joinedAt ties (same-ms joins) deterministically.
+      const rest = [...this.seats.values()].sort(
+        (a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+      );
       this.host = rest[0]?.id ?? null;
     }
     if (!seat.spectator) {
@@ -1053,6 +1080,86 @@ class Room {
   }
 
   /**
+   * HOST, PRE-GAME ONLY: move one seat between teams / bench.
+   *
+   * - `spectator: true` benches a playable seat (slot 0).
+   * - `spectator: false` promotes a spectator when a playable seat is free.
+   * - `team: 0|1` sets a playable seat's team.
+   * - neither `team` nor `spectator`: toggles a playable seat's team in TDM
+   *   (the lobby UI's "ans andere Team" button sends exactly this); a no-op
+   *   in FFA/GUN, which are teamless.
+   *
+   * SELF-MOVES (review LOW): the host moving their OWN seat (team toggle /
+   * bench / promote) is allowed — it touches only their own seat, so there is
+   * no abuse vector, and banning self-bench would trap a host that wants to
+   * give up their playable seat. A benched host keeps the chair and may still
+   * start the match (startMatch has no playable-seat requirement). Only
+   * SELF-HOST (`lobbyhost` with the host's own id) is rejected, as a no-op
+   * (lobbyHost guards `targetId === this.host`).
+   *
+   * Only the host, only pre-game, only targets in the room. Anything else is
+   * ignored. Live teams stay frozen (mid-match moves would desync the sim).
+   */
+  lobbyMove(fromSeat: Seat, targetId: unknown, team: unknown, spectator: unknown): void {
+    if (this.kind !== "private" || this.phase !== "pregame" || this.host !== fromSeat.id) return;
+    if (typeof targetId !== "string" || !targetId) return;
+    const target = this.seats.get(targetId);
+    if (!target) return;
+    if (spectator === true) {
+      if (target.spectator) return;
+      target.spectator = true;
+      target.slot = 0;
+      this.broadcastLobby();
+      return;
+    }
+    if (spectator === false) {
+      if (!target.spectator) {
+        if (team === 0 || team === 1) {
+          if (target.team !== team) {
+            target.team = team;
+            this.broadcastLobby();
+          }
+        }
+        return;
+      }
+      if (this.playableHumans().length >= this.seatCount) return;
+      target.spectator = false;
+      target.moveBank = 0;
+      target.queue.length = 0;
+      target.slot = this.nextSlot();
+      target.team = team === 0 || team === 1 ? team : this.pickTeam();
+      this.send(target, { t: "promoted", slot: target.slot });
+      this.broadcastLobby();
+      return;
+    }
+    if (team === 0 || team === 1) {
+      if (target.spectator || target.team === team) return;
+      target.team = team;
+      this.broadcastLobby();
+      return;
+    }
+    // Bare move = team toggle (TDM only — FFA/GUN are teamless, so a bare
+    // move there is a no-op without broadcast).
+    if (this.mode !== "tdm") return;
+    if (target.spectator) return;
+    target.team = (target.team === 0 ? 1 : 0) as Team;
+    this.broadcastLobby();
+  }
+
+  /**
+   * HOST ONLY: hand the host chair to another seat in the room. Allowed in any
+   * phase (a host may hand over mid-match); the roster broadcast is the
+   * notification — every client re-renders host badges + START from it.
+   */
+  lobbyHost(fromSeat: Seat, targetId: unknown): void {
+    if (this.kind !== "private" || this.host !== fromSeat.id) return;
+    if (typeof targetId !== "string" || !targetId || targetId === this.host) return;
+    if (!this.seats.has(targetId)) return;
+    this.host = targetId;
+    this.broadcastLobby();
+  }
+
+  /**
    * PUBLIC/YARD TDM ONLY — re-deal every playable body (humans AND bots) onto
    * two even teams at each rollover, BEFORE nextMatch() spawns the fresh match
    * on the new sides. Spectators have no body and stay benched; their queue
@@ -1157,6 +1264,10 @@ class Room {
       }
       case "ping": {
         // H3: ping is a pong-amplification oracle — gate per-socket.
+        // NOTE: seat.ping is DISPLAY-ONLY (lobby ms badges). It rides the
+        // client's self-reported `rtt` and is spoofable, so nothing
+        // authoritative (host succession, matchmaking, …) may read it —
+        // host transfer sorts by joinedAt only (dropSeat).
         const now = Date.now();
         if (now - seat.lastPing < PING_MIN_GAP_MS) return;
         seat.lastPing = now;
@@ -1260,6 +1371,22 @@ class Room {
         if (now - seat.lastLobbySet < LOBBYQ_MIN_GAP_MS) return;
         seat.lastLobbySet = now;
         this.shuffle(seat);
+        return;
+      }
+      case "lobbymove": {
+        // H3: roster-wide broadcast like lobbyset/shuffle — same gate.
+        const now = Date.now();
+        if (now - seat.lastLobbySet < LOBBYQ_MIN_GAP_MS) return;
+        seat.lastLobbySet = now;
+        this.lobbyMove(seat, m.id, m.team, m.spectator);
+        return;
+      }
+      case "lobbyhost": {
+        // H3: same fan-out as the lobby writes above — same gate.
+        const now = Date.now();
+        if (now - seat.lastLobbySet < LOBBYQ_MIN_GAP_MS) return;
+        seat.lastLobbySet = now;
+        this.lobbyHost(seat, m.id);
         return;
       }
       case "lobbyq": {
@@ -1527,7 +1654,13 @@ class Room {
 
   namecheck(msg: Partial<ClientMsg>): NameCheck {
     const clean = dedupeName(cleanName(msg.name), this.allNames());
-    const playableFull = this.playableHumans().length >= this.seatCount;
+    // Same free-seat rule as addSeat: live/countdown private rooms seat on
+    // BODIES (humans + bots), so a full simulated room reports spectate/full
+    // and the gate offers the bench instead of a phantom playable seat.
+    const playableFull =
+      this.kind === "private" && this.phase !== "pregame"
+        ? this.session.players.size >= this.seatCount
+        : this.playableHumans().length >= this.seatCount;
     const spectFull = this.spectators().length >= MAX_SPECTATORS;
     return {
       t: "namecheck",
@@ -2295,7 +2428,23 @@ function onSocket(ws: WsConn, ip: string): void {
         return;
       }
       room = target;
-      seat = target.addSeat(ws, cleanName(m.name), m.snapshotFormat === "compact-v1");
+      const newSeat = target.addSeat(ws, cleanName(m.name), m.snapshotFormat === "compact-v1");
+      if (!newSeat) {
+        // Bench-overflow refuse (addSeat: playable + bench both full).
+        room = null;
+        try {
+          ws.send(JSON.stringify({ t: "err", msg: "server full" }));
+        } catch {
+          /* ignore */
+        }
+        try {
+          ws.close();
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      seat = newSeat;
       if (m.loadout && typeof m.loadout === "object") {
         seat.loadout = sanitizeLoadout(m.loadout);
         const p = target.seatBody(seat);
