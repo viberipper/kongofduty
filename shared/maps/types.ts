@@ -103,6 +103,13 @@ export type MapDef = {
   minimapImage?: string;
   audioScale?: number;
   qaViews?: unknown[];
+  /**
+   * Authored FFA spawn points (mid-map, teamless). When present and non-empty,
+   * FFA draws its pool from these instead of the team sides (ARES RELAY: the
+   * team spawns all sit in the two end bays). Absent everywhere else: FFA
+   * falls back to the whole team pool (+ nav nodes on stacked maps).
+   */
+  ffaSpawns?: Spawn[];
   /** everything else comes from the runtime map json (setMapData) */
   [key: string]: unknown;
 };

@@ -91,7 +91,7 @@ export class ScorePops {
     }
     if (src === you) {
       const add: Line[] = [{ pts: KILL, label: "KILL", at: now }];
-      const gun = weapon !== "nade" && weapon !== "strike" && weapon !== "knife" && weapon !== "melee";
+      const gun = weapon !== "nade" && weapon !== "strike" && weapon !== "nuke" && weapon !== "knife" && weapon !== "melee";
       if (head && gun) add.push({ pts: HEAD, label: "HEADSHOT", at: now });
       if (wallbang && gun) add.push({ pts: WALLBANG, label: "WALLBANG", at: now });
       for (const m of medals) {

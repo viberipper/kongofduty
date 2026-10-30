@@ -32,7 +32,7 @@ const PACK_FIELDS = [
   "id","seq","name","op","team","x","y","z","vx","vy","vz","yaw","pitch",
   "hp","armor","weapon","ads","sprint","crouch","slide","reload","firing","alive",
   "protect","kills","deaths","streak","ping","ammo","reserve","nades","nadeUp",
-  "alt","altAmmo","altRes","swap","cook","gun","bot",
+  "alt","altAmmo","altRes","swap","cook","gun","bot","lean",
 ];
 function decodeMsg(m) {
   if (m?.t === "snap" && Array.isArray(m.players)) {
@@ -173,6 +173,33 @@ async function main() {
   const dist = Math.hypot(me2.x - x0, me2.z - z0);
   console.log(`[pub] moved dist=${dist.toFixed(2)}m alive=${me2.alive}`);
   if (dist < 0.5) throw new Error("body did not move");
+
+  // ---------- 1a0) LEAN round-trip (Q/E, additive protocol field) ----------
+  // The server accepts `lean` on input and echoes it on the snapshot's own
+  // body; then back to neutral (no stickiness). After this the client idles,
+  // so a slow keepalive keeps the AFK kick (60 s warn / 90 s kick) off it.
+  let lseq = seq;
+  const lrun = setInterval(() => {
+    a.send({ t: "in", cmd: cmd(lseq++, { lean: 1 }) });
+  }, 15);
+  await sleep(700);
+  clearInterval(lrun);
+  const lSnap = a.snaps[a.snaps.length - 1];
+  const meL = lSnap.players.find((p) => p.id === snap.you);
+  console.log(`[pub] lean round-trip lean=${meL.lean}`);
+  if (meL.lean !== 1) throw new Error(`lean round-trip=${meL.lean}, expected 1`);
+  const nrun = setInterval(() => {
+    a.send({ t: "in", cmd: cmd(lseq++, { lean: 0 }) });
+  }, 15);
+  await sleep(700);
+  clearInterval(nrun);
+  const nSnap = a.snaps[a.snaps.length - 1];
+  const meN = nSnap.players.find((p) => p.id === snap.you);
+  if (meN.lean !== 0) throw new Error(`lean release=${meN.lean}, expected 0`);
+  console.log("[pub] lean release ok");
+  const keep = setInterval(() => {
+    a.send({ t: "in", cmd: cmd(lseq++) });
+  }, 5000);
 
   // ---------- 1a2) PUBLIC TDM — second human joins the RUNNING yard ----------
   // No new room per join, no private lobby: the same "" room, an immediate
@@ -590,6 +617,7 @@ async function main() {
   late2.ws.close();
 
   // shut the hub worker back down (spawned case)
+  clearInterval(keep);
   if (proc) {
     await new Promise((r) => setTimeout(r, 300));
     proc.kill();

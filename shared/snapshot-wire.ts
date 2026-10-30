@@ -10,7 +10,9 @@ const fields = ['id','seq','name','op','team','x','y','z','vx','vy','vz','yaw','
   // gun game (appended): ladder progress
   'gun',
   // bot flag (appended): true for AI bodies
-  'bot'] as const satisfies readonly (keyof PlayerSnap)[];
+  'bot',
+  // lean (appended): corner lean, view-only
+  'lean'] as const satisfies readonly (keyof PlayerSnap)[];
 type Complete = Exclude<keyof PlayerSnap, typeof fields[number]> extends never ? true : never;
 const complete: Complete = true;
 void complete;

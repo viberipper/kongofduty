@@ -514,6 +514,10 @@ function sanitizeCmd(cmd: InputCmd): void {
   // finite after sanitize, use-site eye/rewind fallbacks cover the rest).
   if (!Number.isFinite(cmd.dt) || cmd.dt <= 0) cmd.dt = TICK_DT;
   else cmd.dt = clamp(cmd.dt, 0, 0.15);
+  // LEAN (Q/E, view-only): -1 | 0 | 1. Anything else (absent on old clients,
+  // NaN, 2, "left") is neutral — it never moves the capsule, so a forged
+  // value buys nothing, but the snap echoes it to every renderer.
+  cmd.lean = cmd.lean === 1 ? 1 : cmd.lean === -1 ? -1 : 0;
   if (!Number.isFinite(cmd.ox)) cmd.ox = 0;
   else cmd.ox = clamp(cmd.ox, -128, 128);
   if (!Number.isFinite(cmd.oy)) cmd.oy = 0;
@@ -1213,6 +1217,12 @@ export type SimPlayer = {
   cookAt: number;
   ads: number;
   wantAds: boolean;
+  /**
+   * Corner lean, -1 (Q) | 0 | 1 (E). Set from every command, replicated on the
+   * snapshot. VIEW-ONLY: no movement, trace or hitbox code reads it — the eye
+   * shifts and the model rolls client-side, the capsule never moves.
+   */
+  lean: -1 | 0 | 1;
   sprint: boolean;
   tac: boolean;
   crouch: boolean;
@@ -1649,6 +1659,7 @@ export class GameSession {
       cookAt: 0,
       ads: 0,
       wantAds: false,
+      lean: 0,
       sprint: false,
       tac: false,
       crouch: false,
@@ -1827,7 +1838,13 @@ export class GameSession {
     // shipped. On a stacked-floors map (dust2) the authored twelve are only the
     // seed: FFA draws from a map-wide pool of validated nav nodes and team modes
     // from the authored side plus the nav nodes around it — see spawnPool().
-    let pool: Spawn[] = STACKED_FLOORS ? spawnPool(this.mode, p.team) : SPAWNS.filter((s) => (this.mode === "ffa" ? true : s.team === p.team));
+    // A map with authored FFA points (ARES RELAY) draws those in FFA instead
+    // of the team sides, on any map shape.
+    let pool: Spawn[];
+    {
+      const ffa = this.mode === "ffa" ? ffaAuthored() : null;
+      pool = ffa ? [...ffa] : fallbackSpawnPool(this.mode, p.team);
+    }
     // Never respawn on top of your own corpse: drop points within 5m of the
     // death spot when any alternative exists.
     const farPool = pool.filter((s) => Math.hypot(p.x - s.x, p.z - s.z) >= 5);
@@ -1980,7 +1997,10 @@ export class GameSession {
           let fb: Spawn | null = null;
           let fbD = -1;
           let fbY = 0;
-          for (const s of SPAWNS) {
+          // Same pool the scoring drew from: authored FFA points in FFA where
+          // they exist, otherwise the team sides (team-filtered below).
+          const fbSrc = this.mode === "ffa" ? (ffaAuthored() ?? SPAWNS) : SPAWNS;
+          for (const s of fbSrc) {
             if (this.mode !== "ffa" && s.team !== p.team) continue;
             const y = spawnFootY(s.x, s.z, s.y);
             if (y === null) continue;
@@ -2061,6 +2081,7 @@ export class GameSession {
     p.yaw = cmd.yaw;
     p.pitch = clamp(cmd.pitch, -1.45, 1.45);
     p.wantAds = cmd.ads && p.slide <= 0 && p.reload <= 0;
+    p.lean = cmd.lean ?? 0;
     // THE INPUT GATE. Before "live" the yaw and pitch above have already landed
     // — LOOK IS NEVER LOCKED, so a player spends the 3-2-1 settling their
     // crosshair and picking a lane exactly as they would in any shooter — and
@@ -2120,6 +2141,8 @@ export class GameSession {
       p.nadeUp = false;
       return;
     }
+    // Same spawn-protection break as tryFire: the throw is outgoing damage.
+    p.protect = 0;
     const ey = this.eyeY(p);
     let ox = Number.isFinite(cmd.ox) ? cmd.ox : p.x;
     let oy = Number.isFinite(cmd.oy) ? cmd.oy : ey;
@@ -2197,6 +2220,9 @@ export class GameSession {
     p.cook = 0;
     p.nadeUp = false;
     p.nadeCd = NADE_CD;
+    // Cooked to zero kills the holder — even a spawn-protected one, or the
+    // "suicide" would be soaked by its own immunity and survive its own frag.
+    p.protect = 0;
     if (p.nades > 0) p.nades -= 1;
     const ey = this.eyeY(p);
     const a = aimDir(p.yaw, p.pitch);
@@ -2344,6 +2370,8 @@ export class GameSession {
     const w = WEAPON_BY_ID.knife;
     if (p.fireCd > 0) return;
     p.fireCd = shotInterval(w);
+    // Same spawn-protection break as tryFire: the knife is outgoing damage.
+    p.protect = 0;
     const ox = p.x;
     const oy = this.eyeY(p);
     const oz = p.z;
@@ -2413,6 +2441,10 @@ export class GameSession {
     if (w.mag > 0) p.ammo -= 1;
     p.sprint = false;
     p.firing = true;
+    // SPAWN-PROTECTION BREAK (security LOW): your own shot ends your own
+    // immunity. Without this a protected body deals damage for 5 s that no
+    // one can return — incoming stays soaked (castShots), outgoing does not.
+    p.protect = 0;
     if (w.fire !== "auto") p.armed = false;
     // THE SPREAD, DETERMINISTICALLY. The cone is read off the state the round
     // leaves the barrel with (before this shot's bloom), and the direction
@@ -2672,8 +2704,8 @@ export class GameSession {
       if (a && b) break;
     }
     // No history either side of `when` — a player who joined or respawned since.
-    // The live body is the only pose there is; spawn protection (1.15 s, more
-    // than three rewind windows) is what actually keeps that from being shot.
+    // The live body is the only pose there is; spawn protection (5 s, many
+    // rewind windows) is what actually keeps that from being shot.
     if (!a && !b) return p;
     if (!a) a = b;
     if (!b) b = a;
@@ -2745,6 +2777,14 @@ export class GameSession {
       this.events.push({ t: "strike", x: dst.x, z: dst.z, team: src.team });
       this.artillery(dst.x, dst.z, src);
     }
+    // KILLSTREAK NUKE — 10 kills without dying. A heavy strike on the
+    // victim's position (reward, NOT a match end: the match plays on) plus a
+    // `nuke` event for the banner/announcer moment. Fires once per streak:
+    // the count only ever equals 10 on the step that reaches it.
+    if (src.streak === 10) {
+      this.events.push({ t: "nuke", src: src.id, x: dst.x, z: dst.z, streak: 10 });
+      this.nukeBlast(dst.x, dst.z, src);
+    }
 
     const limitHit =
       this.mode !== "ffa"
@@ -2777,7 +2817,9 @@ export class GameSession {
 
   artillery(x: number, z: number, src: SimPlayer): void {
     for (const o of this.players.values()) {
-      if (!o.alive || o.id === src.id) continue;
+      // Spawn protection soaks the strike like every other damage source: a
+      // 5 s immunity that artillery ignored would be no immunity at all.
+      if (!o.alive || o.protect > 0 || o.id === src.id) continue;
       if (this.mode !== "ffa" && o.team === src.team) continue;
       const d = Math.hypot(o.x - x, o.z - z);
       if (d < 5.5) {
@@ -2785,6 +2827,26 @@ export class GameSession {
         o.regenT = 0;
         if (o.hp <= 0) this.kill(src, o, "strike", false);
       }
+    }
+  }
+
+  /**
+   * THE KILLSTREAK NUKE (10 without dying). Same shape as artillery, bigger:
+   * 12 m radius, 150 → 50 falloff, credited as weapon "nuke" (killfeed labels
+   * it TACTICAL NUKE). Respects teams, spawn protection and regen reset like
+   * every other blast; kills chain through kill() so multi-kill medals and
+   * the ladder still count them. Deliberately NOT a match end — the reward is
+   * the blast plus the call, never a free win.
+   */
+  nukeBlast(x: number, z: number, src: SimPlayer): void {
+    for (const o of this.players.values()) {
+      if (!o.alive || o.protect > 0 || o.id === src.id) continue;
+      if (this.mode !== "ffa" && o.team === src.team) continue;
+      const d = Math.hypot(o.x - x, o.z - z);
+      if (!Number.isFinite(d) || d >= 12) continue;
+      o.hp -= Math.round(lerp(150, 50, d / 12));
+      o.regenT = 0;
+      if (o.hp <= 0) this.kill(src, o, "nuke", false);
     }
   }
 
@@ -2799,7 +2861,7 @@ export class GameSession {
     // rewind buffer and the countdown itself are both timestamps off this clock
     // — but nothing that belongs to the MATCH does: the round clock is frozen
     // (a match that has not started has not spent any of its clock) and
-    // so is spawn protection, so the 1.15 s of immunity every body is holding
+    // so is spawn protection, so the 5 s of immunity every body is holding
     // when the numerals appear is still there at "GO" instead of having expired
     // during the wait.
     if (this.phase === "countdown" && this.time >= this.liveAt) this.phase = "live";
@@ -3005,6 +3067,7 @@ export class GameSession {
         cook: q2(p.cook),
         gun: p.gun,
         bot: p.bot,
+        lean: p.lean,
       });
     }
     return out;
@@ -3278,6 +3341,7 @@ export function predictMovement(p: SimPlayer, cmd: InputCmd, dt = TICK_DT, live 
   p.yaw = cmd.yaw;
   p.pitch = clamp(cmd.pitch, -1.45, 1.45);
   p.wantAds = cmd.ads && p.slide <= 0 && p.reload <= 0;
+  p.lean = cmd.lean ?? 0;
   trySwap(p, cmd.weapon);
   if (cmd.reload) startReload(p);
   // TRAVEL IS METERED (review HIGH-2): the authority gates travel behind the
@@ -4913,13 +4977,25 @@ function spawnFacing(x: number, y: number, z: number, authored: number): number 
 
 const SPAWN_POOLS: Map<string, Spawn[]> = new Map();
 
+/**
+ * Authored teamless FFA points (MapDef.ffaSpawns, ARES RELAY), or null.
+ * FFA on a map that ships them spawns mid-map instead of on the team sides.
+ */
+function ffaAuthored(): Spawn[] | null {
+  const list = MAP.ffaSpawns;
+  return Array.isArray(list) && list.length > 0 ? list : null;
+}
+
 function spawnPool(mode: string, team: 0 | 1): Spawn[] {
   const key = mode === "ffa" ? "ffa" : `team${team}`;
   let pool = SPAWN_POOLS.get(key);
   if (pool) return pool;
   if (mode === "ffa") {
-    pool = [...SPAWNS];
-    for (const n of BOT_NAV) if (spawnNodeOk(n)) pool.push(navSpawn(n, 0));
+    const authored = ffaAuthored();
+    // A map with authored FFA points spawns exactly there (curated, teamless).
+    // Everywhere else FFA draws the whole team pool (+ nav nodes below).
+    pool = authored ? [...authored] : [...SPAWNS];
+    if (!authored) for (const n of BOT_NAV) if (spawnNodeOk(n)) pool.push(navSpawn(n, 0));
   } else {
     const side = SPAWNS.filter((s) => s.team === team);
     pool = [...side];
@@ -4933,9 +5009,26 @@ function spawnPool(mode: string, team: 0 | 1): Spawn[] {
   return pool;
 }
 
+/**
+ * The non-authored fallback pool: stacked-floors maps (dust2) draw the
+ * nav-augmented spawnPool, everything else the raw team sides. Shared by the
+ * live spawn() path and the instruments-only spawnPoolFor() below so the two
+ * can never disagree about what "the pool" is.
+ */
+function fallbackSpawnPool(mode: string, team: 0 | 1): Spawn[] {
+  return STACKED_FLOORS ? spawnPool(mode, team) : SPAWNS.filter((s) => (mode === "ffa" ? true : s.team === team));
+}
+
 /** Instruments only: the spawn pool a mode/team draws from on this map. */
 export function spawnPoolFor(mode: "ffa" | "tdm", team: 0 | 1): Spawn[] {
-  return STACKED_FLOORS ? spawnPool(mode, team) : SPAWNS.filter((s) => (mode === "ffa" ? true : s.team === team));
+  // Authored FFA points always win in FFA (ARES RELAY) — the same preference
+  // the live spawn() path applies before the fallback, so a branch that
+  // returns the raw team pool past the authored points cannot recur.
+  if (mode === "ffa") {
+    const authored = ffaAuthored();
+    if (authored) return [...authored];
+  }
+  return fallbackSpawnPool(mode, team);
 }
 
 /**
@@ -7402,6 +7495,9 @@ export function localCmd(
     melee: boolean;
     nade?: boolean;
     nadeHold?: boolean;
+    /** Corner lean keys (Q/E): exactly one, both or neither may be held. */
+    leanL?: boolean;
+    leanR?: boolean;
   },
   yaw: number,
   pitch: number,
@@ -7436,6 +7532,7 @@ export function localCmd(
     melee: keys.melee,
     nade: !!keys.nade,
     nadeHold: !!keys.nadeHold,
+    lean: (keys.leanR ? 1 : 0) - (keys.leanL ? 1 : 0) as -1 | 0 | 1,
     weapon,
     clientTime,
     ...(Number.isFinite(renderTime as number) ? { rt: renderTime } : {}),

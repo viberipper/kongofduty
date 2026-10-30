@@ -123,7 +123,7 @@ export const BOT_NAMES: readonly string[] = [
   "Stem Scout", "Bunch Cap", "Pulp Punk", "Nana Kai", "Coco Loco", "Big Peel", "Mango Mike", "Jungle Jim", "Kong Jr", "Peel Petty",
   "Split Sid", "Plantain Pat", "Ripe Rita", "Bruise Lee", "Fibre Fay", "Bunch Bo",
 ];
-export const SPAWN_PROTECT = 1.15;
+export const SPAWN_PROTECT = 5;
 export const RESPITE = 2.35;
 
 export type Team = 0 | 1;
@@ -180,6 +180,11 @@ export type InputCmd = {
   dz: number;
   /** FRAG: the throw itself — true on exactly the release tick. */
   nade?: boolean;
+  /**
+   * LEAN around corners: -1 = lean left (Q), 0 = neutral, 1 = lean right (E).
+   * View-only — the hit capsule never moves. Absent (old clients) reads as 0.
+   */
+  lean?: -1 | 0 | 1;
   /**
    * FRAG: the pin is pulled and the fuse is COOKING. The sim starts the fuse on
    * the first command that carries it and burns it one tick per command; the
@@ -245,6 +250,13 @@ export type PlayerSnap = {
    * never truthiness, so a stray `"false"` string can never badge a human.
    */
   bot?: boolean;
+  /* ── APPENDED (lean): -1 left / 0 neutral / 1 right, view-only ── */
+  /**
+   * Corner lean (Q/E), -1 | 0 | 1. View-only: the eye shifts and the model
+   * rolls, the hit capsule never moves. Absent on old servers/replays: every
+   * reader must default it (`?? 0`), never trust it finite.
+   */
+  lean?: number;
 };
 
 /** One live banana frag. Replicated every snapshot; interpolated like players. */
@@ -309,6 +321,12 @@ export type NetEvent =
   | { t: "boom"; id: number; src: string; x: number; y: number; z: number }
   | { t: "uav"; team: Team }
   | { t: "strike"; x: number; z: number; team: Team }
+  /**
+   * KILLSTREAK NUKE (10 kills without dying): a heavy strike on the victim's
+   * position plus a banner/announcer moment. Reward, not a match end — the
+   * match plays on. Additive: old clients ignore unknown event types.
+   */
+  | { t: "nuke"; src: string; x: number; z: number; streak: number }
   | { t: "chat"; name: string; text: string }
   /** A spray tag on a surface (client/src/sprays.ts). */
   | { t: "spray"; src: string; tag: number; x: number; y: number; z: number; nx: number; ny: number; nz: number }

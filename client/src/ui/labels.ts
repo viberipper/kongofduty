@@ -46,6 +46,7 @@ export function killHow(weapon: string, self: boolean, short = false): string {
   if (self) return short ? "SELF" : "OWN GRENADE";
   if (weapon === "nade") return short ? "FRAG" : "FRAG GRENADE";
   if (weapon === "strike") return "ARTILLERY";
+  if (weapon === "nuke") return "TACTICAL NUKE";
   if (weapon === "melee" || weapon === "knife") return "MELEE";
   if (short) {
     const w = (WEAPON_BY_ID as Record<string, { short?: string } | undefined>)[weapon];

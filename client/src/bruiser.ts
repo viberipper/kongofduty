@@ -1538,6 +1538,13 @@ export class BruiserActor {
   deadT = 0;
   wasAlive = true;
   yawVis = 0;
+  /**
+   * CORNER LEAN (Q/E, view-only): eased toward the snapshot's `lean`
+   * (-1 | 0 | 1, absent on old servers = 0). Rolls the root and shifts it
+   * along the strafe-right vector — the drawn body only, the hit capsule
+   * never moves.
+   */
+  leanVis = 0;
   tmpQ = new THREE.Quaternion();
   chevron!: THREE.Sprite;
   forced: string | null = null;
@@ -2855,7 +2862,16 @@ export class BruiserActor {
     this.yawVis += dy * Math.min(1, dt * 14);
     this.root.rotation.y = this.yawVis;
     this.root.rotation.x = 0;
-    this.root.rotation.z = 0;
+    // CORNER LEAN (view-only): ease toward the snapped value, roll the root
+    // about the facing axis and shift it along strafe-right ((cos yaw,
+    // -sin yaw), the sim's +ax side). Dead bodies lean nothing.
+    {
+      const leanTgt = p.alive ? (p.lean === 1 ? 1 : p.lean === -1 ? -1 : 0) : 0;
+      this.leanVis += (leanTgt - this.leanVis) * Math.min(1, dt * 12);
+      this.root.rotation.z = -this.leanVis * 0.1;
+      this.root.position.x += Math.cos(this.yawVis) * this.leanVis * 0.2;
+      this.root.position.z += -Math.sin(this.yawVis) * this.leanVis * 0.2;
+    }
 
     const spd = Math.hypot(p.vx, p.vz);
     this.kick = Math.max(0, this.kick - dt * 17);

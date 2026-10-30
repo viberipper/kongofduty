@@ -233,6 +233,19 @@ import { shuffledYardTeams } from "./yard-teams";
 const YARD_ROLLOVER_MS = 19_000; // PUBLIC_ROLLOVER_S
 const LOBBY_RETURN_MS = 18_000; // LOBBY_RETURN_S
 const IDLE_MS = 21_000;
+/**
+ * AFK POLICY (input-idle kick, yard + private). A seat whose body is live but
+ * whose commands carry no activity for AFK_WARN_MS gets ONE private warning;
+ * at AFK_KICK_MS the seat is dropped (body gone, spectator promoted / bot
+ * backfilled by the usual dropSeat path). Activity (cmdActive) is movement,
+ * buttons, ADS, lean or a moved aim — the client streams at 64 Hz either
+ * way, so bare arrival never refreshes. Bots have no seats and are exempt
+ * by construction; spectators send no input and are excluded; pre-game and
+ * countdown rooms never kick (nobody is playing yet). Ping/chat/lobby
+ * traffic does not count as activity.
+ */
+const AFK_WARN_MS = 60_000;
+const AFK_KICK_MS = 90_000;
 const SNAP_EVERY = 2; // TICK_HZ / SNAP_HZ
 const TICK_MS = 1000 / 64;
 const ROOM_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -631,7 +644,38 @@ function sanitizeCmd(c: unknown, serverNowSec: number): InputCmd | null {
     dz: clampDirection(o.dz),
     nade: o.nade === true,
     nadeHold: o.nadeHold === true,
+    // LEAN (Q/E, view-only): -1 | 0 | 1, anything else is neutral. Inert
+    // movement-wise (the capsule never reads it), allowlisted so the snap can
+    // echo it to every renderer.
+    lean: o.lean === 1 ? 1 : o.lean === -1 ? -1 : 0,
   };
+}
+
+/** AFK ACTIVITY: does this command prove a human is playing? The client
+ *  streams at 64 Hz either way, so bare arrival means nothing — movement,
+ *  buttons, ADS, lean or a moved aim do. Pure-neutral streams (all sticks
+ *  centred, no button, aim untouched) are the AFK signature. Held Q/E
+ *  (lean !== 0) counts as activity: a lean-held camper is playing, not idle.
+ *  Lean is allowlisted to -1 | 0 | 1 at ingress (same clamp as the sim's
+ *  sanitizeCmd), so a forged value can neither move the capsule nor fake
+ *  activity past this check. */
+function cmdActive(c: InputCmd, seat: Seat): boolean {
+  if (
+    c.ax !== 0 || c.az !== 0 || c.jump || c.crouch || c.sprint || c.tac ||
+    c.ads || c.fire || c.reload || c.melee || c.nade || c.nadeHold || c.lean !== 0
+  ) return true;
+  if (!Number.isFinite(seat.lastYaw) || !Number.isFinite(seat.lastPitch)) return true;
+  return Math.abs(c.yaw - seat.lastYaw) > 1e-4 || Math.abs(c.pitch - seat.lastPitch) > 1e-4;
+}
+
+/** Fold one accepted command into the seat's AFK tracking (see cmdActive). */
+function noteInput(seat: Seat, c: InputCmd): void {
+  if (cmdActive(c, seat)) {
+    seat.lastInput = Date.now();
+    seat.afkWarned = false;
+  }
+  seat.lastYaw = c.yaw;
+  seat.lastPitch = c.pitch;
 }
 
 // ---------------------------------------------------------------------------
@@ -677,6 +721,18 @@ type Seat = {
    *  (banked burst + that second's income), then 1.0 s/s. Honest TCP-stall
    *  bursts still catch up out of what the stall banked. */
   moveBank: number;
+  /**
+   * AFK TRACKING (input-idle, not transport-idle): wall-clock ms of the last
+   * command carrying real ACTIVITY (see cmdActive below). The client streams
+   * at 64 Hz whether the player plays or not, so bare arrival proves nothing
+   * — only movement, buttons, ADS or a moved aim counts. Ping/chat/lobby
+   * traffic does NOT refresh it; afkWarned latches the warning per stretch.
+   */
+  lastInput: number;
+  afkWarned: boolean;
+  /** Last aim seen (AFK activity delta); NaN until the first command lands. */
+  lastYaw: number;
+  lastPitch: number;
 };
 
 function memberOf(s: Seat): LobbyMember {
@@ -874,6 +930,10 @@ class Room {
       violations: 0,
       lastSeq: -1,
       moveBank: 0,
+      lastInput: Date.now(),
+      afkWarned: false,
+      lastYaw: NaN,
+      lastPitch: NaN,
     };
     if (!seat.spectator) {
       seat.slot = this.nextSlot();
@@ -947,6 +1007,9 @@ class Room {
     s.spectator = false;
     s.moveBank = 0;
     s.queue.length = 0;
+    // A promoted seat opens un-accused: the bench sends no input.
+    s.lastInput = Date.now();
+    s.afkWarned = false;
     s.slot = this.nextSlot();
     s.team = this.pickTeam();
     this.ensureBody(s);
@@ -1241,6 +1304,8 @@ class Room {
         // The sim applies the pre-live gate while still accepting aim/sequence.
         const cmd = sanitizeCmd(m.cmd, this.session.time);
         if (!cmd) return;
+        // AFK: only commands carrying real activity refresh (see cmdActive).
+        noteInput(seat, cmd);
         // H1 seq-monotonic dedupe: drop replays/out-of-order (protocol claims
         // dedupe on seq; the server did not enforce it — a replayed bundle
         // integrated twice).
@@ -1255,6 +1320,9 @@ class Room {
         for (const raw of m.c.slice(-8)) {
           const cmd = sanitizeCmd(raw, this.session.time);
           if (!cmd) continue;
+          // AFK: any command in the bundle carrying activity counts (the aim
+          // tracks the newest accepted one) — see cmdActive/noteInput.
+          noteInput(seat, cmd);
           if (cmd.seq <= seat.lastSeq) continue;
           seat.lastSeq = cmd.seq;
           seat.queue.push(cmd);
@@ -1762,6 +1830,40 @@ setInterval(() => {
           ws.terminate();
         } catch {
           /* already closed */
+        }
+        continue;
+      }
+      // AFK: live match, playable seat, human body — and quiet too long.
+      if (r.session.phase === "live" && !s.spectator) {
+        const body = r.session.players.get(s.id);
+        if (body && !body.bot) {
+          const idle = now - s.lastInput;
+          if (idle > AFK_KICK_MS) {
+            const ws = s.ws;
+            // KICK WITH A VISIBLE REASON (review LOW): a terminate() is
+            // reason-less (client reads 1006/CONNECTION LOST), so the kick
+            // line goes out as a notice first and the socket closes 4001
+            // with the same reason — the client's onclose surfaces
+            // ev.reason in the net line instead of the generic drop text.
+            r.dropSeat(s);
+            try {
+              if (ws.readyState === 1) {
+                ws.send(JSON.stringify({ t: "notice", text: "AFK — REMOVED FOR INACTIVITY" }));
+                ws.close(4001, "AFK — REMOVED FOR INACTIVITY");
+              } else {
+                ws.terminate();
+              }
+            } catch {
+              try {
+                ws.terminate();
+              } catch {
+                /* already closed */
+              }
+            }
+          } else if (idle > AFK_WARN_MS && !s.afkWarned) {
+            s.afkWarned = true;
+            r.send(s, { t: "notice", text: "AFK WARNING — move or you will be removed in 30 s" });
+          }
         }
       }
     }

@@ -133,6 +133,7 @@ function clipFor(text: string): string | undefined {
   const exact = CLIPS[text];
   if (exact) return exact;
   if (text.startsWith("FIRST BLOOD")) return "first-blood.ogg";
+  if (text.includes("TACTICAL NUKE")) return "unstoppable.ogg";
   if (text.includes("ON A RAMPAGE")) return "rampage.ogg";
   if (text.includes("UNSTOPPABLE")) return "unstoppable.ogg";
   if (text.includes("LIVING LEGEND")) return "legend.ogg";
@@ -378,6 +379,26 @@ export class Announcer {
       if (willVoice) this.killVoiceSeq = kid;
       this.say(`SHUTDOWN! ${killer} ENDS ${victim}'S STREAK`, involved ? 3 : 1, false, undefined, willVoice, `shutdown:${victim}`, SHUTDOWN_COOL_MS);
     }
+  }
+
+  /**
+   * THE KILLSTREAK NUKE (10 kills without dying, shared/sim.ts nukeBlast).
+   * Your nuke speaks like a multi-kill (prio 4, cuts the pacing gap — the
+   * moment already waited for nothing); anyone else's is subtitle-only.
+   * Outside the killstreak toggle: silent entirely, like streaks and multis.
+   */
+  nuke(killer: string, mine: boolean): void {
+    if (!prefs().killstreaks) return;
+    this.say(
+      `TACTICAL NUKE! ${killer} — 10 IN A ROW`,
+      mine ? 4 : 1,
+      false,
+      undefined,
+      mine,
+      undefined,
+      0,
+      true,
+    );
   }
 
   /** Hold a multi-kill for the upgrade window; only the highest speaks. */

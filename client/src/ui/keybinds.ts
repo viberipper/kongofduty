@@ -27,6 +27,8 @@ export type Action =
   | "jump"
   | "crouch"
   | "sprint"
+  | "leanL"
+  | "leanR"
   | "fire"
   | "ads"
   | "reload"
@@ -49,6 +51,8 @@ export const ACTIONS: { id: Action; label: string; group: string; desc: string }
   { id: "right", label: "Strafe Right", group: "MOVEMENT", desc: "Step right." },
   { id: "jump", label: "Jump · Skip Killcam", group: "MOVEMENT", desc: "Jump and mantle. While a killcam plays, skips it (ENTER and a click also skip)." },
   { id: "crouch", label: "Crouch · Slide", group: "MOVEMENT", desc: "Crouch. Pressed while sprinting, slides." },
+  { id: "leanL", label: "Lean Left", group: "MOVEMENT", desc: "Lean around the left corner (view only — the hitbox never moves)." },
+  { id: "leanR", label: "Lean Right", group: "MOVEMENT", desc: "Lean around the right corner (view only — the hitbox never moves)." },
   { id: "sprint", label: "Sprint · Hold Breath", group: "MOVEMENT", desc: "Hold to sprint; double-tap for tactical sprint (SETTINGS → GAMEPLAY). Through a scope, hold to steady your breath." },
   { id: "fire", label: "Fire", group: "COMBAT", desc: "Fire your weapon." },
   { id: "ads", label: "Aim Down Sights", group: "COMBAT", desc: "Aim down sights. Hold or toggle is set under GAMEPLAY." },
@@ -70,6 +74,8 @@ export const DEFAULT_BINDS: Readonly<Binds> = {
   right: ["KeyD", ""],
   jump: ["Space", ""],
   crouch: ["KeyC", "ControlLeft"],
+  leanL: ["KeyQ", ""],
+  leanR: ["KeyE", ""],
   sprint: ["ShiftLeft", ""],
   fire: ["Mouse0", ""],
   ads: ["Mouse2", ""],

@@ -316,7 +316,7 @@ export class Game {
   actors = new Map<string, BruiserActor>();
   bruiserTpl: BruiserTemplate | null = null;
   lastEv: NetEvent[] = [];
-  keys = { f: false, b: false, l: false, r: false, jump: false, crouch: false, sprint: false, tac: false, ads: false, fire: false, reload: false, melee: false };
+  keys = { f: false, b: false, l: false, r: false, jump: false, crouch: false, leanL: false, leanR: false, sprint: false, tac: false, ads: false, fire: false, reload: false, melee: false };
   /**
    * GAMEPAD (ui/gamepad.ts). Analog move −1..1, refreshed every render frame by
    * pollGamepad; fixed() lets the louder of stick vs. WASD win (see localCmd).
@@ -336,6 +336,21 @@ export class Game {
   recP = 0;
   punchY = 0;
   punchP = 0;
+  /**
+   * ADS-SMOOTHED LOOK (aiming frame-skip fix). The mousemove handler used to
+   * read the snapshot's `ads` raw: a 0→1 flip lands up to a snapshot late
+   * while the FOV is still mid-lerp, so sensitivity steps mid-zoom and the
+   * camera skips. sensAds eases toward the snapshot value on the same ~18/s
+   * the FOV lerps at, so the turn rate tracks the picture instead of the
+   * network. lastLookT stamps the previous look event for the ease.
+   */
+  private sensAds = 0;
+  private lastLookT = 0;
+  /**
+   * Corner-lean view state (Q/E, view-only). leanSm eases toward the held
+   * keys every render frame so the eye glides instead of stepping.
+   */
+  private leanSm = 0;
   /** weapons stream: recoil pattern, punch springs, trauma, scope sway + breath. */
   feel = new WeaponFeel();
   /** weapons stream: hud-api feed + scope / cook ring / grenade danger chrome. */
@@ -1720,7 +1735,10 @@ export class Game {
       // ONE EVENT, ONE NOTIFICATION. This used to raise the persistent net line
       // AND a kill-banner saying the same thing at the same instant, in two
       // different type systems, on top of each other.
-      this.netStatus(`CONNECTION LOST (${ev.code}) — RECONNECTING`);
+      // A server kick carries a reason (AFK close 4001): surface it instead of
+      // the generic drop line, so a kick never reads as a network fault.
+      const kickReason = String(ev.reason || "").trim();
+      this.netStatus(kickReason ? `${kickReason.toUpperCase()} (${ev.code}) — RECONNECTING` : `CONNECTION LOST (${ev.code}) — RECONNECTING`);
       // Exponential backoff, capped: 0.5s, 1s, 2s, 4s, 8s, 8s... A dropped
       // player retries forever rather than being told to reload the page, but a
       // server that is down does not get hammered at 2 Hz by every client.
@@ -2092,6 +2110,27 @@ export class Game {
         return;
       }
       if (!this.running || !this.locked || (e.target instanceof HTMLElement && e.target.closest("input,textarea,[contenteditable=true]"))) return;
+      // CHAT OWNS ITS KEYS. While the line is open no key drives the game —
+      // including when focus slipped off the input (pointer-lock quirk): those
+      // keys would otherwise type nothing AND move the body (the "random open
+      // eats input" report). ENTER sends and ESC closes even unfocused; any
+      // other key pulls focus back instead of playing.
+      if (this.isChatOpen()) {
+        if (e.code === "Enter" || e.code === "NumpadEnter") {
+          const box = document.getElementById("chat-input") as HTMLInputElement | null;
+          if (box) {
+            e.preventDefault();
+            this.sendChat(box.value);
+            this.closeChat();
+            this.chatDraft = "";
+          }
+        } else if (e.code === "Escape") {
+          this.closeChat();
+        } else if (!e.repeat) {
+          (document.getElementById("chat-input") as HTMLInputElement | null)?.focus({ preventScroll: true });
+        }
+        return;
+      }
       const a = actionOf(e.code);
       // Keyboard Lock delivers reserved combinations in supported fullscreen browsers.
       // The scoreboard key only belongs to the game while the HUD is up: on every
@@ -2104,6 +2143,9 @@ export class Game {
     };
     const up = (e: KeyboardEvent) => {
       if (!this.running || !this.locked || (e.target instanceof HTMLElement && e.target.closest("input,textarea,[contenteditable=true]"))) return;
+      // Matches `down`: while the chat line is open, releases never touch
+      // game state either (keys were already cleared by openChat).
+      if (this.isChatOpen()) return;
       act(actionOf(e.code), false);
     };
     const chatIn = document.getElementById("chat-input") as HTMLInputElement | null;
@@ -2114,11 +2156,17 @@ export class Game {
         e.preventDefault();
         this.sendChat(chatIn.value);
         this.closeChat();
+        this.chatDraft = "";
       } else if (e.code === "Escape") {
         this.closeChat();
       }
     });
-    chatIn?.addEventListener("blur", () => this.closeChat());
+    chatIn?.addEventListener("blur", () => {
+      // FOCUS LOSS IS NOT A DISMISS (review LOW): a pointer-lock quirk or an
+      // alt-tab used to closeChat() here and eat the typed line. Keep the
+      // draft; only ENTER (sent) and ESC dismiss the line.
+      if (this.isChatOpen()) this.chatDraft = chatIn.value;
+    });
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     // The SKIP button is a real button for anyone with a cursor; with the
@@ -2130,6 +2178,12 @@ export class Game {
     this.canvas.addEventListener("mousedown", (e) => {
       if (!this.running) return;
       if ((this.killcamT > 0 || this.fkc) && e.button === 0) this.killcamSkip();
+      // A click while the chat line is open is typing business, not shooting:
+      // pull focus back; the re-lock path below still runs when unlocked.
+      if (this.isChatOpen()) {
+        (document.getElementById("chat-input") as HTMLInputElement | null)?.focus({ preventScroll: true });
+        if (this.locked) return;
+      }
       if (!this.locked) {
         this.captureKeyboard();
         // Chromium returns a Promise here and REJECTS it when the lock cannot be
@@ -2171,16 +2225,36 @@ export class Game {
     });
     window.addEventListener("mousemove", (e) => {
       if (!this.locked) return;
+      // SPIKE CLAMP: pointer-lock movement on Windows throws occasional huge
+      // deltas (lock re-acquire, DPI jumps) that read as a spin; no honest
+      // single event turns further than this.
+      let dx = e.movementX;
+      let dy = e.movementY;
+      if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+      dx = Math.max(-160, Math.min(160, dx));
+      dy = Math.max(-160, Math.min(160, dy));
       const me = this.me();
       const ads = me?.ads ?? 0;
       // weapons stream: through a scope the turn rate follows the zoom (same
       // feel per screen-width at 4x as at the hip); sights keep the ADS slow-down.
       // UI stream hook: sens / ADS multiplier / invert Y come from SETTINGS (ui/prefs.ts).
+      // ADS is eased (see sensAds), never stepped: the snapshot flips late
+      // while the FOV lerps, and stepping here is the aiming skip.
+      const nowMs = performance.now();
+      const ldt = Math.max(0.001, Math.min(0.1, (nowMs - this.lastLookT) / 1000 || 0.008));
+      this.lastLookT = nowMs;
+      this.sensAds += (ads - this.sensAds) * (1 - Math.exp(-18 * ldt));
+      const a = this.sensAds;
       const pf = prefs();
-      const zoom = this.whud.scoped ? (Math.tan((this.fov * Math.PI) / 360) / Math.tan((vfov() * Math.PI) / 360)) * 1.15 : 1 - ads * 0.38;
-      const s = pf.sens * 0.00215 * zoom * (1 + ads * (pf.adsSens - 1));
-      this.yaw -= e.movementX * s;
-      this.pitch = Math.max(-1.4, Math.min(1.4, this.pitch + e.movementY * s * (pf.invertY ? -1 : 1)));
+      const zoom = this.whud.scoped ? (Math.tan((this.fov * Math.PI) / 360) / Math.tan((vfov() * Math.PI) / 360)) * 1.15 : 1 - a * 0.38;
+      // SENS CLAMP AT THE USE SITE (review LOW-MED): prefs() is sanitised on
+      // load/set, but a mutated object must never become a spin multiplier —
+      // sens and the ADS multiplier are both pinned to 0.1–3 here.
+      const sensBase = Number.isFinite(pf.sens) ? pf.sens : 1;
+      const adsMult = Number.isFinite(pf.adsSens) ? pf.adsSens : 1;
+      const s = Math.max(0.1, Math.min(3, sensBase)) * 0.00215 * zoom * (1 + a * (Math.max(0.1, Math.min(3, adsMult)) - 1));
+      this.yaw -= dx * s;
+      this.pitch = Math.max(-1.4, Math.min(1.4, this.pitch + dy * s * (pf.invertY ? -1 : 1)));
     });
   }
 
@@ -2206,6 +2280,10 @@ export class Game {
         if (on) this.killcamSkip();
         break;
       case "crouch": this.keys.crouch = on; break;
+      // CORNER LEAN (Q/E, view-only): the eye shifts and the model rolls on
+      // the snapshot's lean value; the capsule never moves (shared/sim.ts).
+      case "leanL": this.keys.leanL = on; break;
+      case "leanR": this.keys.leanR = on; break;
       case "sprint":
         if (on) {
           const now = performance.now();
@@ -2257,8 +2335,9 @@ export class Game {
         break;
       }
       // TEXT CHAT. The input field takes the keyboard from here on (the guard
-      // in `down` skips form targets) until ENTER or ESC.
-      case "chat": if (on && !document.getElementById("hud")?.classList.contains("hidden")) this.openChat(); break;
+      // in `down` skips form targets) until ENTER or ESC. Re-pressing while
+      // open is a no-op (never a reset that eats the typed line).
+      case "chat": if (on && !this.isChatOpen() && !document.getElementById("hud")?.classList.contains("hidden")) this.openChat(); break;
       default:
         break;
     }
@@ -2553,20 +2632,39 @@ export class Game {
     return this.players.get(this.you);
   }
 
+  /** TRUE while the chat line is visibly open (input unhidden). */
+  isChatOpen(): boolean {
+    const box = document.getElementById("chat-input");
+    return !!box && !box.classList.contains("hidden");
+  }
+
+  /** Unsent chat line kept across blur/ESC so focus loss never eats typing. */
+  private chatDraft = "";
+
   /** Open the chat line. Held movement is let go so you stop while typing. */
   openChat(): void {
     const box = document.getElementById("chat-input") as HTMLInputElement | null;
     if (!box || !this.running) return;
+    // Idempotent: re-pressing T (or a refocus click) while open must never
+    // clear the line being typed — that reset is the "eats input" half.
+    if (!box.classList.contains("hidden")) {
+      box.focus({ preventScroll: true });
+      return;
+    }
     this.clearInput();
-    box.value = "";
+    // Restore the draft (blur/ESC keeps it; only a sent line clears it).
+    box.value = this.chatDraft;
     box.classList.remove("hidden");
     document.getElementById("chat")?.classList.add("open");
-    box.focus();
+    box.focus({ preventScroll: true });
   }
 
   closeChat(): void {
     const box = document.getElementById("chat-input") as HTMLInputElement | null;
     if (!box || box.classList.contains("hidden")) return;
+    // Keep the draft: only a SENT line clears it (see the Enter paths), so
+    // ESC or a later reopen never loses what was typed.
+    this.chatDraft = box.value;
     box.classList.add("hidden");
     document.getElementById("chat")?.classList.remove("open");
     box.blur();
@@ -3651,6 +3749,20 @@ export class Game {
         if (e.team !== mine) this.banner("ENEMY UAV ONLINE", 1.7);
         else if (this.accolades.streakOf(this.you) < 3) this.banner("UAV ONLINE", 1.5);
       }
+      // KILLSTREAK NUKE (10 without dying): the blast already landed sim-side
+      // (nukeBlast); this is the moment — banner, announcer call, a shake.
+      // Reward, never a match end: the match plays on.
+      // THE KILLSTREAK TOGGLE IS COSMETIC-ONLY: with killstreaks off the sim
+      // blast still lands (no server flag by design), but there is no banner,
+      // no shake and no voice — announcer.nuke() gates the same way.
+      if (e.t === "nuke" && !this.ended && prefs().killstreaks) {
+        const kn = this.players.get(e.src)?.name ?? "UNKNOWN";
+        const mine = e.src === this.you;
+        this.banner(mine ? "TACTICAL NUKE — YOURS" : `TACTICAL NUKE — ${kn}`, 3, "10 KILLS WITHOUT DYING");
+        this.announcer.nuke(kn, mine);
+        this.shakeAmp = Math.min(0.05, Math.max(this.shakeAmp, 0.03));
+        this.shakeT = 0;
+      }
       // ROUND CARDS. The result holds for the whole intermission (the sim's
       // ROUND_INTERMISSION_S) so the 3-2-1 that follows lands on a screen that
       // has already said who took it; the start card is one short beat that
@@ -4683,7 +4795,15 @@ export class Game {
         }
         this.lastFeetY = me.y;
         this.stepLag = Math.max(0, this.stepLag - STEP_SMOOTH_RATE * dt);
-        this.camera.position.set(me.x + this.errX, me.y - this.stepLag + this.errY + this.eyeSmooth + bob, me.z + this.errZ);
+        // CORNER LEAN (Q/E, view-only): ease toward the held keys, shift the
+        // eye along the strafe-right vector ((cos yaw, -sin yaw), the sim's
+        // +ax side) and bank the view. Dead bodies lean nothing; the capsule
+        // never moves — hit registration is untouched (shared/sim.ts `lean`).
+        const leanTgt = ((this.keys.leanR ? 1 : 0) - (this.keys.leanL ? 1 : 0)) * (me.alive ? 1 : 0);
+        this.leanSm += (leanTgt - this.leanSm) * (1 - Math.exp(-12 * dt));
+        const leanX = Math.cos(this.yaw) * this.leanSm * 0.3;
+        const leanZ = -Math.sin(this.yaw) * this.leanSm * 0.3;
+        this.camera.position.set(me.x + this.errX + leanX, me.y - this.stepLag + this.errY + this.eyeSmooth + bob, me.z + this.errZ + leanZ);
         // weapons stream: punch springs + trauma (visual) and the scope sway (aim).
         this.feel.update(dt);
         const fo = this.feel.offsets(this.feelOut);
@@ -4695,7 +4815,7 @@ export class Game {
         this.camera.rotation.y = this.yaw + Math.PI + this.recY + this.feel.swayY + fo[1];
         this.camera.rotation.x = -(this.pitch + this.recP + this.feel.swayP + fo[0]) + Math.sin(phase) * 0.0045 * moveF * bobK + shakeX;
         this.camera.rotation.z =
-          (me.slide > 0 ? 0.1 : 0) + fo[2] + fo[1] * 0.25 + Math.sin(phase * 0.5) * (me.sprint ? 0.009 : 0.006) * moveF * bobK + shakeZ;
+          (me.slide > 0 ? 0.1 : 0) - this.leanSm * 0.1 + fo[2] + fo[1] * 0.25 + Math.sin(phase * 0.5) * (me.sprint ? 0.009 : 0.006) * moveF * bobK + shakeZ;
         const w = WEAPON_BY_ID[me.weapon];
         // ADS FOV per weapon (WeaponDef.adsFov, authored against HIP_FOV) scaled to the
         // player's SETTINGS field of view (UI stream hook: vfov()). A sniper zooms a

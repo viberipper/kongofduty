@@ -174,7 +174,7 @@ export class AccoladeTracker {
     const add = (id: MedalId, sub: string): void => {
       out.push({ id, title: META[id].title, sub, tier: META[id].tier });
     };
-    const gun = k.weapon !== "nade" && k.weapon !== "strike" && k.weapon !== "knife" && k.weapon !== "melee";
+    const gun = k.weapon !== "nade" && k.weapon !== "strike" && k.weapon !== "nuke" && k.weapon !== "knife" && k.weapon !== "melee";
     // Multi-kills (KR: within 6 s of the one before).
     if (k.now - this.chainAt <= CHAIN_S) this.chain++;
     else {

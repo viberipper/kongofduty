@@ -60,6 +60,7 @@ const HEAD: Icon = {
 export function iconClass(weapon: string): keyof typeof ICONS {
   if (weapon === "nade") return "FRAG";
   if (weapon === "strike") return "ARTILLERY";
+  if (weapon === "nuke") return "ARTILLERY";
   if (weapon === "knife" || weapon === "melee") return "KNIFE";
   const c = (WEAPON_BY_ID as Record<string, { class?: string } | undefined>)[weapon]?.class;
   if (c === "SMG") return "SMG";

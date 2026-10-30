@@ -75,6 +75,24 @@ for (const team of [0, 1] as const) {
     spawns.push({ x: team === 0 ? -33 : 33, y: 0, z, yaw: team === 0 ? Math.PI / 2 : -Math.PI / 2, team });
   }
 }
+/**
+ * FFA SPAWNS (teamless, mid-map). The team sides above all sit in the two end
+ * bays (x = ±33) — an FFA drawn from them spawns every body at one of two
+ * walls. These eight sit on the open mid lanes instead (verified clear of the
+ * reactor base, consoles, towers and freight at build heights; yaw faces the
+ * map centre like navSpawn). Read by shared/sim.ts spawn selection in FFA
+ * only; team modes never see them.
+ */
+const ffaSpawns: Spawn[] = [
+  { x: 0, y: 0, z: -5.4, yaw: Math.atan2(0 - 0, 0 - -5.4), team: 0 },
+  { x: 0, y: 0, z: 5.4, yaw: Math.atan2(0 - 0, 0 - 5.4), team: 0 },
+  { x: -6, y: 0, z: 0, yaw: Math.atan2(0 - -6, 0 - 0), team: 0 },
+  { x: 6, y: 0, z: 0, yaw: Math.atan2(0 - 6, 0 - 0), team: 0 },
+  { x: -6, y: 0, z: -13.5, yaw: Math.atan2(0 - -6, 0 - -13.5), team: 0 },
+  { x: 6, y: 0, z: 13.5, yaw: Math.atan2(0 - 6, 0 - 13.5), team: 0 },
+  { x: -17, y: 0, z: 0, yaw: Math.atan2(0 - -17, 0 - 0), team: 0 },
+  { x: 17, y: 0, z: 0, yaw: Math.atan2(0 - 17, 0 - 0), team: 0 },
+];
 const seeds: Waypoint[] = [];
 for (const z of [-27, -20, -5.4, 5.4, 16, 27]) {
   for (const x of [-33, -24, -17, -6, 0, 6, 17, 24, 33]) seeds.push({ x, z, cover: Math.abs(z) < 6 });
@@ -91,7 +109,7 @@ export const ARES: MapDef = {
     { x: -37, z: 0, sx: 0.6, sz: 60, yaw: 0 },
     { x: 37, z: 0, sx: 0.6, sz: 60, yaw: 0 },
   ],
-  nadeFenceTop: 24, spawns, navSeeds: seeds, navPockets: [],
+  nadeFenceTop: 24, spawns, ffaSpawns, navSeeds: seeds, navPockets: [],
   navLattice: { x0: -34, x1: 34, z0: -27.5, z1: 27.5, step: 3.6, linkMax: 6.5, maxNodes: 460 },
   stackedFloors: false, navHeightGate: 0.75, stepSmoothMax: 0.7, climbablesAreFloors: true,
   visualContainers: [],
