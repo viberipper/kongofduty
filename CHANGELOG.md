@@ -41,6 +41,14 @@ No unreleased changes beyond the sections below.
 
 ### Fixed
 
+- `fix(public): gate sees running yard match` — public gate check
+  carries the picked mode for the yard door and answers with the running
+  yard room (exists/phase/mode plus bench/full flags) instead of blind
+  defaults (`00f65a1`).
+- `fix(public): second player joins live game` — a second human joins
+  the same running yard room with an immediate seat and exactly one bot
+  evicted to hold the seat total; a full yard parks late joiners as
+  spectators with promotion when a seat frees (`00f65a1`).
 - `fix(net): stale end-tick guard, rollover fallback, endcard expiry` —
   stale end-of-match ticks are ignored, rollover has a fallback path, and
   the endcard expires cleanly (`d81c30d`).
