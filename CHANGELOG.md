@@ -22,6 +22,12 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 - `fix(lean): shots follow the lean eye` — shots use the same 0.30 m eye
   offset as the camera with a parallel ray, clamped at walls, and the
   preview matches the server (Pending commit — hash follows on commit.).
+- `fix(lean): Blender-authored lean pose on the model` — lean was only a
+  rigid root tilt on the model so the feet slid; now it layers the
+  Blender-authored pose, including its baked crouch variant blended by
+  crouchW with the feet staying planted, and latch/overlay gaps
+  (`Hip`/`Waist`/`NeckTwist02`, `hip.position.x`) plus the aim-slerp order
+  are fixed too (Pending commit — hash follows on commit.).
 
 ## 2026-10-30
 

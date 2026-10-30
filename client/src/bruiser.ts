@@ -7,6 +7,7 @@ import { activeSolids, type OBB } from "@shared/map";
 import { activeMap } from "@shared/maps";
 import { attachAstronaut, type AstronautRig } from "./astronaut";
 import { fistCentroidLocal, leanToward, setBoneWorldQ, solveTwoBone, stripLauncher, swivelElbowIn, tpGun, tpGunProto, type TpGunProto } from "./tp-gun";
+import { LEAN_LEFT, LEAN_LEFT_CROUCH, LEAN_RIGHT, LEAN_RIGHT_CROUCH, type LeanBone } from "./lean-pose";
 import { WEAPON_BY_ID } from "@shared/weapons";
 import { prefs, teamColors } from "./ui/prefs";
 import { gridFor, gridQueryCircle } from "@shared/solidgrid";
@@ -615,8 +616,81 @@ function applyAimStatic(bones: Record<string, THREE.Object3D>, bind: Record<stri
   bones.Head?.rotateY(-0.04);
 }
 
-function isYellowMat(mat: THREE.Material | null | undefined): boolean {
-  const c = (mat as THREE.MeshStandardMaterial | undefined)?.color;
+const LEAN_EULER = new THREE.Euler();
+const LEAN_TMP_Q = new THREE.Quaternion();
+
+/**
+ * Layer the authored corner-lean pose onto the pose the mixer just wrote.
+ *
+ * The table comes from Blender (see lean-pose.ts): pelvis slide, legs solved by
+ * a two-bone IK so the feet stay planted, spine rolled into the lean and the
+ * head counter-rolled level. Rotations post-multiply, which is bone-local — the
+ * same space Blender's `matrix_basis` lives in — and the slide is in the
+ * parent bone's rest axes (what `Bone.position` uses).
+ *
+ * `w` is the eased lean weight, negative for the operator's left. `crouch`
+ * (0..1) blends per bone between the standing table and the crouch correction
+ * table, which is authored relative to the crouched base — the game's own
+ * crouch pose (hip drop, bent knees, hunch) is still applied separately BEFORE
+ * this runs, so it is never double-applied. At crouch = 0/1 the blend is
+ * bit-identical to the respective table.
+ */
+function applyLeanPose(bones: Record<string, THREE.Object3D>, w: number, crouch: number): void {
+  const s = Math.abs(w);
+  if (!(s > 0.004)) return;
+  const c = THREE.MathUtils.clamp(crouch, 0, 1);
+  const stand: Record<string, LeanBone> = w > 0 ? LEAN_RIGHT : LEAN_LEFT;
+  const crouched: Record<string, LeanBone> = w > 0 ? LEAN_RIGHT_CROUCH : LEAN_LEFT_CROUCH;
+  for (const name of new Set([...Object.keys(stand), ...Object.keys(crouched)])) {
+    const a = stand[name];
+    const b = crouched[name];
+    const bObj = bones[name];
+    if (!bObj) continue;
+    let bx: number;
+    let by: number;
+    let bz: number;
+    let lx: number;
+    let ly: number;
+    let lz: number;
+    if (c <= 0) {
+      bx = a?.rot[0] ?? 0;
+      by = a?.rot[1] ?? 0;
+      bz = a?.rot[2] ?? 0;
+      lx = a?.loc[0] ?? 0;
+      ly = a?.loc[1] ?? 0;
+      lz = a?.loc[2] ?? 0;
+    } else if (c >= 1) {
+      bx = b?.rot[0] ?? 0;
+      by = b?.rot[1] ?? 0;
+      bz = b?.rot[2] ?? 0;
+      lx = b?.loc[0] ?? 0;
+      ly = b?.loc[1] ?? 0;
+      lz = b?.loc[2] ?? 0;
+    } else {
+      bx = (a?.rot[0] ?? 0) + ((b?.rot[0] ?? 0) - (a?.rot[0] ?? 0)) * c;
+      by = (a?.rot[1] ?? 0) + ((b?.rot[1] ?? 0) - (a?.rot[1] ?? 0)) * c;
+      bz = (a?.rot[2] ?? 0) + ((b?.rot[2] ?? 0) - (a?.rot[2] ?? 0)) * c;
+      lx = (a?.loc[0] ?? 0) + ((b?.loc[0] ?? 0) - (a?.loc[0] ?? 0)) * c;
+      ly = (a?.loc[1] ?? 0) + ((b?.loc[1] ?? 0) - (a?.loc[1] ?? 0)) * c;
+      lz = (a?.loc[2] ?? 0) + ((b?.loc[2] ?? 0) - (a?.loc[2] ?? 0)) * c;
+    }
+    const rx = bx * s;
+    const ry = by * s;
+    const rz = bz * s;
+    LEAN_EULER.set(rx, ry, rz, "XYZ");
+    bObj.quaternion.multiply(LEAN_TMP_Q.setFromEuler(LEAN_EULER));
+    const ox = lx * s;
+    const oy = ly * s;
+    const oz = lz * s;
+    if (ox !== 0 || oy !== 0 || oz !== 0) {
+      bObj.position.x += ox;
+      bObj.position.y += oy;
+      bObj.position.z += oz;
+    }
+  }
+}
+
+function isYellowMat(mat: THREE.Material | null | undefined): boolean {  const c = (mat as THREE.MeshStandardMaterial | undefined)?.color;
   if (!c) return false;
   return c.r > 0.62 && c.g > 0.42 && c.b < 0.48;
 }
@@ -1540,8 +1614,9 @@ export class BruiserActor {
   yawVis = 0;
   /**
    * CORNER LEAN (Q/E, view-only): eased toward the snapshot's `lean`
-   * (-1 | 0 | 1, absent on old servers = 0). Rolls the root and shifts it
-   * along the strafe-right vector — the drawn body only, the hit capsule
+   * (-1 | 0 | 1, absent on old servers = 0). Layers the Blender-authored
+   * model pose (pelvis slide, re-solved legs, spine roll, level head — see
+   * lean-pose.ts / applyLeanPose) onto the drawn body only; the hit capsule
    * never moves.
    */
   leanVis = 0;
@@ -1575,7 +1650,11 @@ export class BruiserActor {
   private legJoint: THREE.Object3D | null = null;
   /** Per-bone {last mixer output, what we left it at} — see latchPose(). */
   private latch: { b: THREE.Object3D; mix: THREE.Quaternion; out: THREE.Quaternion }[] = [];
+  private hipMixX = 0;
+  private hipMixY = 0;
   private hipMixZ = 0;
+  private hipOutX = 0;
+  private hipOutY = 0;
   private hipOutZ = 0;
   /** False until the latch holds a real pair of samples (construction, respawn). */
   private latchOn = false;
@@ -1847,6 +1926,8 @@ export class BruiserActor {
       const b = this.bones[n];
       if (b) this.latch.push({ b, mix: b.quaternion.clone(), out: b.quaternion.clone() });
     }
+    this.hipMixX = this.hipOutX = this.bones.Hip?.position.x ?? 0;
+    this.hipMixY = this.hipOutY = this.bones.Hip?.position.y ?? 0;
     this.hipMixZ = this.hipOutZ = this.bones.Hip?.position.z ?? 0;
     // PER-ACTOR MATERIALS, cloned off the shared template set so setRelation
     // can tint THIS monkey without recolouring every clone on the map. Maps
@@ -2013,12 +2094,22 @@ export class BruiserActor {
       if (this.latchOn && q.x === l.out.x && q.y === l.out.y && q.z === l.out.z && q.w === l.out.w) q.copy(l.mix);
       else l.mix.copy(q);
     }
-    // Hip.position.z carries the additive crouch drop and has the same hazard.
+    // Hip.position carries the additive crouch drop (z) and the lean slide
+    // (x, y) and has the same hazard.
     const hip = this.bones.Hip;
     if (hip) {
+      if (!Number.isFinite(hip.position.x)) hip.position.x = this.hipMixX;
+      if (!Number.isFinite(hip.position.y)) hip.position.y = this.hipMixY;
       if (!Number.isFinite(hip.position.z)) hip.position.z = this.hipMixZ;
-      if (this.latchOn && hip.position.z === this.hipOutZ) hip.position.z = this.hipMixZ;
-      else this.hipMixZ = hip.position.z;
+      if (this.latchOn && hip.position.x === this.hipOutX && hip.position.y === this.hipOutY && hip.position.z === this.hipOutZ) {
+        hip.position.x = this.hipMixX;
+        hip.position.y = this.hipMixY;
+        hip.position.z = this.hipMixZ;
+      } else {
+        this.hipMixX = hip.position.x;
+        this.hipMixY = hip.position.y;
+        this.hipMixZ = hip.position.z;
+      }
     }
     this.latchOn = true;
   }
@@ -2370,7 +2461,11 @@ export class BruiserActor {
     }
     const hip = this.bones.Hip;
     if (hip) {
+      if (!Number.isFinite(hip.position.x)) hip.position.x = this.hipMixX;
+      if (!Number.isFinite(hip.position.y)) hip.position.y = this.hipMixY;
       if (!Number.isFinite(hip.position.z)) hip.position.z = this.hipMixZ;
+      this.hipOutX = hip.position.x;
+      this.hipOutY = hip.position.y;
       this.hipOutZ = hip.position.z;
     }
     // The leg-yaw splice is an absolute setFromAxisAngle, but it inverts Hip's
@@ -2862,18 +2957,17 @@ export class BruiserActor {
     this.yawVis += dy * Math.min(1, dt * 14);
     this.root.rotation.y = this.yawVis;
     this.root.rotation.x = 0;
-    // CORNER LEAN (view-only): ease toward the snapped value, roll the root
-    // about the facing axis and shift it sideways — lean+ (E) is the
-    // operator's right, i.e. the negated sim +ax side (-(cos yaw, -sin yaw);
-    // sim +ax is LEFT). The root is yaw-only (unlike the yaw+PI camera), so
-    // its roll takes the opposite sign of the camera bank for the same lean.
-    // Dead bodies lean nothing.
+    // CORNER LEAN (Q/E): eased toward the snapped value. The pose itself is a
+    // Blender-authored weight shift (pelvis slides, legs re-solved so the feet
+    // stay planted, spine rolls, head counter-rolls level) applied further down
+    // once the mixer has written the frame's base pose — see applyLeanPose().
+    // lean+ (E) is the operator's right: the pose table carries that sign, so
+    // only the eased weight goes down. Dead bodies lean nothing.
     {
       const leanTgt = p.alive ? (p.lean === 1 ? 1 : p.lean === -1 ? -1 : 0) : 0;
+      if (!Number.isFinite(this.leanVis)) this.leanVis = 0;
       this.leanVis += (leanTgt - this.leanVis) * Math.min(1, dt * 12);
-      this.root.rotation.z = this.leanVis * 0.1;
-      this.root.position.x += -Math.cos(this.yawVis) * this.leanVis * 0.2;
-      this.root.position.z += Math.sin(this.yawVis) * this.leanVis * 0.2;
+      this.root.rotation.z = 0;
     }
 
     const spd = Math.hypot(p.vx, p.vz);
@@ -3035,13 +3129,6 @@ export class BruiserActor {
       (this.bones.Spine01 as THREE.Bone | undefined)?.rotateX(CROUCH_HUNCH * cw);
     }
 
-    // ---- leg-fold ceiling: last word on the lower body, after the crouch ----
-    // Placed here, not up with the amplifier, because it governs the pose that is
-    // actually DRAWN — the crouch's additive knee bend stacks onto the amplified
-    // cycle, and a ceiling that ran before it would be measuring a pose nobody
-    // sees. Below the cap this costs one dot product per bone and writes nothing.
-    for (const [n] of STRIDE_BONES) this.capFold(n);
-
     // Tame the run clip's torso seesaw, and keep the head up in the ape gait.
     if (this.loco === "run") {
       const s1 = this.bones.Spine01;
@@ -3095,6 +3182,25 @@ export class BruiserActor {
     (this.bones.NeckTwist01 as THREE.Bone | undefined)?.rotateX(pitch * 0.16);
     // pitch > 0 is aiming DOWN: cap the head bow so the face stays readable.
     (this.bones.Head as THREE.Bone | undefined)?.rotateX(pitch * (pitch > 0 ? 0.1 : 0.26));
+
+    // ---- corner lean: the authored weight shift, last overlay before the split ----
+    // After the aim slerp, the throw wind, the flinch and the pitch: the slerp
+    // blends Spine02/Head toward an ABSOLUTE un-leaned aim pose, so a lean
+    // layered before it would be aimed straight back out (firing while leaned
+    // read as hips/legs leaning with a straight torso). Here the lean wins on
+    // the torso while still sitting under everything that must see it — the
+    // split below only reads Hip's world quaternion, and the hold/budget after
+    // it write arms, never a lean bone. The fold ceiling travels with it so it
+    // keeps governing the DRAWN pose; the lean asks for ~12-22° against its
+    // 130° allowance and passes through untouched.
+    applyLeanPose(this.bones, this.leanVis, this.crouchW);
+
+    // ---- leg-fold ceiling: last word on the lower body, after crouch+lean ----
+    // Placed here, not up with the amplifier, because it governs the pose that is
+    // actually DRAWN — the crouch's additive knee bend stacks onto the amplified
+    // cycle, and a ceiling that ran before it would be measuring a pose nobody
+    // sees. Below the cap this costs one dot product per bone and writes nothing.
+    for (const [n] of STRIDE_BONES) this.capFold(n);
 
     // ---- the split: yaw the legs onto the velocity, last, on ONE bone ----
     // About true world up, read off Hip's live orientation rather than a bind
@@ -3253,9 +3359,12 @@ const OVERLAY_BONES = [
     ...ARM_CEIL_BONES,
     ...CARRY_BONES,
     ...AIM_BONES,
+    "Hip",
+    "Waist",
     "L_Clavicle",
     "Spine01",
     "NeckTwist01",
+    "NeckTwist02",
   ]),
 ];
 const UP = new THREE.Vector3(0, 1, 0);

@@ -38,6 +38,7 @@ Self-hostable version of the browser game at https://cnvs.dev/kong/ — playable
 - **AFK warning and kick:** a live seat with no real input for 60 s gets one private warning and is removed at 90 s (bench promotion / bot backfill runs through the usual drop path); the kick carries a visible reason instead of reading as a dropped connection. Movement, buttons, ADS, lean, or a moved aim count — idle streaming, ping, and chat do not.
 - **Q/E corner lean (view-only):** lean around corners with Q/E (rebindable) — the eye shifts and the model rolls with easing while the hit capsule never moves; replicated on snapshots for every renderer.
 - **Ten-streak tactical nuke:** 10 kills without dying calls a heavy 12 m blast on the victim's position (150→50 falloff, credited TACTICAL NUKE, chains into medals) plus banner, shake, and announcer call — a reward, never a match end; with killstreak calls muted the blast still lands but stays quiet.
+- **Authored corner-lean body animation:** corner lean is a body animation authored in Blender — pelvis slide, IK-planted feet, spine roll with a counter-rolling head — calibrated to the same 0.30 m eye offset the camera and shots use, instead of rigidly tilting the model; crouching ships its own baked crouch variant blended by crouchW with the feet staying planted.
 
 ## Changelog
 
