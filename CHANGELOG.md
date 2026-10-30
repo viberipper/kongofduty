@@ -17,6 +17,16 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ## Unreleased
 
+### Added
+
+- `feat(bots): tactical corner lean` — bots lean around cover with Q/E
+  like players: only standing behind side cover with a distant target off
+  to one side, never while sprinting or moving fast, held 0.4–1.1 s
+  without mid-hold flips and followed by a cooldown, taken only about
+  three times in four so it stays situational; same view-only 0.30 m eye
+  shift with no damage, accuracy, or hitbox bonus (Pending commit — hash
+  follows on commit.).
+
 ### Fixed
 
 - `fix(lean): shots follow the lean eye` — shots use the same 0.30 m eye

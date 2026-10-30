@@ -4399,6 +4399,37 @@ export const BOT_TUNING = {
   crossHold: 0.66,
   crossFree: 3.5,
   crossNear: 0.5,
+  /** TACTICAL LEAN (Q/E, the same mechanic players use — view-only, no damage
+   *  or survivability bonus anywhere in this file). A bot leans only as a
+   *  stand-and-cover gesture, never on the move:
+   *    leanMinD    no lean under this target distance (useless up close)
+   *    leanCoverD  cover counts when steel stands within this, laterally, on
+   *                the target's own side (a forced crouch under a low ceiling
+   *                counts too — the brain itself never crouches, see below)
+   *    leanMaxSpd  no lean while sprinting or moving faster than this (m/s);
+   *                sized so a slow advance or strafe still leans while a walk,
+   *                run or sprint never does
+   *    leanMinLat  the target must sit this far off the nose (|lateral|/dist),
+   *                or there is no side worth leaning to
+   *    leanHoldMin/Max  how long a lean is held (side never flips mid-hold)
+   *    leanCdMin/Max    quiet time after a hold before the next one may start
+   *    leanChance  eligible moments actually taken — roughly three in four,
+   *                the rest pass unleaned so it reads as situational, not
+   *                mechanical.
+   *    leanRetryMin/Max  quiet time after a REFUSED roll before the next one
+   *                may be attempted (keeps the per-tick roll from deciding
+   *                within a few ticks). */
+  leanMinD: 4.5,
+  leanCoverD: 2.4,
+  leanMaxSpd: 2.6,
+  leanMinLat: 0.08,
+  leanHoldMin: 0.4,
+  leanHoldMax: 1.1,
+  leanCdMin: 0.6,
+  leanCdMax: 1.4,
+  leanChance: 0.72,
+  leanRetryMin: 0.4,
+  leanRetryMax: 0.8,
 };
 
 /**
@@ -6210,6 +6241,11 @@ type BotMind = {
   fragPitch: number;
   /** Seconds since this bot last had anyone in sight (pistol -> primary). */
   calmT: number;
+  /** Tactical lean: side currently held (-1 | 0 | 1, 0 = none), when the hold
+   *  ends (mind clock), and when the next hold may start. */
+  leanSide: -1 | 0 | 1;
+  leanUntil: number;
+  leanCd: number;
 };
 
 const BOT_MINDS = new WeakMap<SimPlayer, BotMind>();
@@ -6296,6 +6332,9 @@ function botMind(s: GameSession, p: SimPlayer): BotMind {
     fragYaw: 0,
     fragPitch: 0,
     calmT: 0,
+    leanSide: 0,
+    leanUntil: 0,
+    leanCd: 0,
   };
   BOT_MINDS.set(p, m);
   return m;
@@ -6438,6 +6477,85 @@ function botFrag(s: GameSession, p: SimPlayer, m: BotMind, target: SimPlayer | n
   cmd.nadeHold = true;
   cmd.fire = false;
   return true;
+}
+
+/**
+ * TACTICAL LEAN — bots use Q/E the way players do: only when it means
+ * something, never as a permanent stance, never on the move.
+ *
+ * The side is the side the target sits on, relative to the bot's own gaze
+ * (sign of the lateral target offset along leanEye's screen-right axis). A
+ * hold starts only when ALL of these are true — visible target past
+ * `leanMinD`, steel within `leanCoverD` laterally on that side (a body held
+ * down under a low ceiling counts as covered too — the brain itself never
+ * issues crouch, see the planting note in botBrain), not sprinting and slow,
+ * no dry reload in progress, hands free — and even then only with
+ * `leanChance`, so roughly three in four eligible moments are taken while
+ * the rest passes unleaned. The hold lasts a
+ * rolled 0.4–1.1 s, the side never flips mid-hold, and a cooldown
+ * follows before the next one may start. Losing the target aborts the hold at
+ * a dt-scaled chance (~0.5 s mean) rather than instantly.
+ *
+ * FAIRNESS: this writes cmd.lean only — the same view-only shift (0.30 m,
+ * wall-clamped in leanEye) every player gets. No damage, accuracy, or
+ * hitbox term anywhere in this function reads or writes it.
+ */
+function botLean(s: GameSession, p: SimPlayer, m: BotMind, cmd: InputCmd, target: SimPlayer | null, dt: number): void {
+  if (m.leanSide !== 0) {
+    let end =
+      m.t >= m.leanUntil ||
+      cmd.sprint ||
+      Math.hypot(p.vx, p.vz) > BOT_TUNING.leanMaxSpd ||
+      (p.reload > 0 && p.ammo <= 0) ||
+      m.fragCook > 0 ||
+      cmd.nadeHold === true;
+    // A target that reappears on the other side does not flip the hold: it
+    // runs its course, then the cooldown decides what comes next.
+    if (!end && !target && s.nextRand() < dt * 2.0) end = true;
+    if (end) {
+      m.leanSide = 0;
+      m.leanUntil = 0;
+      m.leanCd = BOT_TUNING.leanCdMin + s.nextRand() * (BOT_TUNING.leanCdMax - BOT_TUNING.leanCdMin);
+      cmd.lean = 0;
+      return;
+    }
+    cmd.lean = m.leanSide;
+    return;
+  }
+  cmd.lean = 0;
+  if (!target || m.leanCd > 0 || p.protect > 0 || m.fragCook > 0 || cmd.nadeHold === true) return;
+  if (cmd.sprint || Math.hypot(p.vx, p.vz) > BOT_TUNING.leanMaxSpd) return;
+  if (p.reload > 0 && p.ammo <= 0) return;
+  const dx = target.x - p.x;
+  const dz = target.z - p.z;
+  const dh = Math.hypot(dx, dz);
+  if (dh < BOT_TUNING.leanMinD) return;
+  // Screen-right, the same axis leanEye shifts the eye along.
+  const rx = -Math.cos(cmd.yaw);
+  const rz = Math.sin(cmd.yaw);
+  const lat = dx * rx + dz * rz;
+  if (Math.abs(lat) / dh < BOT_TUNING.leanMinLat) return;
+  const side = (lat > 0 ? 1 : -1) as -1 | 1;
+  // Cover on THIS side (a body that would not fit there). A forced crouch
+  // counts as cover too: the brain never sets cmd.crouch (see the planting
+  // note in botBrain), so p.crouch is true only while roomToStand keeps the
+  // body down under a low ceiling.
+  const fromY = walkFromY(p.y);
+  let cover = p.crouch === true;
+  for (let i = 0; i < 2 && !cover; i++) {
+    const d = i === 0 ? BOT_TUNING.leanCoverD * 0.5 : BOT_TUNING.leanCoverD;
+    if (botBlocked(p.x + rx * side * d, p.z + rz * side * d, BOT_CLEAR_R, false, fromY)) cover = true;
+  }
+  if (!cover) return;
+  // A refused roll waits a beat instead of rolling every tick (which would be
+  // a 72% chance per tick — i.e. always within a few ticks).
+  if (s.nextRand() >= BOT_TUNING.leanChance) {
+    m.leanCd = BOT_TUNING.leanRetryMin + s.nextRand() * (BOT_TUNING.leanRetryMax - BOT_TUNING.leanRetryMin);
+    return;
+  }
+  m.leanSide = side;
+  m.leanUntil = m.t + BOT_TUNING.leanHoldMin + s.nextRand() * (BOT_TUNING.leanHoldMax - BOT_TUNING.leanHoldMin);
+  cmd.lean = side;
 }
 
 /**
@@ -7012,6 +7130,7 @@ function thinkBot(s: GameSession, p: SimPlayer, dt: number): void {
   if (m.escape > 0) m.escape = Math.max(0, m.escape - dt);
   if (m.reposition > 0) m.reposition = Math.max(0, m.reposition - dt);
   if (m.plant > 0) m.plant = Math.max(0, m.plant - dt);
+  if (m.leanCd > 0) m.leanCd = Math.max(0, m.leanCd - dt);
   m.settle = 1 + (m.settle - 1) * Math.exp(-dt / BOT_TUNING.settleTau);
 
   // ------------------------------------------------------------ watchdogs --
@@ -7529,6 +7648,9 @@ function thinkBot(s: GameSession, p: SimPlayer, dt: number): void {
   if (botFrag(s, p, m, target, cmd, dt, eye)) {
     cmd.sprint = false;
   }
+  // TACTICAL LEAN (Q/E): same view-only mechanic as players, held situationally
+  // from cover. Runs last so the final sprint/hands state gates it.
+  botLean(s, p, m, cmd, target, dt);
   m.lastFire = cmd.fire;
   const dir = aimDir(cmd.yaw, cmd.pitch);
   cmd.dx = dir.dx;
