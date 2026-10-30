@@ -17,12 +17,6 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ## Unreleased
 
-### Fixed
-
-- `fix(pause): ESC resume from pause via cooldown fallback` — ESC during
-  the resume cooldown closes pause and the hint instead of leaving a dead
-  state; fullscreen path and error path aligned to the same resume.
-
 ## 2026-10-30
 
 ### Added
@@ -95,6 +89,10 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   instead of taking a minority-side bot; the skew then heals on the
   next leave. Rare: needs a 7-human stack on one side of a full yard
   (`12f59c5`).
+- `fix(pause): ESC resume from pause via cooldown fallback` — ESC during
+  the resume cooldown closes pause and the hint instead of leaving a dead
+  state; fullscreen path and error path aligned to the same resume
+  (`66ea4ec`).
 
 ## 2026-10-29
 
