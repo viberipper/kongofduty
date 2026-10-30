@@ -11,21 +11,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 as closely as possible. Every entry below is backed by a commit in this
 repository (short hash in parentheses); nothing is listed without commit
 evidence. Commit range covered: `39093f4` (initial snapshot) through
-`361b2eb` (HEAD at time of writing); upstream sync/port commits in that
+`fe7a0c5` (HEAD at time of writing); upstream sync/port commits in that
 range (e.g. `09486bd`, `d4111b4`) are intentionally excluded — upstream
 ports are NOT tracked here (see `docs/upstream-sync.md`).
-
-## [Unreleased]
-
-### Fixed
-
-- `fix(spawns): neutral FFA pools on every map` — FFA draws teamless
-  points everywhere: the authored set on Nuketown (six mid-street points,
-  wired through instead of dropped, plus validated nav nodes map-wide so
-  twelve seats never double up) and a generic neutral pool (interleaved
-  sides with neutral tags plus validated nav nodes map-wide) on Shipment
-  and Dust2; Ares Relay keeps its exact eight, team modes untouched
-  (uncommitted — hash follows on commit).
 
 ## 2026-10-30
 
@@ -58,6 +46,13 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 - `fix(spawns): authored FFA points on Ares Relay` — eight teamless mid
   lanes replace the two end-bay team sides as the FFA pool there; other
   maps untouched (`361b2eb`).
+- `fix(spawns): neutral FFA pools on every map` — FFA draws teamless
+  points everywhere: the authored set on Nuketown (six mid-street points,
+  wired through instead of dropped, plus validated nav nodes map-wide so
+  twelve seats never double up) and a generic neutral pool (interleaved
+  sides with neutral tags plus validated nav nodes map-wide) on Shipment
+  and Dust2; Ares Relay keeps its exact eight, team modes untouched
+  (`fe7a0c5`).
 - `fix(chat): focus/draft-safe chat line` — while the line is open no key
   drives the game, re-pressing T never clears the draft, blur/ESC keep the
   unsent text (only a sent line clears it), and clicks refocus instead of
