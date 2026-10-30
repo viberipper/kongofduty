@@ -56,6 +56,8 @@ export type ColliderFile = {
   bounds: Rect;
   solids: OBB[];
   spawns: Spawn[];
+  /** Authored teamless FFA points (mid-map, teamless); validated + hashed like Nuketown's. */
+  ffaSpawns?: Spawn[];
   nadeFenceRects?: (FenceRect & { y?: number; sy?: number })[];
   nadeFenceTop?: number;
   audioScale?: number;
@@ -116,7 +118,7 @@ export let DUST2_IS_STUB = false;
  * clientGeo !== serverGeo).
  */
 export function dust2GeoHash(raw: unknown): string {
-  const f = raw as ColliderFile & { ffaSpawns?: Spawn[] };
+  const f = raw as ColliderFile;
   let h = 2166136261 >>> 0;
   // NON-FINITE SENTINEL (review LOW): every non-finite input mixes one word,
   // 0x7fffffff. It is distinct from every finite height OVER THE MAP DOMAIN
@@ -526,6 +528,18 @@ export function buildDust2(raw: unknown): MapDef {
     nadeFenceTop,
 
     spawns,
+    // Authored FFA points ride the def when the file ships them (none in the
+    // shipped data — FFA draws the neutral pool in shared/sim.ts instead).
+    // Validated + hashed above, normalised here like buildNuketown — and
+    // neutral throughout: a future file that tags a side still yields
+    // teamless FFA points (team: 0), never a side pool.
+    ffaSpawns: (file.ffaSpawns ?? []).map((s) => ({
+      x: s.x,
+      y: s.y,
+      z: s.z,
+      yaw: s.yaw ?? 0,
+      team: 0 as const,
+    })),
     navSeeds,
     navPockets: file.navPockets ?? [],
     navLattice,

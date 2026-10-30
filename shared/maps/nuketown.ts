@@ -915,6 +915,21 @@ export function buildNuketown(raw: unknown): MapDef {
     w.y === undefined ? { x: w.x, z: w.z, cover: w.cover ?? false } : { x: w.x, z: w.z, y: w.y, cover: w.cover ?? false },
   );
   A.navSeeds = navSeeds.length;
+  // AUTHOR-FIELD PLUMBING (FFA-neutral, same contract as ARES RELAY): the
+  // shipped file carries six mid-street teamless points (validated above);
+  // they ride the def so shared/sim.ts seeds FFA from them instead of the
+  // two house-side team pools — plus validated nav nodes (six points for
+  // twelve seats would double every point; see spawnPool). Neutral tag by
+  // construction, including any future authored points; yaw faces the
+  // street like the file authors it (spawnFacing re-aims at the centre
+  // anyway when the 2.5 m ray is clear).
+  const ffaSpawns: Spawn[] = (f.ffaSpawns ?? []).map((s) => ({
+    x: s.x,
+    y: s.y,
+    z: s.z,
+    yaw: s.yaw ?? 0,
+    team: 0 as const,
+  }));
   const L = f.navLattice ?? {};
   const navLattice: NavLattice = {
     x0: L.x0 ?? bounds.minX,
@@ -951,6 +966,7 @@ export function buildNuketown(raw: unknown): MapDef {
     nadeFenceRects,
     nadeFenceTop,
     spawns,
+    ffaSpawns,
     navSeeds,
     navPockets: (f.navPockets ?? []) as [number, number][],
     navLattice,

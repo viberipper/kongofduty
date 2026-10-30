@@ -11,13 +11,62 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 as closely as possible. Every entry below is backed by a commit in this
 repository (short hash in parentheses); nothing is listed without commit
 evidence. Commit range covered: `39093f4` (initial snapshot) through
-`b48671e` (HEAD at time of writing); upstream sync/port commits in that
+`361b2eb` (HEAD at time of writing); upstream sync/port commits in that
 range (e.g. `09486bd`, `d4111b4`) are intentionally excluded — upstream
 ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ## [Unreleased]
 
-No unreleased changes beyond the sections below.
+### Fixed
+
+- `fix(spawns): neutral FFA pools on every map` — FFA draws teamless
+  points everywhere: the authored set on Nuketown (six mid-street points,
+  wired through instead of dropped, plus validated nav nodes map-wide so
+  twelve seats never double up) and a generic neutral pool (interleaved
+  sides with neutral tags plus validated nav nodes map-wide) on Shipment
+  and Dust2; Ares Relay keeps its exact eight, team modes untouched
+  (uncommitted — hash follows on commit).
+
+## 2026-10-30
+
+### Added
+
+- `feat(lean): Q/E corner lean (view-only, replicated)` — leaning around
+  corners with Q/E (rebindable): the eye shifts and the model rolls with
+  easing while the hit capsule never moves; carried on the input command,
+  the snapshot, and every renderer (`361b2eb`).
+- `feat(nuke): tactical nuke on a 10-kill streak` — 10 kills without dying
+  calls a heavy 12 m blast on the victim's position (150→50 falloff,
+  credited TACTICAL NUKE, chains into medals and the ladder) plus banner,
+  shake, and announcer call; a reward, never a match end, and quiet under
+  the killstreak toggle except for the blast itself (`361b2eb`).
+- `feat(server): AFK warning (60 s) and kick (90 s) with visible reason` —
+  a live seat without real input gets one private warning, then removal
+  through the usual drop path; the kick closes with a reason instead of
+  reading as a dropped connection. Movement, buttons, ADS, lean, or a
+  moved aim count — idle streaming, ping, and chat do not (`361b2eb`).
+
+### Fixed
+
+- `fix(spawns): dust2 CT spawns onto the deck` — two CT-side spawns sat at
+  y=0 below the CT deck and now stand on it (y=3.251 at verified deck
+  positions) in both JSON copies (`361b2eb`).
+- `fix(ads): eased ADS sensitivity tracking the FOV lerp` — aim sensitivity
+  follows an eased ADS value on the same ~18/s the FOV lerps at instead of
+  stepping on the late snapshot flip, plus pointer-spike clamps and
+  sensitivity pins at the use site (`361b2eb`).
+- `fix(spawns): authored FFA points on Ares Relay` — eight teamless mid
+  lanes replace the two end-bay team sides as the FFA pool there; other
+  maps untouched (`361b2eb`).
+- `fix(chat): focus/draft-safe chat line` — while the line is open no key
+  drives the game, re-pressing T never clears the draft, blur/ESC keep the
+  unsent text (only a sent line clears it), and clicks refocus instead of
+  firing (`361b2eb`).
+- `fix(spawn): 5 s protection that breaks on outgoing damage` — fresh-body
+  immunity raised to 5 s, ended at once by firing, knifing, or
+  throwing/cooking a frag (incoming cover stays soaked); artillery and the
+  streak blast respect it, and a cooked-to-zero frag kills its protected
+  holder (`361b2eb`).
 
 ## 2026-10-29
 

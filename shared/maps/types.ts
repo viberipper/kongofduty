@@ -104,10 +104,15 @@ export type MapDef = {
   audioScale?: number;
   qaViews?: unknown[];
   /**
-   * Authored FFA spawn points (mid-map, teamless). When present and non-empty,
-   * FFA draws its pool from these instead of the team sides (ARES RELAY: the
-   * team spawns all sit in the two end bays). Absent everywhere else: FFA
-   * falls back to the whole team pool (+ nav nodes on stacked maps).
+   * Authored FFA spawn points (mid-map, teamless: ARES RELAY's eight mid
+   * lanes, Nuketown's six mid-street points). When present and non-empty,
+   * FFA draws from these instead of the team sides — exactly on ARES RELAY,
+   * plus validated nav nodes on Nuketown (six points for twelve seats would
+   * double every point; shared/sim.ts spawnPool). Absent elsewhere
+   * (Shipment, dust2): FFA falls back to the neutral pool — interleaved
+   * sides plus validated nav nodes, teamless throughout (shared/sim.ts
+   * ffaNeutralPool). Neutral throughout, including any future authored
+   * points: both builders neutralise the team tag (team: 0).
    */
   ffaSpawns?: Spawn[];
   /** everything else comes from the runtime map json (setMapData) */

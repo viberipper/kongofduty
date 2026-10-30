@@ -1834,17 +1834,15 @@ export class GameSession {
   spawn(p: SimPlayer): void {
     // A body that sat a round out is back in the yard the moment it is spawned.
     p.sitOut = false;
-    // THE POOL. Shipment: the authored points, team-filtered, exactly as
-    // shipped. On a stacked-floors map (dust2) the authored twelve are only the
-    // seed: FFA draws from a map-wide pool of validated nav nodes and team modes
-    // from the authored side plus the nav nodes around it — see spawnPool().
-    // A map with authored FFA points (ARES RELAY) draws those in FFA instead
-    // of the team sides, on any map shape.
-    let pool: Spawn[];
-    {
-      const ffa = this.mode === "ffa" ? ffaAuthored() : null;
-      pool = ffa ? [...ffa] : fallbackSpawnPool(this.mode, p.team);
-    }
+    // THE POOL. Team modes: the authored points, team-filtered, exactly as
+    // shipped (flat maps), plus the nav nodes around the authored side on a
+    // stacked-floors map (dust2, Nuketown) — see spawnPool(). FFA: the authored
+    // teamless points where the map ships them (ARES RELAY exact, Nuketown
+    // plus validated nav nodes), else the neutral pool (interleaved sides +
+    // validated nav nodes, any map shape) — teamless everywhere, never the
+    // team sides. One call: the authored preference lives in spawnPool, so
+    // this path can never disagree with the instruments pool below.
+    let pool: Spawn[] = fallbackSpawnPool(this.mode, p.team);
     // Never respawn on top of your own corpse: drop points within 5m of the
     // death spot when any alternative exists.
     const farPool = pool.filter((s) => Math.hypot(p.x - s.x, p.z - s.z) >= 5);
@@ -1997,8 +1995,9 @@ export class GameSession {
           let fb: Spawn | null = null;
           let fbD = -1;
           let fbY = 0;
-          // Same pool the scoring drew from: authored FFA points in FFA where
-          // they exist, otherwise the team sides (team-filtered below).
+          // Last resort: the authored sides (authored FFA points in FFA where
+          // they exist, otherwise the team sides, team-filtered below) — the
+          // safest points to stand, not the full scoring pool.
           const fbSrc = this.mode === "ffa" ? (ffaAuthored() ?? SPAWNS) : SPAWNS;
           for (const s of fbSrc) {
             if (this.mode !== "ffa" && s.team !== p.team) continue;
@@ -4867,7 +4866,8 @@ function buildBotNav(): BotNavPt[] {
 export const BOT_NAV: BotNavPt[] = buildBotNav();
 
 /**
- * SPAWN POOLS ON A STACKED-FLOORS MAP (dust2). Shipment never comes here.
+ * SPAWN POOLS — team augmentation on stacked-floors maps (dust2, Nuketown),
+ * the neutral FFA pool on every map without authored points.
  *
  * dust2 ships twelve authored spawns — six per team, both ends of the map —
  * and the FFA room seats fifteen. Fifteen bodies on twelve points, all at the
@@ -4878,8 +4878,14 @@ export const BOT_NAV: BotNavPt[] = buildBotNav();
  * radius than a walking bot needs, well inside the bounds, and the floor really
  * is the floor it claims) becomes a spawn point:
  *
- *   FFA   — every valid node in the map plus the authored twelve.
- *   Teams — the authored six for the side plus every valid node within
+ *   FFA   — the neutral pool (ffaNeutralPool): both authored sides
+ *           interleaved plus every valid node in the map, teamless throughout,
+ *           on any map shape. A map with authored FFA points never reaches
+ *           this branch: ARES RELAY spawns exactly its eight, Nuketown its
+ *           six PLUS the valid nodes (six points for twelve seats would
+ *           double every point — see spawnPool).
+ *   Teams — (stacked maps only; flat-map team modes keep the raw sides) the
+ *           authored six for the side plus every valid node within
  *           TEAM_SPAWN_REACH of one of them on the same storey, so a 6-body
  *           side has dozens of points to spread over instead of six.
  *
@@ -4955,6 +4961,17 @@ function navSpawn(n: BotNavPt, team: 0 | 1): Spawn {
 }
 
 /**
+ * Nav-augment helper — pushes every validated nav node map-wide
+ * (spawnNodeOk: standing room, in bounds, on its own storey) as a
+ * team-tagged spawn, so mid-map is covered instead of only the team ends.
+ * Shared by the neutral pool and the Nuketown augment below so the two can
+ * never disagree about what "nav-augmented" means.
+ */
+function pushValidatedNavSpawns(pool: Spawn[], team: 0 | 1): void {
+  for (const n of BOT_NAV) if (spawnNodeOk(n)) pool.push(navSpawn(n, team));
+}
+
+/**
  * Upstream (.origin 28.10.): EVERY LIFE OPENS FACING THE MIDDLE OF THE MAP,
  * where the fight is — not at the yard fence, and not wherever you were
  * looking when you died. Bearing to the centre of the map's bounds (forward
@@ -4978,12 +4995,38 @@ function spawnFacing(x: number, y: number, z: number, authored: number): number 
 const SPAWN_POOLS: Map<string, Spawn[]> = new Map();
 
 /**
- * Authored teamless FFA points (MapDef.ffaSpawns, ARES RELAY), or null.
- * FFA on a map that ships them spawns mid-map instead of on the team sides.
+ * Authored teamless FFA points (MapDef.ffaSpawns: ARES RELAY's eight mid
+ * lanes, Nuketown's six mid-street points; dust2 ships none yet). FFA on a
+ * map that ships them spawns mid-map instead of on the team sides — exactly
+ * there on ARES RELAY, plus validated nav nodes on Nuketown (see spawnPool).
+ * Every point is teamless (team: 0); a future file that tags a side keeps
+ * teamless FFA, because the builders neutralise the tag (never the sides).
  */
 function ffaAuthored(): Spawn[] | null {
   const list = MAP.ffaSpawns;
   return Array.isArray(list) && list.length > 0 ? list : null;
+}
+
+/**
+ * THE NEUTRAL FFA POOL — the generic rule for every map WITHOUT authored
+ * points (Shipment, dust2), so FFA is teamless everywhere, not just where a
+ * map authors it. Both sides interleaved in deterministic order (alternating
+ * teams, so the pool sequence never clusters one base) with the team tag
+ * neutralised throughout, plus every validated nav node map-wide (spawnNodeOk:
+ * standing room, in bounds, on its own storey) so mid-map is covered instead
+ * of only the team ends. Selection stays enemy-distance + LOS (spawn());
+ * team modes never see this pool.
+ */
+function ffaNeutralPool(): Spawn[] {
+  const t0 = SPAWNS.filter((s) => s.team === 0);
+  const t1 = SPAWNS.filter((s) => s.team === 1);
+  const pool: Spawn[] = [];
+  for (let i = 0; i < Math.max(t0.length, t1.length); i++) {
+    if (i < t0.length) pool.push({ ...t0[i]!, team: 0 });
+    if (i < t1.length) pool.push({ ...t1[i]!, team: 0 });
+  }
+  pushValidatedNavSpawns(pool, 0);
+  return pool;
 }
 
 function spawnPool(mode: string, team: 0 | 1): Spawn[] {
@@ -4992,10 +5035,24 @@ function spawnPool(mode: string, team: 0 | 1): Spawn[] {
   if (pool) return pool;
   if (mode === "ffa") {
     const authored = ffaAuthored();
-    // A map with authored FFA points spawns exactly there (curated, teamless).
-    // Everywhere else FFA draws the whole team pool (+ nav nodes below).
-    pool = authored ? [...authored] : [...SPAWNS];
-    if (!authored) for (const n of BOT_NAV) if (spawnNodeOk(n)) pool.push(navSpawn(n, 0));
+    if (!authored) {
+      // No authored points: the neutral pool — interleaved sides + nav
+      // nodes on any map shape, teamless throughout (ffaNeutralPool).
+      pool = ffaNeutralPool();
+    } else if (IS_NUKETOWN) {
+      // NUKETOWN-ONLY AUGMENTATION (per-map FFA policy, like the IS_NUKETOWN
+      // OOB clamp above): six authored points for twelve FFA seats is a
+      // forced double-up on every point. The six stay (curated mid-street),
+      // but validated nav nodes join them — the same navSpawn rule the
+      // neutral pool uses — so the pool outgrows the room. ARES RELAY's
+      // eight stay exact (precedent: no forced double on every point).
+      pool = [...authored];
+      pushValidatedNavSpawns(pool, 0);
+    } else {
+      // A map with authored FFA points spawns exactly there (curated,
+      // teamless).
+      pool = [...authored];
+    }
   } else {
     const side = SPAWNS.filter((s) => s.team === team);
     pool = [...side];
@@ -5010,24 +5067,24 @@ function spawnPool(mode: string, team: 0 | 1): Spawn[] {
 }
 
 /**
- * The non-authored fallback pool: stacked-floors maps (dust2) draw the
- * nav-augmented spawnPool, everything else the raw team sides. Shared by the
- * live spawn() path and the instruments-only spawnPoolFor() below so the two
- * can never disagree about what "the pool" is.
+ * The non-authored fallback pool: team modes draw the nav-augmented
+ * spawnPool on stacked-floors maps (dust2, Nuketown) and the raw team sides
+ * everywhere else; FFA always draws the nav-augmented spawnPool (authored
+ * points where they exist, the neutral pool otherwise) on any map shape.
+ * Shared by the live spawn() path and the instruments-only spawnPoolFor()
+ * below so the two can never disagree about what "the pool" is.
  */
 function fallbackSpawnPool(mode: string, team: 0 | 1): Spawn[] {
-  return STACKED_FLOORS ? spawnPool(mode, team) : SPAWNS.filter((s) => (mode === "ffa" ? true : s.team === team));
+  if (mode === "ffa") return spawnPool(mode, team);
+  return STACKED_FLOORS ? spawnPool(mode, team) : SPAWNS.filter((s) => s.team === team);
 }
 
 /** Instruments only: the spawn pool a mode/team draws from on this map. */
 export function spawnPoolFor(mode: "ffa" | "tdm", team: 0 | 1): Spawn[] {
-  // Authored FFA points always win in FFA (ARES RELAY) — the same preference
-  // the live spawn() path applies before the fallback, so a branch that
-  // returns the raw team pool past the authored points cannot recur.
-  if (mode === "ffa") {
-    const authored = ffaAuthored();
-    if (authored) return [...authored];
-  }
+  // No authored preference here by design: fallbackSpawnPool already applies
+  // it (ARES RELAY exact, Nuketown augmented, neutral pool otherwise), so a
+  // branch that returns the raw team pool past the authored points cannot
+  // recur — live spawn() and this pool read the same call.
   return fallbackSpawnPool(mode, team);
 }
 

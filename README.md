@@ -30,6 +30,14 @@ Self-hostable version of the browser game at https://cnvs.dev/kong/ — playable
 - **Lobby host tools:** the private-match lobby lets the host move players between teams, bench them, promote them back, and hand the host chair to another seat — guest writes are refused.
 - **Host-leave transfer:** when the host leaves, the longest-seated member (bench included) becomes host automatically, picked by join time only — ping stays a display-only lobby badge and can never win the chair.
 - **Private late-join:** invite-link players can join a running private match — a free seat plays immediately, a full room starts them on the bench with promotion on the next leave, and no bot is kicked to make room.
+- **Dust2 CT spawns on the deck:** two CT-side spawns sat at y=0 under the CT deck and now stand on it (y=3.251 at verified deck positions), so that side no longer materialises below its own floor.
+- **Eased ADS look:** aim sensitivity follows an eased ADS value on the same ~18/s the FOV lerps at instead of stepping on the late snapshot flip, so zooming never skips; pointer spikes are clamped and sensitivity inputs are pinned at the use site.
+- **Neutral FFA spawns on every map:** FFA draws teamless mid-map points everywhere — exact authored sets on Ares Relay (eight mid lanes), authored points plus validated nav nodes on Nuketown (six mid-street points, nav-augmented), and a generic neutral pool (interleaved sides with neutral tags plus validated nav nodes map-wide) on Shipment and Dust2; team modes are untouched.
+- **Chat keeps your line:** while the chat line is open no key drives the game (a slipped focus pulls focus back instead of moving the body), re-pressing T never clears the draft, and blur/ESC keep the unsent text — only ENTER (sent) clears it; clicking while open refocuses the input instead of firing.
+- **5 s spawn protection that breaks on your own shot:** fresh bodies are immune for 5 s, but firing, knifing, or throwing/cooking a frag ends your own immunity at once while incoming cover stays soaked — artillery and the streak blast respect it too.
+- **AFK warning and kick:** a live seat with no real input for 60 s gets one private warning and is removed at 90 s (bench promotion / bot backfill runs through the usual drop path); the kick carries a visible reason instead of reading as a dropped connection. Movement, buttons, ADS, lean, or a moved aim count — idle streaming, ping, and chat do not.
+- **Q/E corner lean (view-only):** lean around corners with Q/E (rebindable) — the eye shifts and the model rolls with easing while the hit capsule never moves; replicated on snapshots for every renderer.
+- **Ten-streak tactical nuke:** 10 kills without dying calls a heavy 12 m blast on the victim's position (150→50 falloff, credited TACTICAL NUKE, chains into medals) plus banner, shake, and announcer call — a reward, never a match end; with killstreak calls muted the blast still lands but stays quiet.
 
 ## Changelog
 
