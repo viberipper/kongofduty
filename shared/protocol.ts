@@ -250,10 +250,11 @@ export type PlayerSnap = {
    * never truthiness, so a stray `"false"` string can never badge a human.
    */
   bot?: boolean;
-  /* ── APPENDED (lean): -1 left / 0 neutral / 1 right, view-only ── */
+  /* ── APPENDED (lean): -1 left / 0 neutral / 1 right ── */
   /**
-   * Corner lean (Q/E), -1 | 0 | 1. View-only: the eye shifts and the model
-   * rolls, the hit capsule never moves. Absent on old servers/replays: every
+   * Corner lean (Q/E), -1 | 0 | 1. The eye shifts and the model
+   * rolls, the hit capsule never moves; the muzzle follows the eye
+   * (shared/sim.ts `leanEye`). Absent on old servers/replays: every
    * reader must default it (`?? 0`), never trust it finite.
    */
   lean?: number;

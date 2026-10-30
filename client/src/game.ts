@@ -8,6 +8,7 @@ import {
   localCmd,
   predictMovement,
   aimDir,
+  leanEye,
   nadeSpawn,
   predictNade,
   rayPlayer,
@@ -3094,9 +3095,20 @@ export class Game {
       return;
     }
     const me = this.session?.players.get(this.you);
-    const origin = me
+    // THE LEANING MUZZLE (Q/E): the posted origin is the eye the player is
+    // aiming through — the body eye shifted 0.30 m sideways when leaned
+    // (leanEye, shared/sim.ts: the same wall-clamped point the server traces
+    // from), so the tracer, the predicted hitmarker and the authoritative ray
+    // are one ray. Discrete keys, not the eased camera shift: the server replays
+    // the discrete lean, and easing here would diverge from it mid-transition.
+    const cmdYaw = this.yaw + this.recY + this.feel.swayY;
+    const cmdPitch = this.pitch + this.recP + this.feel.swayP;
+    const cmdLean = (this.keys.leanR ? 1 : 0) - (this.keys.leanL ? 1 : 0);
+    const baseOrigin = me
       ? { x: me.x, y: this.session!.eyeY(me), z: me.z }
       : { x: this.ghost?.x ?? 0, y: (this.ghost?.y ?? 0) + (this.ghost?.slide ? SLIDE_EYE : this.ghost?.crouch ? CROUCH_EYE : EYE), z: this.ghost?.z ?? 0 };
+    const leanOrg = leanEye(baseOrigin.x, baseOrigin.y, baseOrigin.z, cmdYaw, cmdLean);
+    const origin = { x: leanOrg.x, y: baseOrigin.y, z: leanOrg.z };
 
     // weapons stream: the gun in hand, and the one the player is asking for.
     const body = this.heldBody();
@@ -3161,8 +3173,8 @@ export class Game {
             // leaves the paw at the top of the whip.
             nadeHold: this.nadePhase === 1 || (this.nadePhase === 2 && !this.nadeSent && !throwNow),
           },
-      this.yaw + this.recY + this.feel.swayY,
-      this.pitch + this.recP + this.feel.swayP,
+      cmdYaw,
+      cmdPitch,
       gated ? wpn : this.wantedWeapon(body),
       origin,
       now,
@@ -4890,8 +4902,8 @@ export class Game {
         // side (-(cos yaw, -sin yaw); sim +ax is LEFT, see the l/r swap at the
         // tick input mapping) — and bank the view (the yaw+PI camera banks
         // right with -lean, so the bank sign below is already correct). Dead
-        // bodies lean nothing; the capsule never moves — hit registration is
-        // untouched (shared/sim.ts `lean`).
+        // bodies lean nothing; the capsule never moves — only the muzzle follows
+        // the eye (shared/sim.ts `leanEye`, same 0.3 m shift, wall-clamped).
         const leanTgt = ((this.keys.leanR ? 1 : 0) - (this.keys.leanL ? 1 : 0)) * (me.alive ? 1 : 0);
         this.leanSm += (leanTgt - this.leanSm) * (1 - Math.exp(-12 * dt));
         const leanX = -Math.cos(this.yaw) * this.leanSm * 0.3;

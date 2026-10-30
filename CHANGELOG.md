@@ -17,6 +17,12 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ## Unreleased
 
+### Fixed
+
+- `fix(lean): shots follow the lean eye` — shots use the same 0.30 m eye
+  offset as the camera with a parallel ray, clamped at walls, and the
+  preview matches the server (Pending commit — hash follows on commit.).
+
 ## 2026-10-30
 
 ### Added

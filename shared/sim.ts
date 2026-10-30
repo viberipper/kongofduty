@@ -2397,10 +2397,17 @@ export class GameSession {
     // diagnose, and a probe sending 120 such commands got 0 shots and no clue
     // why. A rejected origin now costs the player nothing and is counted.
     const ey = this.eyeY(p);
-    let ox = Number.isFinite(cmd.ox) ? cmd.ox : p.x;
+    // THE LEANING EYE (Q/E): the round leaves the eye the shooter is actually
+    // looking through — 0.30 m sideways when leaned (leanEye) — not the capsule
+    // centre. leanEye clamps at the first solid, so a lean into a wall fires
+    // from the body, never through the steel. The client posts this same point
+    // (it calls leanEye for the origin it sends); the guards below measure
+    // against it, so a forged origin gains exactly nothing.
+    const le = leanEye(p.x, ey, p.z, p.yaw, p.lean);
+    let ox = Number.isFinite(cmd.ox) ? cmd.ox : le.x;
     let oy = Number.isFinite(cmd.oy) ? cmd.oy : ey;
-    let oz = Number.isFinite(cmd.oz) ? cmd.oz : p.z;
-    if (Math.hypot(ox - p.x, oz - p.z) > 1.35 || Math.abs(oy - ey) > 1.1) {
+    let oz = Number.isFinite(cmd.oz) ? cmd.oz : le.z;
+    if (Math.hypot(ox - le.x, oz - le.z) > 1.35 || Math.abs(oy - ey) > 1.1) {
       this.badOrigin++;
       p.badOrigin++;
       return;
@@ -2423,12 +2430,15 @@ export class GameSession {
     // predicted eye has drifted a few centimetres into a crate must not lose the
     // round, and a forged origin gains nothing by being posted, so there is no
     // incentive either way.
-    if (!segmentClear(p.x, ey, p.z, ox, oy, oz)) {
+    //
+    // "That eye" is the LEANING one above: the fallback keeps the lean offset,
+    // already wall-clamped inside leanEye.
+    if (!segmentClear(le.x, ey, le.z, ox, oy, oz)) {
       this.originClamped++;
       p.originClamped++;
-      ox = p.x;
+      ox = le.x;
       oy = ey;
-      oz = p.z;
+      oz = le.z;
     }
     // FIRE-INTERVAL ACCUMULATOR, not a reset. `=` quantised every RPM in the
     // game up to the 64 Hz tick (800 rpm realized as 768; qa/out/rangecard.json
@@ -3101,6 +3111,40 @@ function basis(dx: number, dy: number, dz: number): [{ x: number; y: number; z: 
   bx.z /= bl;
   const by = { x: dy * bx.z - dz * bx.y, y: dz * bx.x - dx * bx.z, z: dx * bx.y - dy * bx.x };
   return [bx, by, { x: dx, y: dy, z: dz }];
+}
+
+/** Corner-lean eye shift (Q/E): how far the eye — and the muzzle with it — moves sideways. Must match the camera shift in game.ts draw(). */
+export const LEAN_SHIFT = 0.3;
+
+/**
+ * THE LEANING EYE. Corner lean (Q/E) moves the eye — and the muzzle with it —
+ * sideways out of the capsule: lean+ (E) is screen-right,
+ * (-cos yaw, +sin yaw) * LEAN_SHIFT, the same shift the client camera applies
+ * in game.ts draw(), so the shot leaves the eye the player is aiming through.
+ * The direction stays yaw/pitch (a parallel ray, no angle trick).
+ *
+ * THE WALL CLAMP. The shift reaches exactly the collision radius (0.30 m), so
+ * a man hugging a wall and leaning into it would birth the round INSIDE the
+ * steel. The shift is therefore not a free translation: it is only applied
+ * while the body eye can see it. Otherwise the body eye is returned and the
+ * shot leaves the centre — a lean never shoots through geometry. The client
+ * calls this same function for the origin it posts, so the preview cannot
+ * advertise a path the server will not trace. Both sides clamp independently
+ * (ghost vs true position can differ by centimetres); the authority's answer
+ * is the anchor of record in tryFire.
+ */
+export function leanEye(
+  x: number,
+  ey: number,
+  z: number,
+  yaw: number,
+  lean: number,
+): { x: number; z: number } {
+  if (lean !== 1 && lean !== -1) return { x, z };
+  const lx = x - Math.cos(yaw) * lean * LEAN_SHIFT;
+  const lz = z + Math.sin(yaw) * lean * LEAN_SHIFT;
+  if (!segmentClear(x, ey, z, lx, ey, lz)) return { x, z };
+  return { x: lx, z: lz };
 }
 
 /** Paw offset from the eye: forward along aim, out to the right, a touch down. */
