@@ -688,14 +688,32 @@ function resume(): void {
     (navigator as unknown as { userActivation?: { isActive?: boolean } }).userActivation?.isActive === false;
   if (gestureless) {
     hudState.paused = false;
+    pauseFullscreenLost = false;
     closePause();
+    return;
   }
-  const r = canvas.requestPointerLock() as unknown;
-  if (r && typeof (r as Promise<void>).catch === "function") {
-    (r as Promise<void>).catch(() => {
-      // Chrome refuses a re-lock for ~1 s after ESC; the next click works.
-      if (!gestureless) uiSfx("error");
-    });
+  // ESC-COOLDOWN: Chrome verweigert ein Re-Lock ~1 s nach dem ESC-Exit, der
+  // die Pause geöffnet hat — ein sofortiges ESC auf der Pause (und jeder
+  // schnelle RESUME-Klick) würde sonst scheinbar wirkungslos verpuffen, weil
+  // die Pause bis zum pointerlockchange offen bleibt, das nie kommt. Darum:
+  // Pause bei Fehlschlag trotzdem schließen und den CLICK-TO-PLAY-Hint
+  // wieder scharf schalten (everLocked=false) — der nächste Canvas-Klick
+  // nimmt den Lock (gleicher Pfad wie der Play-again-Cooldown in onMatchEnd).
+  const cooldownFallback = (): void => {
+    hudState.paused = false;
+    pauseFullscreenLost = false;
+    closePause();
+    hudState.everLocked = false;
+  };
+  // Chrome wirft SYNCHRON synchron im Cooldown (nicht nur per Promise) —
+  // ohne try/catch wäre das eine unbehandelte Exception (wie in onPlayAgain).
+  try {
+    const r = canvas.requestPointerLock() as unknown;
+    if (r && typeof (r as Promise<void>).catch === "function") {
+      (r as Promise<void>).catch(cooldownFallback);
+    }
+  } catch {
+    cooldownFallback();
   }
 }
 
@@ -721,7 +739,12 @@ function wirePause(): void {
   // a refused re-lock surfaces ONLY via this event. Re-arm the CLICK-TO-PLAY
   // hint exactly like the promise-reject path in onPlayAgain above.
   document.addEventListener("pointerlockerror", () => {
-    if (document.pointerLockElement !== canvas) hudState.everLocked = false;
+    if (document.pointerLockElement !== canvas) {
+      hudState.paused = false;
+      pauseFullscreenLost = false;
+      closePause();
+      hudState.everLocked = false;
+    }
   });
   document.addEventListener("pointerlockchange", () => {
     const locked = document.pointerLockElement === canvas;
@@ -882,7 +905,11 @@ async function boot(): Promise<void> {
  */
 (window as unknown as { __ui: unknown }).__ui = {
   pause: () => openPauseMenu(),
-  resume: () => closePause(),
+  resume: () => {
+    hudState.paused = false;
+    pauseFullscreenLost = false;
+    closePause();
+  },
   endcard: (s0: number, s1: number, board: EndRow[]) => onMatchEnd(s0, s1, board),
   settings: (tab?: "gameplay" | "audio" | "graphics" | "controls") => openSettings(settingsDeps, { tab }),
   loadout: (inMatchFlag = false) => openLoadout({ inMatch: inMatchFlag }),

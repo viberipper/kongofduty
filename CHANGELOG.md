@@ -15,6 +15,14 @@ evidence. Commit range covered: `39093f4` (initial snapshot) through
 range (e.g. `09486bd`, `d4111b4`) are intentionally excluded — upstream
 ports are NOT tracked here (see `docs/upstream-sync.md`).
 
+## Unreleased
+
+### Fixed
+
+- `fix(pause): ESC resume from pause via cooldown fallback` — ESC during
+  the resume cooldown closes pause and the hint instead of leaving a dead
+  state; fullscreen path and error path aligned to the same resume.
+
 ## 2026-10-30
 
 ### Added

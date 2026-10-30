@@ -71,10 +71,13 @@ function onKey(e: KeyboardEvent): void {
   if (document.getElementById("settings") || document.getElementById("loadout")) return;
   if (e.code === "Escape") {
     // ESC on the pause menu resumes (the browser needs a user gesture to
-    // re-lock the pointer, and a keypress counts).
+    // re-lock the pointer, and a keypress counts). Nach Fullscreen-Verlust
+    // (ESC im Fullscreen) derselbe Pfad wie der FULLSCREEN+RESUME-Button,
+    // nicht der Fenster-Resume-Pfad.
     e.preventDefault();
     e.stopImmediatePropagation();
-    ctx.onResume();
+    if (ctx.fullscreenLost && ctx.onFullscreenResume) ctx.onFullscreenResume();
+    else ctx.onResume();
   }
 }
 
