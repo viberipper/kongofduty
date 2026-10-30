@@ -86,3 +86,14 @@
    viewport and pushed the keyline footer off the bottom. The explicit 0 minimum
    lets the row shrink; the columns scroll inside it (see the block above). */
 .nana-wrap{grid-template-rows:auto minmax(0,1fr) auto}.nana-ping.is-unknown{color:var(--c-text-4)}
+/* LOBBY FRAME = FLEX COLUMN (replaces the grid-row tricks above, which still
+   let the footer spill: a `1fr`/`minmax(0,1fr)` TRACK still has an auto content
+   contribution from the row's items in some engines, and the GUN GAME row keeps
+   adding height). As a flex column with `flex:1 1 0; min-height:0` on the middle
+   band the arithmetic is unambiguous: header and footer keep their content
+   height, everything else is squeezed into what is left and scrolls inside.
+   The footer is therefore always fully on screen. */
+.nana-wrap{display:flex;flex-direction:column;height:100%;max-height:100%;min-height:0;overflow:hidden}
+.nana-wrap>.nana-top{flex:0 0 auto}
+.nana-wrap>.nana-grid{flex:1 1 0;min-height:0;height:auto;overflow:hidden}
+.nana-wrap>.nana-foot{flex:0 0 auto}

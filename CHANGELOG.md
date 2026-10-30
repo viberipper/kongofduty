@@ -33,10 +33,12 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   socket; the lobby now measures the pong and reports it once a second (seats
   without a measurement show "—", the server re-pushes the roster every 2 s
   instead of 5 s) (Pending commit — hash follows on commit.).
-- `fix(lobby): footer pinned to the window bottom` — `.nana-wrap`'s middle
-  `1fr` track keeps its auto minimum, so switching the mode to GUN GAME (the
-  extra "kills per gun" row) made the row taller than the viewport and pushed
-  the keyline footer off screen; the track is now `minmax(0, 1fr)` (Pending
+- `fix(lobby): footer pinned to the window bottom` — `.nana-wrap`'s middle row
+  kept its auto minimum, so switching the mode to GUN GAME (the extra "kills per
+  gun" row) made the row taller than the viewport and pushed the keyline footer
+  off screen; the frame is now a flex column where only the middle band gives
+  (header and footer keep their height, the columns scroll inside), verified in
+  headless Chrome at 1999x877 and 1366x768 with the real fonts (Pending
   commit — hash follows on commit.).
 
 - `fix(lobby): invite box under the teams, scrollable columns` — on a
