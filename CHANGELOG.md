@@ -17,13 +17,6 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ## Unreleased
 
-### Fixed
-
-- `fix(lean): de-inverted Q/E lean direction` — Q/E lean tilts to the
-  pressed side again via a render-only sign correction; value path,
-  binds, and rebinds untouched.
-  (Pending commit — hash follows on commit.)
-
 ## 2026-10-30
 
 ### Added
@@ -100,6 +93,9 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   the resume cooldown closes pause and the hint instead of leaving a dead
   state; fullscreen path and error path aligned to the same resume
   (`66ea4ec`).
+- `fix(lean): de-inverted Q/E lean direction` — Q/E lean tilts to the
+  pressed side again via a render-only sign correction; value path,
+  binds, and rebinds untouched (`2d99b7a`).
 
 ## 2026-10-29
 
