@@ -1654,6 +1654,31 @@ async function copyLink(): Promise<void> {
   }, 2400);
 }
 
+/**
+ * LAST GOOD PING, per player in the current room.
+ *
+ * A seat's `ping` is reset to 0 whenever the server builds a new seat for that
+ * player — a reconnect, a host move (team/bench), a promotion — so the roster
+ * blinked from "42 MS" to "—" for a beat even though the connection had been
+ * measured a second earlier. The number is remembered here and used while the
+ * new measurement is in flight; only a room change throws it away, because
+ * callsigns are unique per room and stale numbers must never leak across rooms.
+ */
+const pingMemo = new Map<string, number>();
+let pingMemoScope = "";
+
+function rememberPing(scope: string, name: string, ms: number): void {
+  if (scope !== pingMemoScope) {
+    pingMemo.clear();
+    pingMemoScope = scope;
+  }
+  pingMemo.set(name.toLowerCase(), ms);
+}
+
+function lastPing(scope: string, name: string): number {
+  return scope === pingMemoScope ? (pingMemo.get(name.toLowerCase()) ?? 0) : 0;
+}
+
 /** One roster line. A bench row numbers the queue (#3), not a seat. */
 function rowHtml(m: LobbyMember | null, slot: number, you: string, openLabel: string, iAmHost = false, teamGame = true): string {
   if (!m) {
@@ -1661,12 +1686,18 @@ function rowHtml(m: LobbyMember | null, slot: number, you: string, openLabel: st
   }
   const badges =
     (m.host ? '<i class="badge badge--accent">HOST</i>' : "") + (m.id === you ? '<i class="badge">YOU</i>' : "");
-  // The seat's ping, coloured like the scoreboard's (green / amber / red). A
-  // seat that has not answered a pong yet reports 0, which is NOT a 1 ms
-  // connection: show "—" until there is a measurement (a real LAN trip clamps
-  // to 1 ms in the sender, so 0 is unambiguous).
-  const known = typeof m.ping === "number" && m.ping > 0;
-  const ms = known ? Math.round(m.ping as number) : 0;
+  // The seat's ping, coloured like the scoreboard's (green / amber / red).
+  // A seat that has not answered a pong yet reports 0 — never a real 1 ms — so
+  // the last measured number for that player is shown instead, and "—" only
+  // appears before the first measurement of the session. The self row falls
+  // back to the client's own measurement, which exists before the server's
+  // roster broadcast picks it up.
+  const scope = diag.room ?? "";
+  const wirePing = typeof m.ping === "number" && m.ping > 0 ? Math.round(m.ping) : 0;
+  if (wirePing > 0) rememberPing(scope, m.name, wirePing);
+  const selfPing = m.id === you ? lobbyRttMs : 0;
+  const ms = wirePing > 0 ? wirePing : Math.max(selfPing, lastPing(scope, m.name));
+  const known = ms > 0;
   const ping = known
     ? `<i class="nana-ping ${ms > 150 ? "is-bad" : ms > 80 ? "is-ok" : "is-good"}" title="Ping">${ms} MS</i>`
     : `<i class="nana-ping is-unknown" title="Ping not measured yet">—</i>`;

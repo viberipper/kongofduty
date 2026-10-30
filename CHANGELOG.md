@@ -19,6 +19,14 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ### Fixed
 
+- `fix(lobby): keep showing the last ping while a seat re-measures` — a seat's
+  ping resets to 0 whenever the server builds a new seat for that player
+  (reconnect, host move to the other team or the bench, promotion), so the
+  badge blinked from "42 MS" to "—" mid-session; the roster now remembers the
+  last measured value per player for the current room and keeps showing it
+  until the new measurement lands, with "—" only before a player's first
+  measurement ever (Pending commit — hash follows on commit.).
+
 - `fix(lobby): real ping badges before a match` — only the in-match loop ever
   reported an RTT, so a fresh lobby left every seat at 0 and the roster's 1 ms
   clamp made everyone look like a 1 ms connection until a match had run on that
