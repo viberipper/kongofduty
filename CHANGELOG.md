@@ -19,6 +19,13 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ### Fixed
 
+- `fix(lobby): invite box under the teams, scrollable columns` — on a
+  1080p-class viewport the right rail (map card, rules, mode/map setup, the
+  invite box and the actions) was taller than the grid row, so SETTINGS and
+  LEAVE fell off the bottom with no way to scroll to them; the invite box now
+  sits in the left column between the teams and the spectator bench, and both
+  columns own their scroll area (Pending commit — hash follows on commit.).
+
 - `fix(spawns): spread FFA and Gun Game spawns over the whole map` — Ares
   Relay let its eight authored mid-lane points be the entire FFA pool, so both
   teamless modes spawned every body inside a 34 x 27 m band (25 % of the

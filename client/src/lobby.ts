@@ -520,14 +520,11 @@ function buildUi(): Ui {
   const specs = el("ol", "nana-list");
   specs.id = "nana-specs";
   benchPanel.append(benchHead, specs);
-  left.append(roster, botnote, benchPanel);
 
-  const right = el("aside", "nana-side");
-  const mapCard = el("div", "nana-mapcard");
-  const mapEyebrow = el("p", "eyebrow nana-eyebrow", "");
-  const mapName = el("b", undefined, "");
-  mapCard.append(mapEyebrow, mapName);
-  const rules = el("p", "nana-rules");
+  // THE INVITE BOX lives in the roster column, between the teams and the
+  // spectator bench: the right rail (map card + mode/map + actions) is already
+  // the tallest thing on the screen and pushed its own buttons out of view on a
+  // 1080p-class viewport, while the left column has room to spare.
   const inviteBox = el("div", "nana-box");
   const codeRow = el("div", "nana-code-row");
   codeRow.append(el("span", "nana-label", "LOBBY CODE"));
@@ -546,6 +543,14 @@ function buildUi(): Ui {
   copy.dataset.sfx = "off";
   inviteRow.append(link, copy);
   inviteBox.append(codeRow, el("span", "nana-label", "INVITE LINK — ANYONE WITH IT JOINS THIS LOBBY"), inviteRow);
+  left.append(roster, botnote, inviteBox, benchPanel);
+
+  const right = el("aside", "nana-side");
+  const mapCard = el("div", "nana-mapcard");
+  const mapEyebrow = el("p", "eyebrow nana-eyebrow", "");
+  const mapName = el("b", undefined, "");
+  mapCard.append(mapEyebrow, mapName);
+  const rules = el("p", "nana-rules");
   // HOST SETUP: mode and map change from right here (lobbyset), no new lobby.
   const setup = el("div", "nana-box nana-setup hidden");
   const modeSeg = el("div", "seg seg--wide seg--sm");
@@ -584,7 +589,7 @@ function buildUi(): Ui {
   settings.id = "nana-settings";
   settings.type = "button";
   acts.append(start, shuffle, wait, hostnote, settings, leave);
-  right.append(mapCard, rules, setup, inviteBox, acts);
+  right.append(mapCard, rules, setup, acts);
   grid.append(left, right);
 
   const foot = el("footer", "nana-foot");

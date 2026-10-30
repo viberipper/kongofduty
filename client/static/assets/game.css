@@ -66,3 +66,16 @@
 .music-toggle.is-off{color:var(--c-text-3)}
 .music-toggle.is-off .music-icon{opacity:.45}
 .music-toggle.is-off::after{content:"";position:absolute;left:16%;right:16%;top:50%;height:2px;margin-top:-1px;background:var(--c-danger);border-radius:2px;transform:rotate(-45deg);pointer-events:none}
+
+/* PRE-GAME LOBBY LAYOUT (appended, same convention as the badge block above):
+   the right rail — map card + rules + mode/map setup + actions — is taller than
+   a 1080p-class viewport and used to clip its own buttons (SETTINGS, LEAVE) with
+   no way to reach them: .nana-wrap is height:100% and the grid row is 1fr, so
+   the overflow simply fell off the screen. Both columns now own their scroll
+   area (independent, contained, thin scrollbar) and the grid stops growing.
+   The invite box lives in the left column under the teams, which has room. */
+.nana-grid{min-height:0;align-items:start;overflow:hidden}
+.nana-col,.nana-side{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--c-line-2) transparent;padding-right:2px}
+.nana-col::-webkit-scrollbar,.nana-side::-webkit-scrollbar{width:8px}
+.nana-col::-webkit-scrollbar-thumb,.nana-side::-webkit-scrollbar-thumb{background:var(--c-line-2)}
+.nana-col .nana-invite-row .field{min-width:0}
