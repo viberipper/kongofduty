@@ -15,33 +15,6 @@ evidence. Commit range covered: `39093f4` (initial snapshot) through
 range (e.g. `09486bd`, `d4111b4`) are intentionally excluded — upstream
 ports are NOT tracked here (see `docs/upstream-sync.md`).
 
-## [Unreleased]
-
-### Fixed
-
-- `fix(teams): initial 6v6 by total count` — team picks and balance
-  count every body on the field (humans plus bots) instead of humans
-  alone, so the first yard join lands on the minority side and the
-  room opens 6v6 instead of stacking 7v5; tied totals fall back to
-  human counts so consecutive solo joins alternate sides.
-  (Pending commit — hash follows on commit.)
-- `fix(teams): yard join evicts a majority-side bot` — the over-seat
-  eviction after a human join takes the newest bot off the overfull
-  side, so the seat total holds, the join re-balances instead of
-  freezing the skew, and a human seat is never evicted.
-  (Pending commit — hash follows on commit.)
-- `fix(private): host-arranged sides survive match start` — seats the
-  host dealt via lobby move or shuffle carry an arranged flag that
-  start keeps as dealt; only auto-dealt seats fill the minority side
-  in join order before bot backfill tops up the weaker team, while
-  yard auto-balance is untouched.
-  (Pending commit — hash follows on commit.)
-- `fix(teams): documented bot-free overfull edge` — a pure-human
-  overfull side has no bot to release, so the eviction loop stops
-  instead of taking a minority-side bot; the skew then heals on the
-  next leave. Rare: needs a 7-human stack on one side of a full yard.
-  (Pending commit — hash follows on commit.)
-
 ## 2026-10-30
 
 ### Added
@@ -95,6 +68,25 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   is dropped for ~50 ms after a pointer-lock re-acquire, and poisoned
   values heal instead of sticking yaw/pitch (finite clamps plus yaw wrap)
   on mouse and pad (`5a5710d`).
+- `fix(teams): initial 6v6 by total count` — team picks and balance
+  count every body on the field (humans plus bots) instead of humans
+  alone, so the first yard join lands on the minority side and the
+  room opens 6v6 instead of stacking 7v5; tied totals fall back to
+  human counts so consecutive solo joins alternate sides (`12f59c5`).
+- `fix(teams): yard join evicts a majority-side bot` — the over-seat
+  eviction after a human join takes the newest bot off the overfull
+  side, so the seat total holds, the join re-balances instead of
+  freezing the skew, and a human seat is never evicted (`12f59c5`).
+- `fix(private): host-arranged sides survive match start` — seats the
+  host dealt via lobby move or shuffle carry an arranged flag that
+  start keeps as dealt; only auto-dealt seats fill the minority side
+  in join order before bot backfill tops up the weaker team, while
+  yard auto-balance is untouched (`12f59c5`).
+- `fix(teams): documented bot-free overfull edge` — a pure-human
+  overfull side has no bot to release, so the eviction loop stops
+  instead of taking a minority-side bot; the skew then heals on the
+  next leave. Rare: needs a 7-human stack on one side of a full yard
+  (`12f59c5`).
 
 ## 2026-10-29
 
