@@ -22,9 +22,14 @@ Self-hostable version of the browser game at https://cnvs.dev/kong/ — playable
 - **Team-colored clothing:** Kong on your own team wear blue shorts (enemies red), astronaut armbands/panels in team colors — all colorMode-aware (Protan/Deutan/Tritan), swapped per actor, FFA unchanged.
 - **Reliable match end online:** the server retransmits the frozen end state until the rollover, duplicate-tick end signals replay idempotently (kills/feed stay deduplicated, nothing plays twice), a watchdog finishes the match when end evidence was seen but no snapshot arrives for seconds, stale end signals from the previous match can never re-raise the endcard over a live match, and the endcard dismisses itself once its countdown expires while the connection is confirmed live — so the end-of-match screen always appears, never hangs, and never pops back over the next match.
 - **Per-mode public rooms:** PUBLIC MATCH follows the picked mode — separate always-on rooms per map for TDM, FFA, and Gun Game — so queuing public with an FFA or Gun Game selection actually lands in that mode instead of a pinned team mode.
+- **Public gate sees the live match:** the codeless callsign check now answers with the running yard for the picked mode (exists/phase/mode flags) instead of blind defaults, so PUBLIC MATCH sees whether that mode's room is already live before joining.
+- **Second player joins the live public match:** a second human lands in the same running yard room with an immediate seat — exactly one bot is evicted to make room while the first player keeps playing beside the newcomer.
 - **Menu-music mute toggle:** one-click mute switch in the menu topbar next to the callsign chip, persisted in prefs and applied live on top of the SETTINGS → AUDIO slider.
 - **Clean walls every match:** spray-paint decals are scrubbed at match end, on rematch, and on lobby/menu return, so tags never leak into the next match.
 - **Menu discoverability:** SPRAY and CHAT key hints in the controls keyline, plus a "Source available on GitHub" link in the menu footer.
+- **Lobby host tools:** the private-match lobby lets the host move players between teams, bench them, promote them back, and hand the host chair to another seat — guest writes are refused.
+- **Host-leave transfer:** when the host leaves, the longest-seated member (bench included) becomes host automatically, picked by join time only — ping stays a display-only lobby badge and can never win the chair.
+- **Private late-join:** invite-link players can join a running private match — a free seat plays immediately, a full room starts them on the bench with promotion on the next leave, and no bot is kicked to make room.
 
 ## Changelog
 
