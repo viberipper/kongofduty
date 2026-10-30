@@ -2231,7 +2231,12 @@ function onSocket(ws: WsConn, ip: string): void {
     if (m.t === "checkname") {
       const asked = cleanRoomCode(m.room);
       if (!asked) {
-        ws.send(JSON.stringify({ t: "namecheck", ok: true, name: dedupeName(cleanName(m.name), []) }));
+        // PUBLIC (yard) door: the check names no room — answer with the
+        // running yard for the asked mode, so the gate sees the live match
+        // (phase, bench/full flags) instead of blind defaults. The lazy
+        // ffa/gun yards are bounded (two, ever); the tdm yard pre-exists.
+        const md: ModeId = m.mode === "gun" ? "gun" : m.mode === "ffa" ? "ffa" : "tdm";
+        ws.send(JSON.stringify(getOrCreateYard(md).namecheck(m)));
         return;
       }
       const r = rooms.get(asked);

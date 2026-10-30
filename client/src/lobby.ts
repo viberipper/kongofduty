@@ -266,11 +266,11 @@ let checkStatus: ((text: string) => void) | null = null;
  * server is already there — it must never sit on a cold start to play a
  * match that runs entirely in this tab.
  */
-function checkCallsign(wsUrl: string, name: string, room: string, mapHint?: string, quick = false): Promise<CheckResult> {
-  return checkCallsignWithRetry(wsUrl, name, room, mapHint, quick);
+function checkCallsign(wsUrl: string, name: string, room: string, mapHint?: string, quick = false, mode?: ModeId): Promise<CheckResult> {
+  return checkCallsignWithRetry(wsUrl, name, room, mapHint, quick, mode);
 }
 
-async function checkCallsignWithRetry(wsUrl: string, name: string, room: string, mapHint?: string, quick = false): Promise<CheckResult> {
+async function checkCallsignWithRetry(wsUrl: string, name: string, room: string, mapHint?: string, quick = false, mode?: ModeId): Promise<CheckResult> {
   const started = Date.now();
   const deadline = started + (quick ? 4000 : CHECK_BUDGET_MS);
   // "Connecting…" at once; "starting server…" if it is taking a while.
@@ -280,7 +280,7 @@ async function checkCallsignWithRetry(wsUrl: string, name: string, room: string,
     let attempt = 0;
     for (;;) {
       const left = deadline - Date.now();
-      const result = await checkCallsignOnce(wsUrl, name, room, mapHint, Math.min(quick ? 4000 : CHECK_ATTEMPT_MS, Math.max(500, left)));
+      const result = await checkCallsignOnce(wsUrl, name, room, mapHint, Math.min(quick ? 4000 : CHECK_ATTEMPT_MS, Math.max(500, left)), mode);
       if (!result.offline || quick) return result;
       attempt++;
       const wait = Math.min(4000, 600 * attempt);
@@ -293,7 +293,7 @@ async function checkCallsignWithRetry(wsUrl: string, name: string, room: string,
   }
 }
 
-function checkCallsignOnce(wsUrl: string, name: string, room: string, mapHint: string | undefined, timeoutMs: number): Promise<CheckResult> {
+function checkCallsignOnce(wsUrl: string, name: string, room: string, mapHint: string | undefined, timeoutMs: number, mode?: ModeId): Promise<CheckResult> {
   return new Promise((resolve) => {
     let settled = false;
     let ws: WebSocket | null = null;
@@ -320,7 +320,9 @@ function checkCallsignOnce(wsUrl: string, name: string, room: string, mapHint: s
       finish({ t: "namecheck", ok: false, name: "", reason: "CANNOT REACH THE GAME SERVER", offline: true });
       return;
     }
-    ws.onopen = () => ws?.send(JSON.stringify({ t: "checkname", name, room }));
+    // The yard names no room: the picked mode selects which always-live yard
+    // this check (and the join after it) is about (server/index.ts yardKey).
+    ws.onopen = () => ws?.send(JSON.stringify(mode ? { t: "checkname", name, room, mode } : { t: "checkname", name, room }));
     ws.onmessage = (ev) => {
       try {
         const msg = JSON.parse(String(ev.data)) as ServerMsg;
@@ -909,7 +911,10 @@ async function runGate(opts: GateOpts): Promise<void> {
   // The offline doors (bots, rename) only take the server's opinion if it is
   // already up — a cold server must never hold a match that runs in this tab.
   const quick = door.offlineOk;
-  let res = await checkCallsign(opts.wsUrl, typed, room, undefined, quick);
+  // The yard names no room: hand the picked mode over so the check answers
+  // with that always-live yard (other doors name a code; the mode rides only
+  // where no code selects the room).
+  let res = await checkCallsign(opts.wsUrl, typed, room, undefined, quick, opts.kind === "yard" ? opts.mode : undefined);
   // A generated code that is somehow already live would make this player a
   // JOINER of a stranger's lobby instead of the host of their own. Take another.
   if (opts.kind === "host" && opts.newCode) {

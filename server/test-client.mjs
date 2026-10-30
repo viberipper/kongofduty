@@ -174,6 +174,48 @@ async function main() {
   console.log(`[pub] moved dist=${dist.toFixed(2)}m alive=${me2.alive}`);
   if (dist < 0.5) throw new Error("body did not move");
 
+  // ---------- 1a2) PUBLIC TDM — second human joins the RUNNING yard ----------
+  // No new room per join, no private lobby: the same "" room, an immediate
+  // seat (no bench), exactly one bot evicted (total stays at seatCount), and
+  // the first human still plays beside the newcomer.
+  // The codeless checkname (the yard gate's exact message) answers with the
+  // running yard — not a bare ok — so the gate sees the live match.
+  const ychk = new Fake("pub-check");
+  await ychk.connect(url());
+  ychk.send({ t: "checkname", name: "LOOKER", room: "", mode: "tdm" });
+  const ync = await ychk.waitFor((m) => m.find((x) => x.t === "namecheck"));
+  console.log(`[pub-check] room=${JSON.stringify(ync.room)}`);
+  if (!ync.room || ync.room.exists !== true) throw new Error("yard checkname carries no running room");
+  if (ync.room.phase !== "live") throw new Error(`yard checkname phase=${ync.room.phase}, expected live`);
+  if (ync.room.mode !== "tdm") throw new Error(`yard checkname mode=${ync.room.mode}, expected tdm`);
+  ychk.ws.close();
+  const tdmSnapBefore = a.snaps.length ? a.snaps[a.snaps.length - 1] : snap;
+  const tdmTickB = tdmSnapBefore.tick ?? -1;
+  const tdmBotsB = tdmSnapBefore.players.filter((p) => p.bot).length;
+  const tdmTotalB = tdmSnapBefore.players.length;
+  const b = new Fake("pub-2");
+  await b.connect(url());
+  b.send({ t: "join", name: "BRAVO", team: -1, mode: "tdm", map: "nuketown", snapshotFormat: "compact-v1" });
+  const wel2 = await b.waitFor((m) => m.find((x) => x.t === "welcome"));
+  console.log(`[pub-2] welcome ok room=${wel2.room} name=${wel2.name} spectator=${wel2.spectator} (first room=${wel.room})`);
+  if (wel2.room !== wel.room) throw new Error(`TDM room split: first=${wel.room} second=${wel2.room}`);
+  if (wel2.room !== "") throw new Error(`Second TDM join welcome.room=${wel2.room}, expected "" (the running yard)`);
+  if (wel2.spectator) throw new Error("second TDM human parked as spectator, expected immediate seat");
+  const snap2 = await b.waitFor((m) => m.find((x) => x.t === "snap" && x.mode === "tdm" && (x.tick ?? 0) > tdmTickB));
+  const meB = snap2.players.find((p) => p.id === snap2.you);
+  console.log(`[pub-2] snap mode=${snap2.mode} players=${snap2.players.length} me=${meB ? "found" : "MISSING"} tick=${snap2.tick} (was ${tdmTickB})`);
+  if (!meB) throw new Error("second TDM body missing from snapshot");
+  if (meB.bot) throw new Error("second TDM body flagged as bot");
+  if (snap2.players.length !== tdmTotalB) throw new Error(`TDM yard total=${snap2.players.length}, expected ${tdmTotalB} (seatCount)`);
+  const tdmBotsA = snap2.players.filter((p) => p.bot).length;
+  console.log(`[pub-2] bots before=${tdmBotsB} after=${tdmBotsA} total=${snap2.players.length}`);
+  if (tdmBotsA !== tdmBotsB - 1) throw new Error(`TDM bots went ${tdmBotsB}→${tdmBotsA}, expected exactly one fewer`);
+  const fresh1 = await a.waitFor((m) =>
+    m.find((x) => x.t === "snap" && x.mode === "tdm" && (x.tick ?? 0) > tdmTickB && x.players?.some((p) => p.name === wel2.name)),
+  );
+  console.log(`[pub-2] first seat still live tick=${fresh1.tick} players=${fresh1.players.length}`);
+  if (!fresh1.players.some((p) => p.name === wel.name)) throw new Error(`first TDM human ${wel.name} missing after second join`);
+
   // ---------- 1b) PUBLIC GUN GAME — the picked mode's yard, not the TDM one ----------
   // A modeless join lands in TDM (""); a join with mode gun must land in a
   // separate always-live yard running the gun sim (snap.mode gun + ladder).
@@ -269,6 +311,7 @@ async function main() {
   console.log(`[pub-old] snap mode=${osnap.mode} players=${osnap.players.length}`);
   if (osnap.players.length !== 12) throw new Error(`TDM yard has ${osnap.players.length} bodies, expected 12`);
   pold.ws.close();
+  b.ws.close();
   pgun.ws.close();
   pgun2.ws.close();
 
