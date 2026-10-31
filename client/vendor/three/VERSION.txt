@@ -10,6 +10,7 @@ build/
 examples/jsm/
   geometries/ loaders/ postprocessing/ shaders/ utils/   full upstream dirs (r187)
   libs/meshopt_decoder.module.js                          only what GLTFLoader needs
+  math/SimplexNoise.js                                    only what DenoiseNode needs
   tsl/                        TSL display/pass nodes (BloomNode, GTAONode, …) for the
                               follow-up: porting the EffectComposer post-chain to RenderPipeline
   tsl/WebGLNodesHandler.js

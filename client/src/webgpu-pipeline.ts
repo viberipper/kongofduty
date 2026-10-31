@@ -219,6 +219,7 @@ export class WebgpuPipeline {
   private fx!: {
     bloom(node: unknown, strength: unknown, radius: number, threshold: number): TslNode;
     ao(depth: unknown, normal: unknown, camera: THREE.Camera): TslNode & { dispose?: () => void };
+    denoise?: (node: unknown, depth: unknown, normal: unknown, camera: THREE.Camera) => TslNode & { dispose?: () => void };
     afterImage(node: unknown, damp: unknown): TslNode & { dispose?: () => void };
     fxaa(node: unknown): TslNode;
     smaa(node: unknown): TslNode;
@@ -226,6 +227,7 @@ export class WebgpuPipeline {
 
   private scenePass: PassApi | null = null;
   private aoNode: (TslNode & { dispose?: () => void }) | null = null;
+  private aoClean: (TslNode & { dispose?: () => void }) | null = null;
   private bloomNode: (TslNode & { dispose?: () => void }) | null = null;
   private afterNode: (TslNode & { dispose?: () => void }) | null = null;
   /** Whether the living scene pass carries MRT normals (change = pass rebuild). */
@@ -319,8 +321,7 @@ export class WebgpuPipeline {
       // a failing optional import must never take the whole post chain down.
       smaa: null as unknown as WebgpuPipeline["fx"]["smaa"],
     };
-    if (self.useSmaa) {
-      try {
+    if (self.useSmaa) {      try {
         const smaaM = (await import("three/addons/tsl/display/SMAANode.js")) as unknown as {
           smaa: WebgpuPipeline["fx"]["smaa"];
         };
@@ -331,6 +332,17 @@ export class WebgpuPipeline {
         self.useFxaa = !qaFxaaOff();
       }
     }
+    // AO denoiser, also optional: it needs the depth/normal guides, which the
+    // scene pass provides. Without it the AO stays the raw stochastic estimate.
+    try {
+      const dM = (await import("three/addons/tsl/display/DenoiseNode.js")) as unknown as {
+        denoise: NonNullable<WebgpuPipeline["fx"]["denoise"]>;
+      };
+      self.fx.denoise = dM.denoise;
+    } catch (e) {
+      console.warn(`[gpu] AO denoiser unavailable (${String(e instanceof Error ? e.message : e)}) — raw GTAO.`);
+    }
+
     self.buildUniforms();
     self.scenePass = api.pass(scene, camera);
     self.applyPrefs({
@@ -575,7 +587,23 @@ export class WebgpuPipeline {
 
     let color: TslNode = pass.getTextureNode("output");
     if (this.aoNode) {
-      color = color.mul(T.mix(T.float(1), this.aoNode, this.uAoStrength));
+      // DENOISE: GTAO is a stochastic estimate. At full resolution without a
+      // denoiser it shows up as grain across lit surfaces and contact areas —
+      // exactly the "körnig" report. The WebGL path gets the same smoothing for
+      // free from ContactAO's bilateral blur; this is the TSL answer, guided by
+      // the pass's own depth and normals so edges stay crisp.
+      let ao: TslNode = this.aoNode;
+      if (this.fx.denoise) {
+        this.disposeNode(this.aoClean);
+        this.aoClean = this.fx.denoise(
+          this.aoNode,
+          pass.getTextureNode("depth"),
+          pass.getTextureNode("normal"),
+          this.camera,
+        );
+        ao = this.aoClean;
+      }
+      color = color.mul(T.mix(T.float(1), ao, this.uAoStrength));
     }
 
     // Selective HDR bloom (threshold 1.0 like BloomPass, strength live).
