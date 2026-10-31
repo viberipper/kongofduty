@@ -354,18 +354,24 @@ export function tslQuadFamily(kind, u) {
     const sa = sin(a);
     const r = vec2(c.x.mul(ca).sub(c.y.mul(sa)), c.x.mul(sa).add(c.y.mul(ca)));
     const dc = cameraPosition.sub(iP.xyz).length();
+    // OFFSET ALONG THE SURFACE NORMAL, NOT ALONG THE VIEW RAY.
+    //
+    // The decal is placed on the COLLIDER face, while the geometry you see is
+    // drawn up to ~7 cm proud of it. It therefore has to move off the collider,
+    // and the direction matters:
+    //   view ray  -> camera-dependent: the same splat can end up in front of a
+    //               crate standing between you and the wall it belongs to
+    //               (the "decals bleed through props" report).
+    //   normal    -> surface-dependent: it lands on the skin that belongs to
+    //               THAT face and cannot cross anything else.
+    // The record's view-ray budget (iX.x, 5 cm) is reused as extra normal lift,
+    // so the decal clears the skin exactly as before — it just no longer moves
+    // toward the camera.
+    const lift = iX.z.add(iX.x).add(dc.mul(0.00045));
     const w2 = iP.xyz
-      .add(n.mul(iX.z.add(dc.mul(0.00045))))
+      .add(n.mul(lift))
       .add(t1.mul(r.x).add(t2.mul(r.y)).mul(size).mul(0.5));
-    const tv = w2.sub(cameraPosition);
-    const tl = tv.length();
-    // EXACTLY the GLSL numbers: pull the plane toward the camera by the record's
-    // iX.x plus 2 mm per metre. This is what makes the decal win over the
-    // visual skin that sits proud of its collider — without it the decal hides
-    // inside the geometry and only shows through seams. WebGL runs the same
-    // formula, so the two backends now agree; the polygonOffset below is the
-    // second half of that pair (three negates it under reversed depth).
-    return cameraPosition.add(tv.mul(max(float(0.05), float(1).sub(iX.x.add(dc.mul(0.002))).div(max(tl, 0.001)))));
+    return w2;
   });
 
   const positionNode = Fn(() => {
