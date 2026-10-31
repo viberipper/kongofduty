@@ -154,7 +154,7 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   Vogel-disk PCF kernel cannot reproduce the old ~14 cm width without reading
   as speckle, so the nuketown/dust2/shipment penumbrae run narrower than
   authored (2.0 and 3.1 → 1.6) by deliberate clamp, not by this removal
-  (Pending commit — hash follows on commit.).
+  (2916dda).
 
 - `fix(shadows): penumbra clamp is explicit, total and re-applied` — the
   `shadow.radius <= 1.6` clamp in `game.ts` ran once at `init()` with a bare
@@ -166,8 +166,7 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   lights and a quality re-arm are clamped too — cheap, idempotent, no shadow
   map source touched. Plainly: nuketown/dust2/shipment penumbrae get narrower
   than authored (2.0 and 3.1 → 1.6) because the removed PCFSoft kernel cannot
-  be reproduced by the 5-tap replacement without speckle (Pending commit —
-  hash follows on commit.).
+  be reproduced by the 5-tap replacement without speckle (2916dda).
 
 - `fix(boot): deploy() re-entrancy guard plus a non-browser paint fallback` —
   `deploy()` in `client/src/main.ts` had no in-flight guard, and the awaited
@@ -181,7 +180,7 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   cards, throws) re-arms the door. `nextPaint()`
   also guards its `requestAnimationFrame` call with a `typeof` check (falling
   back to a zero-delay timer) so a non-browser harness no longer throws a
-  `ReferenceError` (Pending commit — hash follows on commit.).
+  `ReferenceError` (2916dda).
 
 ### Added
 
