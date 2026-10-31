@@ -881,9 +881,9 @@ export class Game {
     this.captureEnvBases();
     if (this.backend === "webgpu") {
       // TSL post chain (webgpu-pipeline.ts): scene → GTAO → bloom →
-      // [afterimage] → CINEMATIC grade (maps+sRGB itself, no RenderOutput)
-      // → [FXAA]. Lazy chunk, so the WebGL boot never loads the 2.3 MB (only
-      // this branch imports).
+      // [afterimage] → CINEMATIC extras → renderOutput(ACES+sRGB) → [FXAA].
+      // Lazy chunk, so the WebGL boot never loads it (only this branch
+      // imports).
       const { createWebgpuPipeline } = await import("./webgpu-pipeline");
       this.pipeline = await createWebgpuPipeline(this.renderer, this.world.scene, this.camera);
       console.info("[gpu] WebGPU-Pfad: TSL-RenderPipeline aktiv (GTAO/Bloom/Grade/sRGB, siehe webgpu-pipeline.ts).");
@@ -1132,8 +1132,8 @@ export class Game {
   /**
    * ONE presented frame on both backends: WebGL2 via the
    * EffectComposer (post chain), WebGPU via the TSL render pipeline
-   * (webgpu-pipeline.ts — scene → GTAO → bloom → [afterimage] → grade
-   * [maps+sRGB itself] → [FXAA]). If the pipeline fails (null), the
+   * (webgpu-pipeline.ts — scene → GTAO → bloom → [afterimage] → grade extras
+   * [→ renderOutput ACES+sRGB] → [FXAA]). If the pipeline fails (null), the
    * WebGPU path renders the scene directly instead of staying black.
    * Public for ?test (test.ts renders stills without sim — dt = 0 means
    * no uTime progress, deterministic frame).

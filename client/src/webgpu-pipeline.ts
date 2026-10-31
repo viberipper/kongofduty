@@ -466,12 +466,16 @@ export class WebgpuPipeline {
       //
       // Exposure: map basis x slider still works. renderOutput applies the
       // RENDERER's toneMappingExposure, so the grade cancels exactly that
-      // value — no literal to keep in sync with gpu-backend.ts.
-      const exDiv = this.renderer.toneMappingExposure || 1;
-      // Safety net before the tone map: cinematic.ts range-guards and clamps
-      // to 64 because RRTAndODTFit's quadratic overflows past ~250 (and three's
-      // fit has no guard at all). Cheap, and it keeps a NaN from a future HDR
-      // spike out of the encode.
+      // value — no literal to keep in sync with gpu-backend.ts. Read per build,
+      // and gpu-backend.ts sets it once before this pipeline exists; the guard
+      // only keeps a non-finite value from poisoning the shader.
+      const rExp = this.renderer.toneMappingExposure;
+      const exDiv = Number.isFinite(rExp) && rExp > 0 ? rExp : 1;
+      // Range guard before the tone map: cinematic.ts clamps to 64 the same way
+      // because the ACES quadratic overflows on huge HDR values (three's fit
+      // has no guard at all). This catches ±Inf and out-of-range brightness;
+      // NaN is not cleared by min/max on every backend, so it is not claimed
+      // here — upstream already NaN-guards (see cinematic.ts:80-88).
       const safe = T.min(T.max(col, T.vec3(0, 0, 0)), T.vec3(64, 64, 64));
       const exposed = safe.mul(uExposure.div(exDiv));
       return T.renderOutput(T.vec4(exposed, 1), this.lib.ACESFilmicToneMapping, this.lib.SRGBColorSpace);

@@ -707,7 +707,11 @@ function buildRow(row: Exclude<Row, { group: string }>, describe: (t: string, d:
         // away, but never pull the rug out of a live match.
         if (row.key === "renderer" && changed) {
           uiSfx("select");
-          if (deps?.inMatch()) {
+          // Fail closed: only reload when we positively know no match is live.
+          // An unknown state keeps the match and asks for a manual reload.
+          if (deps?.inMatch?.() === false) {
+            location.reload();
+          } else {
             if (!note) {
               note = h("small", "set-note");
               note.style.fontSize = "var(--fs-micro)";
@@ -715,8 +719,6 @@ function buildRow(row: Exclude<Row, { group: string }>, describe: (t: string, d:
               el.append(note);
             }
             note.textContent = "APPLIES AFTER THE NEXT LOAD";
-          } else {
-            location.reload();
           }
           return;
         }
