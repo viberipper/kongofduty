@@ -359,14 +359,14 @@ export function tslQuadFamily(kind, u) {
       .add(t1.mul(r.x).add(t2.mul(r.y)).mul(size).mul(0.5));
     const tv = w2.sub(cameraPosition);
     const tl = tv.length();
-    // DEPTH PULL, TIGHTLY CLAMPED. The record carries a 5 cm pull (iX.x) plus
-    // 2 mm per metre to beat a visual skin that sits proud of its collider. At
-    // range that is 5-15 cm of travel TOWARD the camera, which pushes a splat on
-    // the far side of a thin wall through to the near side — the "decals show
-    // through objects" report. 25 mm total is enough for the collider/skin gap
-    // and cannot cross a wall.
-    const pull = min(iX.x, 0.02).add(dc.mul(0.0002));
-    return cameraPosition.add(tv.mul(max(float(0.05), float(1).sub(pull).div(max(tl, 0.001)))));
+    // NO view-ray pull. Any camera-ward travel (the record wants 5 cm + 2 mm/m)
+    // makes a splat on the far side of a panel surface on the near side, i.e.
+    // decals bleeding through props — the report this fixes. The quad now sits
+    // exactly where it was painted; the only offset is the small normal lift
+    // above, which moves it off the surface in the direction the surface faces
+    // and therefore can never cross the geometry.
+    void tl;
+    return w2;
   });
 
   const positionNode = Fn(() => {
