@@ -148,6 +148,15 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   frame; it is derived once per lean direction from the static pose tables now
   (Pending commit — hash follows on commit.).
 
+### Tests
+
+- `test(qa): ?nolock=1 drives fire without pointer lock` — every FX/impact
+  check needed a trusted click to take the pointer lock, which a headless
+  harness cannot produce, so weapon FX, decals and blood were only ever
+  verified by hand. The flag widens the input gate only (keyboard + mouse
+  fire); nothing else about the game changes (Pending commit — hash follows
+  on commit.).
+
 ## 2026-10-30
 
 ### Added

@@ -213,6 +213,20 @@ const SOFTWARE_DPR = 0.45;
 let softwareTier = false;
 
 /**
+ * QA/automation switch (?nolock=1): drive keyboard and fire WITHOUT pointer
+ * lock. The lock needs a trusted user gesture, which a headless harness cannot
+ * produce, so every FX/impact check used to be manual. Gameplay-neutral: the
+ * switch only widens the input gate, nothing else changes.
+ */
+const qaNoLock = (): boolean => {
+  try {
+    return new URLSearchParams(location.search).get("nolock") === "1";
+  } catch {
+    return false;
+  }
+};
+
+/**
  * THE POST CHAIN (WebGL slots; see the notes at each pass in init()):
  *
  *   RenderPass (HDR, MSAA) -> ContactAO (ssao.ts, hardware tier only)
@@ -2139,7 +2153,7 @@ export class Game {
         if (!e.repeat) this.bugReport();
         return;
       }
-      if (!this.running || !this.locked || (e.target instanceof HTMLElement && e.target.closest("input,textarea,[contenteditable=true]"))) return;
+      if (!this.running || !(this.locked || qaNoLock()) || (e.target instanceof HTMLElement && e.target.closest("input,textarea,[contenteditable=true]"))) return;
       // CHAT OWNS ITS KEYS. While the line is open no key drives the game —
       // including when focus slipped off the input (pointer-lock quirk): those
       // keys would otherwise type nothing AND move the body (the "random open
@@ -2172,7 +2186,7 @@ export class Game {
       act(a, true);
     };
     const up = (e: KeyboardEvent) => {
-      if (!this.running || !this.locked || (e.target instanceof HTMLElement && e.target.closest("input,textarea,[contenteditable=true]"))) return;
+      if (!this.running || !(this.locked || qaNoLock()) || (e.target instanceof HTMLElement && e.target.closest("input,textarea,[contenteditable=true]"))) return;
       // Matches `down`: while the chat line is open, releases never touch
       // game state either (keys were already cleared by openChat).
       if (this.isChatOpen()) return;
@@ -2214,7 +2228,7 @@ export class Game {
         (document.getElementById("chat-input") as HTMLInputElement | null)?.focus({ preventScroll: true });
         if (this.locked) return;
       }
-      if (!this.locked) {
+      if (!this.locked && !qaNoLock()) {
         this.captureKeyboard();
         // Chromium returns a Promise here and REJECTS it when the lock cannot be
         // taken right now (SecurityError: the user just pressed Esc and the
