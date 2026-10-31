@@ -279,7 +279,7 @@ export function attachAstronaut(root: THREE.Object3D, bones: Record<string, THRE
       if (merge) bake(g);
       // Equipment never casts: the skinned body already supplies the shadow
       // silhouette, and every extra caster is another shadow-map draw per actor.
-      g.traverse((o) => { o.castShadow = false; if ((o as THREE.Mesh).material === helmetGlass) o.renderOrder = 3; });
+      g.traverse((o) => { o.castShadow = false; o.userData.evaGear = true; if ((o as THREE.Mesh).material === helmetGlass) o.renderOrder = 3; });
       g.name = "ARES EVA / " + bone;
       target.updateWorldMatrix(true, false);
       g.applyMatrix4(target.matrixWorld.clone().invert());

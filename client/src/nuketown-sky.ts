@@ -151,6 +151,7 @@ export function makeSky(sunDir: THREE.Vector3, gain = 1, rainbow = 1, sunAmt = 1
     m.renderOrder = -100;
     m.frustumCulled = false;
     m.name = "nuketown/sky";
+    m.userData.qaIgnore = true;
     return m;
   }
   if (gpuCapabilities().active === "webgpu") {

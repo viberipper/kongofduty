@@ -26,6 +26,7 @@ const INACTIVE_ON_WEBGPU = [
   "Nuketown PBR spec tweaks (trim, siding)",
   "weapon chunk PBR (bullet debris)",
   "specular AA (glint crawl on fine normal maps)",
+  "EVA ally shorts map swap (the node suit bakes its map into colorNode)",
 ];
 
 let reported = false;
