@@ -579,6 +579,14 @@ export class WebgpuPipeline {
           pass.getTextureNode("normal"),
           this.camera,
         );
+        // HALF-RESOLUTION AO. GTAO is a fill-rate bound fullscreen effect and
+        // the WebGL path has always run its ContactAO at half res (with a
+        // bilateral denoise on top). At full res it is the most expensive pass in
+        // the chain on an open map — Nuketown (foliage, sky, long sight lines)
+        // dropped to single-digit fps while the enclosed Ares ran fine. The
+        // denoiser below keeps half-res edges clean, so this is the same
+        // cost/quality point the other backend uses.
+        (this.aoNode as unknown as { resolutionScale?: number }).resolutionScale = 0.5;
       }
     } else {
       this.disposeNode(this.aoNode);
