@@ -20,14 +20,36 @@
 export type AdsMode = "hold" | "toggle";
 export type RenderScaleMode = "auto" | "native";
 export type MotionPref = "system" | "reduce" | "full";
-/** GPU backend wish (resolved by gpu-backend.ts; WebGPU falls back). */
-/** WebGPU is retired (WebGL2 only). The WebGPU code (gpu-backend.ts,
- * webgpu-pipeline.ts, tsl-materials.ts) is kept but never loaded.
- * That is why the pref only knows "webgl" — old stored values ("auto",
- * "webgpu") fall back to "webgl" via sanitize. */
-export type RendererPref = "webgl";
+/**
+ * GPU backend wish, resolved by gpu-backend.ts (a refused WebGPU device falls
+ * back to WebGL2 with a console warning — never a black canvas).
+ *
+ * SHIPPING STATE: WebGL2 only. The WebGPU path is fully kept in the tree
+ * (gpu-backend, webgpu-pipeline, tsl-materials and the TSL ports of the Ares
+ * shaders, the astronaut suit and the weapon FX), but it is not selectable: the
+ * pref is pinned to "webgl" by sanitizePrefs below and the GRAPHICS tab has no
+ * renderer row. `?renderer=webgpu` still forces it for development and QA (the
+ * query is read at boot, never persisted), which is how the port keeps being
+ * verified while it is out of the UI.
+ *
+ * The WebGPU path still misses node equivalents for several world shaders
+ * (Nuketown sky, the onBeforeCompile patches), so a player must not land on it
+ * by accident.
+ */
+export type RendererPref = "auto" | "webgpu" | "webgl";
 /** Quality preset (graphics-presets.ts): starting point, freely adjustable afterwards. */
 export type QualityPreset = "low" | "medium" | "high" | "ultra" | "cinematic";
+/**
+ * Anti-aliasing mode.
+ * AUTO keeps the shipped behaviour: MSAA on the WebGL composer (4x at DPR<=1.25,
+ * else 2x) and FXAA where MSAA cannot run. MSAA levels are geometric AA (the
+ * cleanest edges, but they need multisampled targets); FXAA/SMAA are post
+ * filters (one fullscreen pass, work everywhere).
+ * On WebGPU the geometry path is single-sample by necessity (GTAO's centre tap
+ * cannot read a multisampled depth texture), so an MSAA choice there resolves to
+ * SMAA — the best post filter three ships — instead of silently doing nothing.
+ */
+export type AAMode = "auto" | "off" | "fxaa" | "smaa" | "msaa2" | "msaa4" | "msaa8";
 /** Shadow map resolution. HIGH = map-authored (no overwrite), MEDIUM = 2048. */
 export type ShadowQuality = "off" | "low" | "medium" | "high" | "ultra";
 /** Gamepad: response curve of the right stick (LOOK). */
@@ -70,7 +92,7 @@ export interface Prefs {
   announcer: boolean;
   /** Your Kong's own gruff voice lines (announcer.ts kong()). */
   kongVoice: boolean;
-  /** Double/Multi/Triple/Quad/Mega-Kill and streak calls (Rampage/Unstoppable/Legend) — voice + subtitles. On by default. Cosmetic-only: the sim blasts (artillery, nuke) still land with it off; only banner/shake/voice go quiet (game.ts nuke event, announcer.nuke). */
+  /** Double/Multi/Triple/Quad/Mega-Kill and streak calls (Rampage/Unstoppable/Legend) — voice + subtitles. On by default. Cosmetic only: the sim's artillery still lands with it off, and the 10-kill frag reward is a sim grant the toggle never gates — only the banner and the voice go quiet. */
   killstreaks: boolean;
   // GRAPHICS
   renderScale: RenderScaleMode;
@@ -87,7 +109,9 @@ export interface Prefs {
   renderer: RendererPref;
   /** Quality preset LOW→CINEMATIC. Sets the switches below; they stay individually adjustable. */
   quality: QualityPreset;
-  /** Selective HDR bloom (sun, muzzle flash, nuke). */
+  /** Anti-aliasing mode (AUTO = shipped: MSAA on WebGL, FXAA elsewhere). */
+  aa: AAMode;
+  /** Selective HDR bloom (sun, muzzle flash, explosions). */
   bloom: boolean;
   /** Additive halo strength (0 = the pass is a no-op). */
   bloomStrength: number;
@@ -166,6 +190,7 @@ export const DEFAULT_PREFS: Readonly<Prefs> = {
   colorMode: "default",
   renderer: "webgl",
   quality: "high",
+  aa: "auto",
   // M1: HIGH == the old look — everything new is default-off (migrated saves
   // look exactly as before). bloom-/aoStrength are only slider presets
   // for manual enabling.
@@ -247,8 +272,13 @@ export function sanitizePrefs(x: unknown): Prefs {
     hudScale: clamp(o.hudScale, RANGES.hudScale[0], RANGES.hudScale[1], d.hudScale),
     motion: pick(o.motion, ["system", "reduce", "full"] as const, d.motion),
     colorMode: pick(o.colorMode, ["default", "protanopia", "deuteranopia", "tritanopia"] as const, d.colorMode),
+    // PINNED: WebGL2 only for players (see the RendererPref comment). The WebGPU
+    // path is developed behind ?renderer=webgpu; a stored or hand-edited
+    // "webgpu"/"auto" sanitises back to "webgl" so nobody boots into a backend
+    // that still has world-shader gaps.
     renderer: "webgl",
     quality: pick(o.quality, ["low", "medium", "high", "ultra", "cinematic"] as const, d.quality),
+    aa: pick(o.aa, ["auto", "off", "fxaa", "smaa", "msaa2", "msaa4", "msaa8"] as const, d.aa),
     bloom: bool(o.bloom, d.bloom),
     bloomStrength: clamp(o.bloomStrength, RANGES.bloomStrength[0], RANGES.bloomStrength[1], d.bloomStrength),
     ao: bool(o.ao, d.ao),
@@ -287,11 +317,14 @@ function load(): Prefs {
 let current: Prefs = load();
 // `?quality=native` (the old Ares-only control, and what QA links pin) still
 // wins for this page load without overwriting the saved choice.
-// (`?renderer=` is retired: WebGPU is off, only WebGL2 exists.)
+// `?renderer=webgl|webgpu|auto` also pins the backend for this page load
+// without overwriting the saved choice (same contract as `?quality`).
 try {
   if (typeof location !== "undefined") {
     const q = new URLSearchParams(location.search);
     if (q.get("quality") === "native") current = { ...current, renderScale: "native" };
+    const r = q.get("renderer");
+    if (r === "auto" || r === "webgpu" || r === "webgl") current = { ...current, renderer: r };
   }
 } catch {
   /* no location */

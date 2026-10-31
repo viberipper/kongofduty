@@ -49,6 +49,18 @@ import { captureBugReport } from "./bug-report";
 const MAP = activeMap();
 const MAP_SOLIDS = MAP.solids;
 /**
+ * SHADOW PENUMBRA CAP (both backends): r187 removed PCFSoft entirely, and both
+ * surviving PCF paths are a FIVE-SAMPLE VOGEL-DISK filter whose only width knob
+ * is shadowRadius in shadow texels — WebGL: the PCF `getShadow` in
+ * `ShaderChunk.shadowmap_pars_fragment` (build/three.module.js — note the chunk
+ * lives there, NOT in three.core.js, where a grep finds nothing) sums
+ * `vogelDiskSample( 0..4, 5, phi )` over `radius = shadowRadius * texelSize`;
+ * WebGPU/TSL: `PCFShadowFilter` in build/three.webgpu.nodes.js, "5 samples using
+ * Vogel disk distribution". Widening that toward the old authored radii reads
+ * as speckle. Clamped to 1.6 texels; see clampShadowRadii.
+ */
+const SHADOW_RADIUS_MAX = 1.6;
+/**
  * `groundHeight` with the footprint tolerance taken OFF (shared/map.ts matches
  * with GH_TOL = 0.12 m so a 0.30 m body is caught by a point test). The sim
  * wants the tolerance — it is what stops a body falling through a tread seam.
@@ -161,7 +173,7 @@ import { DepthPrecision } from "./depth-precision";
 import { COUNTDOWN_MS, inputLocked, isStaleMatchTick, type MatchPhase } from "@shared/matchphase";
 // AAA graphics (feature/aaa-graphics): fused cinematic final pass, map-agnostic
 // contact AO, selective bloom, opt-in motion blur, quality presets, GPU-backend
-// detection (WebGPU-first via the vendored three r186 WebGPURenderer — see gpu-backend).
+// detection (WebGPU-first via the vendored three r187 WebGPURenderer — see gpu-backend).
 import { CINEMATIC } from "./cinematic";
 import { ContactAO } from "./ssao";
 import { BloomPass } from "./bloom";
@@ -209,8 +221,24 @@ function pixelRatio(): number {
   if (softwareTier) return SOFTWARE_DPR;
   return Math.min(window.devicePixelRatio || 1, 2);
 }
+type AaPass = { setSize?(w: number, h: number): void; dispose?(): void };
+
 const SOFTWARE_DPR = 0.45;
 let softwareTier = false;
+
+/**
+ * QA/automation switch (?nolock=1): drive keyboard and fire WITHOUT pointer
+ * lock. The lock needs a trusted user gesture, which a headless harness cannot
+ * produce, so every FX/impact check used to be manual. Gameplay-neutral: the
+ * switch only widens the input gate, nothing else changes.
+ */
+const qaNoLock = (): boolean => {
+  try {
+    return new URLSearchParams(location.search).get("nolock") === "1";
+  } catch {
+    return false;
+  }
+};
 
 /**
  * THE POST CHAIN (WebGL slots; see the notes at each pass in init()):
@@ -221,13 +249,13 @@ let softwareTier = false;
  *   -> CINEMATIC (cinematic.ts: the old GRADE's tone map + sRGB encode
  *      VERBATIM, fused with vignette, chromatic aberration, film grain,
  *      color grade, CAS-lite sharpen and DOF-lite)
- *   -> [FXAA (software tier only, display-referred, where its edge detector
- *      works as designed)].
+ *   -> [FXAA (software tier only: the tier where the composer target carries
+ *      no MSAA samples, see aaSamples)].
  *
  * WEBGPU (webgpu-pipeline.ts) mirrors exactly this order in TSL:
- *   pass → GTAO → Bloom → [Afterimage] → CINEMATIC grade (Fn node, 1:1 from
- *   cinematic.ts — tonemapping+sRGB included, NO RenderOutput around it) →
- *   [FXAA (software tier only)]. See there for the deliberate nuances
+ *   pass → GTAO → Bloom → [Afterimage] → CINEMATIC extras (linear HDR, 1:1
+ *   from cinematic.ts) → renderOutput(ACES+sRGB) →
+ *   [FXAA (both tiers)]. See there for the deliberate nuances
  *   (height fog, bloom knee, max-hold, single-sample scene pass) and the
  *   still-open custom ShaderMaterial ports (weapon/nade/nuke FX, Ares
  *   core, Nuketown sky — falling back to empty NodeMaterial).
@@ -242,6 +270,15 @@ let softwareTier = false;
  */
 const EMPTY: unknown[] = [];
 const EMPTY_NADES: NadeSnap[] = [];
+
+/** QA killswitch (?fxaa=0): drop the FXAA tail (bisection edges vs. grade). */
+function qaFxaaOff(): boolean {
+  try {
+    return new URLSearchParams(location.search).get("fxaa") === "0";
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Share of each shot's recoil that goes into the SPRINGBACK channel (recP/recY)
@@ -763,6 +800,7 @@ export class Game {
     this.renderer = created.renderer;
     this.backend = created.backend;
     console.info(`[gpu] renderer: ${created.note}`);
+    if (this.backend === "webgpu") void import("./webgpu-gaps").then((m) => m.reportGpuGaps()).catch(() => undefined);
     // ZERO-FLICKER hook: WebGL-only (reversed-Z request + standard-depth
     // shadows, see depth-precision.ts). The WebGPU path uses the backend's native
     // reversed float depth (reversedDepthBuffer, no split pass).
@@ -780,6 +818,11 @@ export class Game {
     // world builders load it themselves (module cache: one chunk).
     // WebGL pays nothing (no static import anywhere).
     const TSL = this.backend === "webgpu" ? await import("./tsl-materials") : null;
+    // The astronaut suit is a shader patch on the body skin; on WebGPU it has to
+    // come from TSL (onBeforeCompile is ignored there), so hand the module over
+    // before any actor is built.
+    if (TSL) await import("./astronaut").then((m) => m.setAstronautTsl(TSL)).catch(() => undefined);
+    else void import("./astronaut").then((m) => m.setAstronautTsl(null)).catch(() => undefined);
     // THE WORLD-BUILDER DISPATCH. Jungle Shipment is the shipping map; ?classic
     // keeps the original yard as a dev-only reference (1200+ unmerged draw calls
     // — never ships).
@@ -808,14 +851,33 @@ export class Game {
     const world = useClassic
       ? buildWorld(this.renderer)
       : MAP.id === "ares"
-        ? import("./ares-world").then(m => m.buildAresWorld(this.renderer))
+        ? import("./ares-world").then((m) => {
+            // The Ares procedural shaders (core/sky/Mars/shell) are GLSL-only in
+            // their original form; the TSL port needs the module before the world
+            // is built, so hand it over first.
+            m.setAresTsl(TSL);
+            return m.buildAresWorld(this.renderer);
+          })
         : MAP.id === "nuketown" // nuketown: Blender-built map + PBR library (client/src/nuketown-world.ts)
-        ? import("./nuketown-world").then(m => m.buildNuketownWorld(this.renderer))
+          ? import("./nuketown-world").then(async (m) => {
+              // The procedural sky is GLSL-only; its TSL port needs the module
+              // before buildSkyRig runs.
+              (await import("./nuketown-sky")).setSkyTsl(TSL);
+              return m.buildNuketownWorld(this.renderer);
+            })
         : MAP.id === "dust2"
         ? import("./dust-world").then(m => m.buildDustWorld(this.renderer))
         : import("./jungle-world").then(m => m.buildJungleWorld(this.renderer));
     const [loadedWorld, [rig, , effects]] = await Promise.all([world, assets]);
     this.world = loadedWorld;
+    // SHADOW PENUMBRA, BOTH BACKENDS — see clampShadowRadii: r187 removed
+    // PCFSoft entirely, and both surviving PCF paths are the 5-sample Vogel-disk
+    // filter (authored: ares 1.5, nuketown 2.0, jungle 3.1, dust2 3.1 from its
+    // env data — all tuned against PCFSoft's much wider kernel). Called here so
+    // every map's sun is covered; applyShadowQuality calls it again at each
+    // re-arm, so lights PRESENT THEN are covered too (a light added after boot
+    // without a quality change is not — no map does that today).
+    this.clampShadowRadii();
     // feel stream: Nuketown live events — clock tower = match clock, live POPULATION sign, the nuke at match end (client/src/nuketown-live.ts)
     if (MAP.id === "nuketown") await (await import("./nuketown-live")).attachNuketownLive(this);
     // November-December set dressing (client/src/xmas.ts) — ?xmas=1 / ?xmas=0 force it.
@@ -872,11 +934,19 @@ export class Game {
     this.captureEnvBases();
     if (this.backend === "webgpu") {
       // TSL post chain (webgpu-pipeline.ts): scene → GTAO → bloom →
-      // [afterimage] → CINEMATIC grade (maps+sRGB itself, no RenderOutput)
-      // → [FXAA]. Lazy chunk, so the WebGL boot never loads the 2.3 MB (only
-      // this branch imports).
+      // [afterimage] → CINEMATIC extras → renderOutput(ACES+sRGB) → [FXAA].
+      // Lazy chunk, so the WebGL boot never loads it (only this branch
+      // imports).
       const { createWebgpuPipeline } = await import("./webgpu-pipeline");
-      this.pipeline = await createWebgpuPipeline(this.renderer, this.world.scene, this.camera, { software: softwareTier });
+      // Anti-aliasing on WebGPU: the geometry pass is single-sample (GTAO
+      // precondition), so MSAA choices resolve to SMAA — the best post filter
+      // available — instead of silently doing nothing.
+      const aaPref = prefs().aa;
+      const gpuAa = aaPref === "off" ? "off" : aaPref === "smaa" || aaPref.startsWith("msaa") ? "smaa" : "fxaa";
+      if (aaPref.startsWith("msaa")) {
+        console.info("[gpu] WebGPU runs SMAA for the requested MSAA level (single-sample pass is a GTAO precondition).");
+      }
+      this.pipeline = await createWebgpuPipeline(this.renderer, this.world.scene, this.camera, gpuAa);
       console.info("[gpu] WebGPU-Pfad: TSL-RenderPipeline aktiv (GTAO/Bloom/Grade/sRGB, siehe webgpu-pipeline.ts).");
       // Open nuance (no crash, wrong look): three knows NO node equivalent for
       // custom ShaderMaterial (StandardNodeLibrary maps built-ins only) — they
@@ -947,12 +1017,21 @@ export class Game {
     this.composer.addPass(this.motionPass);
     this.grade = new ShaderPass(CINEMATIC);
     this.composer.addPass(this.grade);
-    // Software rendering uses one display-space AA pass instead of SMAA's
-    // three passes and lookup textures. Hardware keeps its MSAA pipeline.
-    if (samples === 0) {
-      const { FXAAShader } = await import("three/addons/shaders/FXAAShader.js");
-      this.softwareAA = new ShaderPass(FXAAShader);
-      this.composer.addPass(this.softwareAA);
+    // ANTI-ALIASING, post-filter half. When the composer target carries no MSAA
+    // samples (software tier, or the player picked a post filter) exactly one
+    // fullscreen pass resolves edges: SMAA when chosen, FXAA otherwise.
+    // ?fxaa=0 still drops it for bisection.
+    const aaMode = prefs().aa;
+    if (samples === 0 && !qaFxaaOff() && aaMode !== "off") {
+      if (aaMode === "smaa") {
+        const { SMAAPass } = await import("three/addons/postprocessing/SMAAPass.js");
+        this.aaPass = new SMAAPass() as unknown as AaPass;
+        this.composer.addPass(this.aaPass as never);
+      } else {
+        const { FXAAShader } = await import("three/addons/shaders/FXAAShader.js");
+        this.softwareAA = new ShaderPass(FXAAShader);
+        this.composer.addPass(this.softwareAA);
+      }
     }
   }
 
@@ -1122,8 +1201,8 @@ export class Game {
   /**
    * ONE presented frame on both backends: WebGL2 via the
    * EffectComposer (post chain), WebGPU via the TSL render pipeline
-   * (webgpu-pipeline.ts — scene → GTAO → bloom → [afterimage] → grade
-   * [maps+sRGB itself] → [FXAA]). If the pipeline fails (null), the
+   * (webgpu-pipeline.ts — scene → GTAO → bloom → [afterimage] → grade extras
+   * [→ renderOutput ACES+sRGB] → [FXAA]). If the pipeline fails (null), the
    * WebGPU path renders the scene directly instead of staying black.
    * Public for ?test (test.ts renders stills without sim — dt = 0 means
    * no uTime progress, deterministic frame).
@@ -1188,8 +1267,12 @@ export class Game {
     if (this.composer) {
       const q = prefs().quality;
       let samples = aaSamples(renderer);
-      if (q === "low") samples = Math.min(samples, 2);
-      else if (q === "cinematic" && samples === 4 && pixelRatio() <= 1.25 && this.maxSamples() >= 8) samples = 8;
+      // The preset only tunes the AUTOMATIC choice. An explicit MSAA level from
+      // GRAPHICS ▸ Anti-Aliasing is the player's decision and stands as chosen.
+      if (prefs().aa === "auto") {
+        if (q === "low") samples = Math.min(samples, 2);
+        else if (q === "cinematic" && samples === 4 && pixelRatio() <= 1.25 && this.maxSamples() >= 8) samples = 8;
+      }
       this.setSamples(samples);
     }
     // M4: real pixels for chroma/sharpness/DOF (uTexel), DPR-independent.
@@ -1198,6 +1281,8 @@ export class Game {
       this.grade.uniforms.uTexel.value.set(1 / Math.max(1, db.x), 1 / Math.max(1, db.y));
     }
     if (this.softwareAA) this.softwareAA.uniforms.resolution.value.set(1 / (w * pr), 1 / (h * pr));
+    // SMAAPass carries its own edge/weight/blend targets and sizes them itself.
+    this.aaPass?.setSize?.(Math.round(w * pr), Math.round(h * pr));
     // WebGPU path: pull the TSL chain up via the drawing-buffer size
     // (uTexel for chroma/sharpness/DOF; pass RTs scale by themselves).
     this.pipeline?.setSize(w, h, pr);
@@ -1253,6 +1338,12 @@ export class Game {
     // init() calls this here BEFORE setting `inited = true`.
     if (!this.grade) return;
     const p = prefs();
+    // Anti-Aliasing: MSAA level + the single post filter are rebuilt live on
+    // WebGL. (The WebGPU chain resolves its own filter at boot.)
+    if (p.aa !== this.aaApplied) {
+      this.aaApplied = p.aa;
+      void this.applyAaMode();
+    }
     const sw = softwareTier;
     // Review round 2: the adaptive cap only applies under ADAPTIVE scale. At
     // NATIVE it is moot — reset it, otherwise an old
@@ -1345,7 +1436,28 @@ export class Game {
     // if the map authorises shadows (?classic stays shadowless).
     const want = size > 0 && this.mapShadowsOn;
     sun.castShadow = want;
+    // Late-added lights and a quality re-arm escape the init() clamp, so clamp
+    // again here: cheap, idempotent, and no shadow map source is touched.
+    this.clampShadowRadii();
     this.renderer.shadowMap.enabled = want;
+  }
+
+  /**
+   * Clamp every shadow-casting directional light's penumbra to
+   * SHADOW_RADIUS_MAX (runs at init() and at every applyShadowQuality()
+   * re-arm). Total, not just a top bound — defensive: every radius in the tree
+   * is a finite literal today (dust2 reads its `ENVV` record, also a literal),
+   * but a future non-finite or negative value would otherwise pass Math.min
+   * straight into the shadow sampler.
+   */
+  private clampShadowRadii(): void {
+    if (!this.world) return;
+    this.world.scene.traverse((o) => {
+      const l = o as THREE.DirectionalLight;
+      if (!l.isDirectionalLight || !l.castShadow) return;
+      const r = Number(l.shadow.radius);
+      l.shadow.radius = Number.isFinite(r) ? Math.min(Math.max(r, 0), SHADOW_RADIUS_MAX) : SHADOW_RADIUS_MAX;
+    });
   }
 
   /**
@@ -1430,7 +1542,44 @@ export class Game {
   private quality = new RenderQuality(MAP.id === "ares" ? 4.2 : MAP.id === "nuketown" ? 7 : 12);
   private warmActor: BruiserActor | null = null;
   private preparedActors: BruiserActor[] = [];
+  /**
+   * Apply the Anti-Aliasing choice to the live WebGL chain: MSAA level on the
+   * composer targets plus exactly one post filter (FXAA or SMAA) when the
+   * targets carry no samples. The WebGPU chain picks its filter at boot (the
+   * pipeline relinks its output node), so there the setting needs a reload.
+   */
+  private async applyAaMode(): Promise<void> {
+    if (!this.composer) return;
+    const mode = prefs().aa;
+    if (this.softwareAA) {
+      this.composer.removePass(this.softwareAA);
+      this.softwareAA = null;
+    }
+    if (this.aaPass) {
+      this.composer.removePass(this.aaPass as never);
+      this.aaPass = null;
+    }
+    this.resize();
+    const samples = aaSamples(this.renderer as AnyRenderer);
+    if (samples !== 0 || qaFxaaOff() || mode === "off") return;
+    if (mode === "smaa") {
+      const { SMAAPass } = await import("three/addons/postprocessing/SMAAPass.js");
+      this.aaPass = new SMAAPass() as unknown as AaPass;
+      this.composer.addPass(this.aaPass as never);
+    } else {
+      const { FXAAShader } = await import("three/addons/shaders/FXAAShader.js");
+      this.softwareAA = new ShaderPass(FXAAShader);
+      this.composer.addPass(this.softwareAA);
+      const pr = this.renderer.getPixelRatio();
+      this.softwareAA.uniforms.resolution.value.set(1 / (innerWidth * pr), 1 / (innerHeight * pr));
+    }
+  }
+
   private softwareAA: ShaderPass | null = null;
+  /** Structured AA pass (SMAAPass) when the player picks SMAA on WebGL. */
+  private aaPass: AaPass | null = null;
+  /** Last applied Anti-Aliasing pref (live rebuild trigger). */
+  private aaApplied = "";
   /** AAA post chain (feature/aaa-graphics) — null until init() builds the chain. */
   private aoPass: ContactAO | null = null;
   private bloomPass: BloomPass | null = null;
@@ -2129,7 +2278,7 @@ export class Game {
         if (!e.repeat) this.bugReport();
         return;
       }
-      if (!this.running || !this.locked || (e.target instanceof HTMLElement && e.target.closest("input,textarea,[contenteditable=true]"))) return;
+      if (!this.running || !(this.locked || qaNoLock()) || (e.target instanceof HTMLElement && e.target.closest("input,textarea,[contenteditable=true]"))) return;
       // CHAT OWNS ITS KEYS. While the line is open no key drives the game —
       // including when focus slipped off the input (pointer-lock quirk): those
       // keys would otherwise type nothing AND move the body (the "random open
@@ -2162,7 +2311,7 @@ export class Game {
       act(a, true);
     };
     const up = (e: KeyboardEvent) => {
-      if (!this.running || !this.locked || (e.target instanceof HTMLElement && e.target.closest("input,textarea,[contenteditable=true]"))) return;
+      if (!this.running || !(this.locked || qaNoLock()) || (e.target instanceof HTMLElement && e.target.closest("input,textarea,[contenteditable=true]"))) return;
       // Matches `down`: while the chat line is open, releases never touch
       // game state either (keys were already cleared by openChat).
       if (this.isChatOpen()) return;
@@ -2204,7 +2353,7 @@ export class Game {
         (document.getElementById("chat-input") as HTMLInputElement | null)?.focus({ preventScroll: true });
         if (this.locked) return;
       }
-      if (!this.locked) {
+      if (!this.locked && !qaNoLock()) {
         this.captureKeyboard();
         // Chromium returns a Promise here and REJECTS it when the lock cannot be
         // taken right now (SecurityError: the user just pressed Esc and the
@@ -2820,6 +2969,14 @@ export class Game {
   nadePhaseT = 0;
   /** G (or MMB) is physically down. */
   nadeHeld = false;
+  /** TRUE once the current cook has actually been seen burning — the cook-off
+   *  signal. The sim zeroes `cook` exactly when the frag is spent (`handBoom`
+   *  detonation or `dropCooked` on death), so "we were cooking and now we are
+   *  not" stands the cycle down. A belt-count comparison breaks as soon as the
+   *  belt can hold two and a streak grant lands mid-cook: the sim spends
+   *  exactly one frag, so the count can still equal the start value and the
+   *  cycle would stay live and throw the second frag. */
+  private nadeSawCook = false;
   /** The release command for this cycle has already been sent. */
   nadeSent = false;
   /** Predicted arc, refilled every fixed tick while readying. Never realloced. */
@@ -2847,6 +3004,7 @@ export class Game {
     this.nadePhaseT = 0;
     this.nadeSent = false;
     this.lastCookTick = 0;
+    this.nadeSawCook = false;
     this.audio.play("nade-pin", { vol: 0.42 });
     this.hideNadeHint();
   }
@@ -2869,14 +3027,26 @@ export class Game {
     let release = false;
     if (this.nadePhase === 1) {
       this.nadePhaseT += TICK_DT;
+      // The cook has really started once the sim reports it burning — this
+      // latches, so a streak grant landing mid-cook cannot confuse the signal.
+      if (this.localCook() > 0) this.nadeSawCook = true;
       const ready = this.nadePhaseT >= NADE_READY_T;
       const me = this.me();
       const dead = !me || !me.alive;
-      // Cooked off in the paw (the sim has spent the frag and zeroed the cook).
-      const cookedOff = this.nadePhaseT > 0.1 && this.localCook() <= 0 && (this.heldBody()?.nades ?? 0) <= 0;
+      // Cooked off in the paw: we were cooking and now we are not. The sim
+      // zeroes `cook` in exactly three places — `handBoom` (detonates in the
+      // hand, always lethal), `dropCooked` (death with the pin out) and
+      // `throwNade` (a throw the sim honoured). The first two kill the body, so
+      // the `dead` branch would also catch them; the throw is safe because the
+      // client is in phase 2 by then (release at NADE_RELEASE_AT) and this check
+      // only runs in phase 1. A belt-count comparison would break as soon as the
+      // belt can hold two and a grant lands mid-cook, so the count is
+      // deliberately not consulted here.
+      const cookedOff = this.nadePhaseT > 0.1 && this.nadeSawCook && this.localCook() <= 0;
       if (dead || cookedOff) {
         this.nadePhase = 0;
         this.nadePhaseT = 0;
+        this.nadeSawCook = false;
       } else if (!this.nadeHeld && ready) {
         this.nadePhase = 2;
         this.nadePhaseT = 0;
@@ -3832,9 +4002,11 @@ export class Game {
           // Where you fell: the killcam plants the ghost ring here.
           const meNow = this.players.get(this.you);
           if (meNow) this.deathAt = { x: meNow.x, y: meNow.y, z: meNow.z };
-          // Winding up when you died: put the paw away.
+          // Winding up when you died: put the paw away (and forget the cook —
+          // the next pin-pull re-arms the signal from scratch in nadeDown()).
           this.nadePhase = 0;
           this.nadePhaseT = 0;
+          this.nadeSawCook = false;
           this.vm.setNade(0, 0);
         }
       }
@@ -3851,19 +4023,24 @@ export class Game {
         if (e.team !== mine) this.banner("ENEMY UAV ONLINE", 1.7);
         else if (this.accolades.streakOf(this.you) < 3) this.banner("UAV ONLINE", 1.5);
       }
-      // KILLSTREAK NUKE (10 without dying): the blast already landed sim-side
-      // (nukeBlast); this is the moment — banner, announcer call, a shake.
-      // Reward, never a match end: the match plays on.
-      // THE KILLSTREAK TOGGLE IS COSMETIC-ONLY: with killstreaks off the sim
-      // blast still lands (no server flag by design), but there is no banner,
-      // no shake and no voice — announcer.nuke() gates the same way.
+      // KILLSTREAK REWARD (10 without dying): the blast no longer exists — the
+      // reward is the frag, granted sim-side — so this is the moment only:
+      // banner, announcer call, no shake. Reward, never a match end: the match plays on.
+      // THE KILLSTREAK TOGGLE IS COSMETIC-ONLY: with killstreaks off there is no
+      // banner and no voice — announcer.nuke() gates the same way.
       if (e.t === "nuke" && !this.ended && prefs().killstreaks) {
         const kn = this.players.get(e.src)?.name ?? "UNKNOWN";
         const mine = e.src === this.you;
-        this.banner(mine ? "TACTICAL NUKE — YOURS" : `TACTICAL NUKE — ${kn}`, 3, "10 KILLS WITHOUT DYING");
-        this.announcer.nuke(kn, mine);
-        this.shakeAmp = Math.min(0.05, Math.max(this.shakeAmp, 0.03));
-        this.shakeT = 0;
+        // The streak rides the wire untrusted (a hostile/replayed frame can put
+        // anything in it) and lands in a subtitle AND a spoken line: snap it to
+        // the only shape this callout can honestly take — a multiple of ten
+        // between 10 and 990 — so a forged value can neither spoof text nor pin
+        // the subtitle with a huge number, and can never print a streak the sim
+        // could not have produced (it fires on `streak % 10 === 0` only).
+        const raw = Number(e.streak);
+        const streak = Number.isFinite(raw) ? Math.min(990, Math.max(10, Math.round(raw / 10) * 10)) : 10;
+        this.banner(mine ? "TACTICAL NUKE — YOURS" : `TACTICAL NUKE — ${kn}`, 3, `${streak} KILLS WITHOUT DYING · EXTRA FRAG`);
+        this.announcer.nuke(kn, mine, streak);
       }
       // ROUND CARDS. The result holds for the whole intermission (the sim's
       // ROUND_INTERMISSION_S) so the 3-2-1 that follows lands on a screen that

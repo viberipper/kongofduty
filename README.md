@@ -6,7 +6,7 @@ Self-hostable version of the browser game at https://cnvs.dev/kong/ — playable
 
 ## Enhancements over the original
 
-- **Better graphics (AAA pass):** post chain `RenderPass` → `ContactAO` → `Bloom` → `CINEMATIC` grade (tone map, vignette, chromatic aberration, film grain, color grade, sharpen, DOF-lite) → `FXAA`, with quality presets LOW–CINEMATIC plus individual switches in SETTINGS → GRAPHICS.
+- **Better graphics (AAA pass):** post chain `RenderPass` → `ContactAO` → `Bloom` → `CINEMATIC` grade (tone map, vignette, chromatic aberration, film grain, color grade, sharpen, DOF-lite) → `FXAA` (WebGPU both tiers; WebGL only where the composer target has no MSAA samples — hardware WebGL antialiases with MSAA instead), with quality presets LOW–CINEMATIC plus individual switches in SETTINGS → GRAPHICS.
 - **Controller / gamepad support:** standard Xbox/PlayStation mapping with sticks, rumble, and aim assist; layouts DEFAULT / TACTICAL / SOUTHPAW, sensitivity / deadzone / vibration options, button table, and menu navigation in SETTINGS → CONTROLS.
 - **Many bug fixes**, e.g. around ADS, HUD, and gameplay details.
 - **Lobby settings:** private-match lobby has a SETTINGS button (host, guests, spectators) that opens the settings modal over the lobby.
@@ -34,10 +34,10 @@ Self-hostable version of the browser game at https://cnvs.dev/kong/ — playable
 - **Eased ADS look:** aim sensitivity follows an eased ADS value on the same ~18/s the FOV lerps at instead of stepping on the late snapshot flip, so zooming never skips; pointer spikes are clamped and sensitivity inputs are pinned at the use site.
 - **Neutral FFA spawns on every map:** FFA and Gun Game draw teamless points from the whole map — authored seeds where a map has them (Ares Relay eight mid lanes, Nuketown six mid-street points) plus the validated nav lattice, deduped to 1.5 m so no two bodies share a spot; maps without seeds use an interleaved neutral pool plus the same nav lattice. Team modes are untouched.
 - **Chat keeps your line:** while the chat line is open no key drives the game (a slipped focus pulls focus back instead of moving the body), re-pressing T never clears the draft, and blur/ESC keep the unsent text — only ENTER (sent) clears it; clicking while open refocuses the input instead of firing.
-- **5 s spawn protection that breaks on your own shot:** fresh bodies are immune for 5 s, but firing, knifing, or throwing/cooking a frag ends your own immunity at once while incoming cover stays soaked — artillery and the streak blast respect it too.
+- **5 s spawn protection that breaks on your own shot:** fresh bodies are immune for 5 s, but firing, knifing, or throwing/cooking a frag ends your own immunity at once while incoming cover stays soaked — artillery respects it too.
 - **AFK warning and kick:** a live seat with no real input for 60 s gets one private warning and is removed at 90 s (bench promotion / bot backfill runs through the usual drop path); the kick carries a visible reason instead of reading as a dropped connection. Movement, buttons, ADS, lean, or a moved aim count — idle streaming, ping, and chat do not.
 - **Q/E corner lean (view-only):** lean around corners with Q/E (rebindable) — the eye shifts and the model rolls with easing while the hit capsule never moves; replicated on snapshots for every renderer.
-- **Ten-streak tactical nuke:** 10 kills without dying calls a heavy 12 m blast on the victim's position (150→50 falloff, credited TACTICAL NUKE, chains into medals) plus banner, shake, and announcer call — a reward, never a match end; with killstreak calls muted the blast still lands but stays quiet.
+- **Ten-streak extra frag:** every 10 kills without dying grants an extra frag (the belt carries up to 2 and the HUD then shows a second pip), plus banner and announcer call and no blast; applies on every map and in every mode, and in round-based rooms it takes ten kills in one life (effectively TDM/FFA/gun-game territory).
 - **Authored corner-lean body animation:** the lean is a Blender-authored body pose (pelvis slide, IK-kept feet, spine roll with a level head) rather than a rigid tilt, with its own baked crouch variant. Bots lean tactically as well, but only where the straight eye is blocked and the leaned eye clears the target.
 
 ## Changelog
@@ -110,7 +110,7 @@ The image is server-only: hub + map workers (container-internal `KONG_PORT+101..
 client/           Client package (own package.json: install/dev/build/preview)
 client/src/       Client TypeScript source (Vite build)
 client/static/    Raw game assets (models, textures, audio, maps — copied verbatim into dist by Vite)
-client/vendor/    three.js r186 + used addons + TSL nodes (local, see VERSION.txt)
+client/vendor/    three.js r187 + used addons + TSL nodes (local, see VERSION.txt)
 client/dist/      Built client (build artifact, git-ignored)
 shared/           Original shared engine/protocol sources (client+server)
 server/           Server package (own package.json: install/build/start/test)

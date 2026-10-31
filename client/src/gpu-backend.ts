@@ -2,7 +2,7 @@
  * client/src/gpu-backend.ts — WEBGPU + RENDERER ABSTRACTION.
  * ============================================================================
  *
- * STATUS (Oct 2026, three r186 vendored under client/vendor/three):
+ * STATUS (Oct 2026, three r187 vendored under client/vendor/three):
  *  - build/three.webgpu.js provides the WebGPURenderer (import "three/webgpu"),
  *    build/three.tsl.js the TSL node system (import "three/tsl"),
  *    examples/jsm/tsl/* the TSL display/pass nodes (BloomNode, GTAONode, …).
@@ -28,7 +28,7 @@ export type GpuBackendActive = "webgpu" | "webgl";
 export interface GpuCapability {
   /** navigator.gpu exists (WebGPU API present in the browser). */
   webgpuApi: boolean;
-  /** The vendored three build provides a WebGPURenderer (r186: yes). */
+  /** The vendored three build provides a WebGPURenderer (r187: yes). */
   threeWebgpuRenderer: boolean;
   /** The renderer actually used by this build. */
   active: GpuBackendActive;
@@ -93,7 +93,7 @@ export async function probeThreeWebGpu(): Promise<{ found: boolean; reason: stri
   try {
     const m = (await import("three/webgpu")) as unknown as { WebGPURenderer?: unknown };
     probed = m.WebGPURenderer
-      ? { found: true, reason: "WebGPURenderer vendored (three r186)" }
+      ? { found: true, reason: "WebGPURenderer vendored (three r187)" }
       : { found: false, reason: "three/webgpu without WebGPURenderer export" };
   } catch (e) {
     probed = { found: false, reason: `WebGPURenderer import failed (${String(e instanceof Error ? e.message : e)})` };
@@ -110,7 +110,7 @@ export function gpuCapabilities(): GpuCapability {
     threeWebgpuRenderer: true,
     active: "webgl",
     reason: webgpuApi
-      ? "WebGPU API present, three r186 vendored with WebGPURenderer — 'auto'/'webgpu' use WebGPU"
+      ? "WebGPU API present, three r187 vendored with WebGPURenderer — 'auto'/'webgpu' use WebGPU"
       : "no WebGPU API in this browser — WebGL2 active",
   };
   return cached;
@@ -210,9 +210,9 @@ export async function createRenderer(
       // the backend's native reversed float depth = depth-precision replacement;
       // the split viewmodel pass (WebGL workaround for 24-bit Z without
       // EXT_clip_control) is obsolete on WebGPU.
-      // NoToneMapping: the CINEMATIC grade node maps itself (ACES+sRGB, 1:1
-      // from cinematic.ts); RenderOutput only contributes sRGB — no double
-      // tonemapping (see webgpu-pipeline.ts).
+      // NoToneMapping here: the TSL chain ends in its own renderOutput node,
+      // which applies ACES-Filmic + sRGB exactly once. Leaving the renderer on
+      // a tone map as well would map twice.
       const reversed = await wantReversedDepth();
       if (!reversed) console.info("[gpu] WebGPU without reversed depth (software adapter or ?reversed=0) — standard depth.");
       const renderer = new WebGPURenderer({ canvas, antialias: false, reversedDepthBuffer: reversed, powerPreference: "high-performance" });
@@ -221,7 +221,7 @@ export async function createRenderer(
       renderer.toneMapping = THREE.NoToneMapping;
       renderer.toneMappingExposure = 1.12;
       renderer.shadowMap.enabled = true;
-      // r185+: PCFSoft is removed on the WebGPU side — PCF is soft there too.
+      // r187: PCFSoft is removed on BOTH backends — PCF is the soft one now.
       renderer.shadowMap.type = THREE.PCFShadowMap;
       return { renderer, backend: "webgpu", note: `WebGPU active (${note})` };
     } catch (e) {
@@ -238,7 +238,11 @@ export async function createRenderer(
   renderer.toneMappingExposure = 1.12;
   // Hardware default; game.init() switches off per software tier if needed.
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // r187 removed PCFSoft for BOTH backends — PCF is the soft one now (a 5-tap
+  // Vogel-disk sampler2DShadow sample with radius = shadowRadius * texelSize,
+  // per the vendored shadowmap_pars_fragment). The old PCFSoft type only fell
+  // back to exactly this, with a console warning; name PCF directly.
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   return { renderer, backend: "webgl", note: `WebGL2 active (${note})` };
 }
 

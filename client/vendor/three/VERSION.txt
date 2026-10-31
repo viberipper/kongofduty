@@ -1,17 +1,23 @@
-three.js r186 (npm three@0.186.1), vendored 2026-10-21.
+three.js r187 (npm three@0.187.0), vendored 2026-10-31.
 
 build/
   three.module.js       WebGL2 build (imported as "three")
-  three.core.js         shared core (imported by three.module.js / three.webgpu.js)
-  three.webgpu.js       WebGPURenderer + NodeMaterial + TSL runtime (imported as "three/webgpu")
-  three.tsl.js          TSL shader functions (imported as "three/tsl", re-exports via three/webgpu)
+  three.core.js         shared core (imported by three.module.js / three.tsl.js / three.webgpu.js)
+  three.webgpu.js       WebGPURenderer + NodeMaterial (imported as "three/webgpu")
+  three.tsl.js          TSL runtime (imported as "three/tsl"; three.webgpu.js re-exports it)
   three.webgpu.nodes.js node-material build (reserved for the TSL post-chain port)
 
 examples/jsm/
-  geometries/ loaders/ postprocessing/ shaders/ utils/   full upstream dirs (r186)
+  geometries/ loaders/ postprocessing/ shaders/ utils/   full upstream dirs (r187)
   libs/meshopt_decoder.module.js                          only what GLTFLoader needs
+  math/SimplexNoise.js                                    only what DenoiseNode needs
   tsl/                        TSL display/pass nodes (BloomNode, GTAONode, …) for the
                               follow-up: porting the EffectComposer post-chain to RenderPipeline
+  tsl/WebGLNodesHandler.js
+  (r187 note: tsl/display gained SMAANode, DenoiseNode, MotionBlur,
+   DepthOfFieldNode, FSR1Node, GodraysNode, SSRNode, SSAONode, SSGINode — unused so far)
 
-Source: https://registry.npmjs.org/three/-/three-0.186.1.tgz
+Source: https://registry.npmjs.org/three/-/three-0.187.0.tgz
+Shasum:    face29ee2de9bcc31a1b573a76f224e35e0b2894
+Integrity: sha512-Qiu7R+Cmh8CstZsY1uJOSWnVlfo7ZtNLV7mF8Jltk3LB3AtDu9cRZlcnRKkAk8Y4z6KKw35z7Y7Urd7jWY8etA==
 Update: replace the dirs above from the npm tarball, keep this file in sync.

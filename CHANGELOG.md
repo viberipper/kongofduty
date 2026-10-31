@@ -17,7 +17,40 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ## Unreleased
 
+## 2026-11-01
+
 ### Fixed
+
+- `fix(streak): callout streak is coerced before it is rendered` — the
+  10-kill reward's banner subtitle and voice line interpolated the `nuke`
+  event's `streak` straight from the wire, so a hostile server or a replayed
+  frame could spoof the callout text, print absurd counts, or pin the subtitle
+  for minutes with a huge value; the client now coerces it to a finite
+  multiple of ten, 10–990, for both sinks (both already `textContent`, so this
+  is spoofing/HUD abuse, not injection). The snapshot's belt clamp also treats
+  a non-finite count as the base kit instead of letting `NaN` through
+  (`Math.max(0, NaN)` is `NaN`, and a `NaN` belt reads as throwable on every
+  `> 0` test), and the docs that still described the removed blast or the old
+  one-frag belt are corrected (`69989dd`, snapping in `afd3135`).
+
+- `fix(streak): 10-kill reward grants the second frag instead of the 12 m blast` — the 10-kill streak no longer fires the 12 m blast at the victim's position; every 10 kills without dying tops the killer's belt back up by one frag instead (carries up to `NADE_CARRY_MAX` 2, at 10/20/30 …, for human and bot killers, on every map and in every mode — in round-based rooms that means ten kills in one life, effectively TDM/FFA/gun-game territory), the HUD now renders a pip per carried frag, and the banner plus announcer call stay; no protocol change (`nades` was already replicated) (e36b80e).
+
+- `fix(streak): cook-off stand-down by signal, grant-gated callout, structural belt bound` — the cook-off stand-down no longer compares the belt count (a streak frag granted mid-cook could leave the count equal and the cycle live, throwing the second frag): the cycle latches that the cook was actually seen burning and stands down when the sim zeroes it. The banner/announcer moment only fires when the belt actually grew (no callout on a full belt at 20/30), and names the real streak plus the reward (`<n> KILLS WITHOUT DYING · EXTRA FRAG`, voice `<n> IN A ROW`); the snapshot clamps `nades` to the carry cap on the way out so the wire bound is structural (859f6b2).
+
+- `fix(maps): hard reload crashes on a remembered JSON map` — selecting
+  Nuketown (or dust2) in the menu and hard-reloading at a bare URL died with
+  `map "nuketown" has no data loaded` before the menu appeared. The module-level
+  preload in `shared/maps/index.ts` resolved the map through
+  `readMapPref()` → `readMenuMap()` → `MENU_LS_KEY`, but both localStorage keys
+  were declared ~120 lines *below* the `await`: the first, preloading
+  resolution read them inside their temporal dead zone, the `ReferenceError`
+  was swallowed by the private-mode `try`, and the preload fell back to the
+  default (code-only) map. `activeMap()` then resolved the map a second time —
+  constants initialised by now — picked up the remembered card and found no
+  data for it. The preload now sits at the foot of the module and the keys are
+  declared above it, so the module body is order-independent; verified A/B on
+  the built client at a URL without `?map=` (pre-fix throws, post-fix boots
+  Nuketown and dust2 with an empty console) (`fb087ae`).
 
 - `fix(lobby): keep showing the last ping while a seat re-measures` — a seat's
   ping resets to 0 whenever the server builds a new seat for that player
@@ -25,28 +58,27 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   badge blinked from "42 MS" to "—" mid-session; the roster now remembers the
   last measured value per player for the current room and keeps showing it
   until the new measurement lands, with "—" only before a player's first
-  measurement ever (Pending commit — hash follows on commit.).
+  measurement ever (deb810b).
 
 - `fix(lobby): real ping badges before a match` — only the in-match loop ever
   reported an RTT, so a fresh lobby left every seat at 0 and the roster's 1 ms
   clamp made everyone look like a 1 ms connection until a match had run on that
   socket; the lobby now measures the pong and reports it once a second (seats
   without a measurement show "—", the server re-pushes the roster every 2 s
-  instead of 5 s) (Pending commit — hash follows on commit.).
+  instead of 5 s) (ce5fef4).
 - `fix(lobby): footer pinned to the window bottom` — `.nana-wrap`'s middle row
   kept its auto minimum, so switching the mode to GUN GAME (the extra "kills per
   gun" row) made the row taller than the viewport and pushed the keyline footer
   off screen; the frame is now a flex column where only the middle band gives
   (header and footer keep their height, the columns scroll inside), verified in
-  headless Chrome at 1999x877 and 1366x768 with the real fonts (Pending
-  commit — hash follows on commit.).
+  headless Chrome at 1999x877 and 1366x768 with the real fonts (7bac7cf).
 
 - `fix(lobby): invite box under the teams, scrollable columns` — on a
   1080p-class viewport the right rail (map card, rules, mode/map setup, the
   invite box and the actions) was taller than the grid row, so SETTINGS and
   LEAVE fell off the bottom with no way to scroll to them; the invite box now
   sits in the left column between the teams and the spectator bench, and both
-  columns own their scroll area (Pending commit — hash follows on commit.).
+  columns own their scroll area (9477fd6).
 
 - `fix(spawns): spread FFA and Gun Game spawns over the whole map` — Ares
   Relay let its eight authored mid-lane points be the entire FFA pool, so both
@@ -56,26 +88,163 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   points covering 100 % of the map and a simulated twelve-man fill from
   51 x 50 % to the full footprint. Pool assembly also dedupes to 1.5 m, which
   removes same-floor pairs as close as 0.11 m (dust2) and 0.43 m (Shipment);
-  Nuketown's 0.00 m pairs are real stacked floors and stay (Pending commit —
-  hash follows on commit.).
+  Nuketown's 0.00 m pairs are real stacked floors and stay (e317d2e).
 
 - `fix(guns): no false override warnings at boot` — the dev override guard
   fired for the intended placeholder-to-real hand-off (four warnings every
   load); placeholders now register through their own path, so only a real
   builder collision warns — and a placeholder imported last is dropped with a
-  warning instead of turning the first-person guns into grey boxes (Pending
-  commit — hash follows on commit.).
+  warning instead of turning the first-person guns into grey boxes (3f24c57).
 
 - `fix(lean): tracer leaves the leaned muzzle` — the local shot tracer
   started from a camera pose re-set to the un-leaned standing eye, so the
   trace lines left the middle of the screen at visor height instead of the
   leaned weapon; the muzzle is now read from the live camera pose the frame
-  actually drew (Pending commit — hash follows on commit.).
+  actually drew (033ce58).
 - `fix(report): private room code redacted` — the bug report embeds the
   private lobby code, which leaked the join code when pasted publicly; the
   text now masks anything shaped like a room code, collapses line breaks and
   strips bidi/zero-width controls so a field cannot forge report lines
-  (Pending commit — hash follows on commit.).
+  (033ce58).
+
+- `fix(shaders): Nuketown plant clumps compile under three r187` — the
+  `color_pars_fragment` chunk is still guarded by `USE_COLOR` /
+  `USE_COLOR_ALPHA`, but it declares a `vec4` whenever it exists, and the
+  r187 fragment prefix synthesises `USE_COLOR` from the instancing colour,
+  so the material in question gets a vec4 `vColor` (the `nt_plant_clump_fx`
+  `onBeforeCompile` in `client/src/nuketown-foliage.ts` still fed it whole
+  into `vec3` `mix`/multiply, so the program failed validation with `'mix' :
+  no matching overloaded function found` and every draw logged
+  `useProgram: program not valid`); the line now swizzles `vColor.rgb`,
+  which is valid for both `vec3` and `vec4`, with a comment so it is not
+  "simplified" back — audited every other `vColor` use in `client/src`
+  (foliage flowers, `nuketown-specs.ts` ground/decal tints) and all of them
+  already swizzle `.r/.g/.b/.rgb`, so no other site needed a change
+  (d62fcfe).
+
+- `fix(shadows): PCFSoft gone on the WebGL2 path too` — `gpu-backend.ts`
+  still set `THREE.PCFSoftShadowMap` on WebGL2, which r187 removed for both
+  backends (the WebGPU path already used `PCFShadowMap`); it now names `PCF`
+  directly, which is what the old type silently fell back to — a five-sample
+  Vogel disk (`vogelDiskSample( 0..4, 5, phi )`) over `radius = shadowRadius *
+  texelSize`, from the PCF `getShadow` of `ShaderChunk.shadowmap_pars_fragment`
+  in `build/three.module.js` (the chunk lives there, not in `three.core.js`) —
+  only now without the `PCFSoftShadowMap has been removed` warning (d62fcfe).
+
+- `fix(shadows): penumbra clamp on both backends` — the directional-light
+  `shadow.radius <= 1.6` clamp in `game.ts` only ran on WebGPU, but since r187
+  removed PCFSoft both backends filter shadows with a five-sample Vogel disk
+  (WebGL: `shadowmap_pars_fragment` in `three.module.js`; WebGPU/TSL:
+  `PCFShadowFilter` in `three.webgpu.nodes.js`), whose only width knob is
+  `shadowRadius` in shadow texels — while every map's radius was tuned against
+  the old wider kernel (ares 1.5, nuketown 2.0, jungle 3.1, dust2 from its env
+  data); the clamp now applies unconditionally (still cheap and idempotent via
+  `Math.min`), and no map's authored radius was changed at its source
+  (d62fcfe).
+
+- `fix(boot): no more toNonIndexed warnings on Nuketown` — `sageGeometry`
+  and `boulderGeometry` in `client/src/nuketown-backdrop.ts` called
+  `toNonIndexed()` on `IcosahedronGeometry`, which is already non-indexed
+  (~32 warnings per boot); all three sites now guard with `geo.index ?
+  geo.toNonIndexed() : geo` like the rest of the repo, passing the freshly
+  created original through `paint()` safely — the indexed `CylinderGeometry`
+  stems still convert (d62fcfe).
+
+- `fix(boot): paint one frame before the bring-up` — `deploy()` in
+  `client/src/main.ts` ran the whole audio-rig plus renderer construction
+  synchronously inside the PLAY / QUICK PLAY click task (~0.7 s), so the
+  loading card never painted and Chrome flagged `'click' handler took
+  696ms`; it now awaits one painted frame (`nextPaint`: rAF first, a 100 ms
+  timer fallback so a hidden tab never stalls boot) after the card is up and
+  before `bootStage("AUDIO")` — the deferred-audio path is untouched
+  (audio2 keeps its `onFirstGesture` fallback, pointer lock comes from
+  separate canvas clicks, not `deploy`) (d62fcfe).
+
+- `fix(shadows): remove the dead Nuketown PCFSoft tent patch` — the
+  WORK-ORDERS L3 `installSoftShadows()` in `client/src/nuketown-sky.ts`
+  patched the `SHADOWMAP_TYPE_PCF_SOFT` branch into a 3x3 tent of bilinear
+  taps at 1.5-texel spacing (about 4-5 texels across, ~11-14 cm on this 4096
+  map), but r187 removed that branch entirely (zero occurrences in the vendored
+  `ShaderChunk`, and `WebGLShadowMap` logs the type as removed), so its guard
+  could never match and the call silently no-opped since the upgrade. The
+  function, its `PCF_STEP` constant and the call are deleted, with a history
+  note kept in place — a dead-code removal with no visual delta. The
+  replacement five-sample Vogel disk cannot reproduce the old width without
+  reading as speckle, so the nuketown/dust2/shipment penumbrae run narrower
+  than authored (2.0 and 3.1 → 1.6) by deliberate clamp, not by this removal
+  (2916dda).
+
+- `fix(shadows): penumbra clamp is explicit, total and re-applied` — the
+  `shadow.radius <= 1.6` clamp in `game.ts` ran once at `init()` with a bare
+  `Math.min`, so lights present at a later quality re-arm escaped it and a
+  non-finite/negative radius would have passed straight into the shadow
+  sampler (defensive: every radius in the tree is a finite literal today,
+  dust2 included). It is now `Game.clampShadowRadii()` behind a module-level
+  `SHADOW_RADIUS_MAX = 1.6`, clamping totally (`NaN` → the cap, negatives →
+  0), and it runs both at `init()` and in `applyShadowQuality()` so a quality
+  re-arm is clamped too — cheap, idempotent, no shadow map source touched.
+  Plainly: nuketown/dust2/shipment penumbrae get narrower than authored (2.0
+  and 3.1 → 1.6) because the removed PCFSoft kernel cannot be reproduced by
+  the five-sample replacement without speckle (2916dda).
+
+- `fix(boot): deploy() re-entrancy guard plus a non-browser paint fallback` —
+  `deploy()` in `client/src/main.ts` had no in-flight guard, and the awaited
+  painted frame widened the window where a double click / double pad-press /
+  Enter x2 interleaves two runs (two `createRenderer()` on one canvas and two
+  AudioContext builds racing; the inner `game.init()` / `Game.start()` guards
+  contain the worst case but not that race). A module-level `deploying` flag
+  now serialises it — `deploy()` is a thin door that awaits the unchanged
+  bring-up (`deployRun()`) in a `try`/`finally`, so a second deploy while one
+  is in flight returns immediately and every exit path (early returns, error
+  cards, throws) re-arms the door. `nextPaint()`
+  also guards its `requestAnimationFrame` call with a `typeof` check (falling
+  back to a zero-delay timer) so a non-browser harness no longer throws a
+  `ReferenceError` (2916dda).
+
+
+- `fix(settings): WebGPU off the GRAPHICS tab` — the renderer row is gone and
+  the pref sanitises back to `webgl`, so a player cannot land on the WebGPU
+  backend (nor can a stale or hand-edited save bring it back). Nothing is
+  deleted: `gpu-backend.ts`, `webgpu-pipeline.ts`, `tsl-materials.ts` and the
+  TSL ports of the Ares shaders, the astronaut suit and the weapon FX all stay,
+  and `?renderer=webgpu|auto` still forces the backend for development and QA
+  without ever being persisted. The remaining world-shader gaps (Nuketown sky,
+  the `onBeforeCompile` patches) are why it is out of the menu again (16e2c12).
+- `fix(lean): shots follow the lean eye` — shots use the same 0.30 m eye
+  offset as the camera with a parallel ray, clamped at walls, and the
+  preview matches the server (ccf5501).
+- `fix(lean): Blender-authored lean pose on the model` — lean was only a
+  rigid root tilt on the model so the feet slid; now it layers the
+  Blender-authored pose, including its baked crouch variant blended by
+  crouchW with the feet near-planted (measured foot drift ≤ 1.2 cm in model
+  units), and latch/overlay gaps
+  (`Hip`/`Waist`/`NeckTwist02`, `hip.position.x`) plus the aim-slerp order
+  are fixed too (650b783).
+- `fix(lean): camera lean offset wall-clamped` — the leaned camera eye is
+  clamped against walls so it can never see through them (7b569e3).
+- `fix(bots): lean hold breaks on flee/reposition/swap/slide/reload/low HP` — the tactical lean
+  hold aborts correctly on fleeing, repositioning, swapping, sliding,
+  reloading, low HP, or when a squadmate already holds that target (7b569e3).
+- `perf(fx): no instanced uploads for effects that draw nothing` — the
+  BoomFx flash/ring/frags/puffs/scorch pools flagged ten instance buffers
+  for upload every frame even with all four counts at 0, the ThrowMarker aim
+  marker uploaded while every dot sat behind the camera, and the NadeFx
+  ribbon sampled its trail ring, wrote ribbons and flagged rPos/rAlpha
+  uploads for an invisible mesh; each family now uploads only while it draws
+  (the frag instances always draw)
+  (8f96caa).
+- `fix(post): WebGPU grade no longer blows out the frame` — the TSL grade
+  carried a hand port of cinematic.ts' RRT/ODT matrices, sRGB knee and
+  mid-band depth S-curve; on three r187 it rendered every lit surface clipped
+  white (walls pure 255) with exposure having no effect, while the same frame
+  through `?pipeline=nograde` was correct. The tone map and the working→sRGB
+  encode now come from three's own `renderOutput(ACESFilmic, sRGB)` node, the
+  filmic extras stay in linear HDR in front of it and the map exposure is
+  pre-divided by the renderer's 1.12 so nothing multiplies twice (1f81920).
+- `perf(lean): no per-actor Set allocation in the lean pose` — the lean bone
+  name list was rebuilt from two key spreads for every actor on every leaning
+  frame; it is derived once per lean direction from the static pose tables now
+  (8f96caa).
 
 ### Added
 
@@ -87,27 +256,34 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   no permanent lean), held 0.4–1.1 s without mid-hold flips and followed
   by a cooldown, taken only about three times in four so it stays
   situational; same view-only 0.30 m eye shift with no damage, accuracy,
-  or hitbox bonus (Pending commit — hash follows on commit.).
+  or hitbox bonus (38da578).
 
-### Fixed
+- `feat(post): FXAA tail on hardware WebGPU` — the WebGPU path renders its
+  scene pass into single-sample pass targets with `antialias:false` (a GTAO
+  precondition: the centre tap needs a single-sample depth texture), so edges
+  reached the screen stair-stepped while the WebGL path pays 4x/2x MSAA on the
+  composer targets; the FXAA tail the software tier already ran now runs on
+  hardware too, after the grade (`?fxaa=0` drops it for bisection) (8f96caa).
 
-- `fix(lean): shots follow the lean eye` — shots use the same 0.30 m eye
-  offset as the camera with a parallel ray, clamped at walls, and the
-  preview matches the server (Pending commit — hash follows on commit.).
-- `fix(lean): Blender-authored lean pose on the model` — lean was only a
-  rigid root tilt on the model so the feet slid; now it layers the
-  Blender-authored pose, including its baked crouch variant blended by
-  crouchW with the feet near-planted (measured foot drift ≤ 1.2 cm in model
-  units), and latch/overlay gaps
-  (`Hip`/`Waist`/`NeckTwist02`, `hip.position.x`) plus the aim-slerp order
-  are fixed too (Pending commit — hash follows on commit.).
-- `fix(lean): camera lean offset wall-clamped` — the leaned camera eye is
-  clamped against walls so it can never see through them (Pending commit
-  — hash follows on commit.).
-- `fix(bots): lean hold breaks on flee/reposition/swap/slide/reload/low HP` — the tactical lean
-  hold aborts correctly on fleeing, repositioning, swapping, sliding,
-  reloading, low HP, or when a squadmate already holds that target (Pending commit
-  — hash follows on commit.).
+- `feat(settings): renderer switch (AUTO / WEBGPU / WEBGL2)` — GRAPHICS gained
+  a Renderer row and `?renderer=` pins the backend again for one page load;
+  the pref had been nailed to `webgl`, which is why the WebGPU path could not
+  be reached at all (every "WebGPU" test so far booted WebGL2). Default stays
+  WEBGL2 on purpose: the TSL port for the custom FX ShaderMaterials is still
+  open, so the WebGPU look has gaps. A switch reloads from the menu and only
+  banners "applies after the next load" mid-match, because a canvas binds one
+  context type and the renderer is chosen in `init()` (1f81920).
+  **Withdrawn again for players**: see `fix(settings): WebGPU off the GRAPHICS
+  tab` below — the row is gone, the pref is pinned, the code stays behind
+  `?renderer=webgpu`.
+
+### Tests
+
+- `test(qa): ?nolock=1 drives fire without pointer lock` — every FX/impact
+  check needed a trusted click to take the pointer lock, which a headless
+  harness cannot produce, so weapon FX, decals and blood were only ever
+  verified by hand. The flag widens the input gate only (keyboard + mouse
+  fire); nothing else about the game changes (61ea47e).
 
 ## 2026-10-30
 

@@ -46,6 +46,10 @@ export function killHow(weapon: string, self: boolean, short = false): string {
   if (self) return short ? "SELF" : "OWN GRENADE";
   if (weapon === "nade") return short ? "FRAG" : "FRAG GRENADE";
   if (weapon === "strike") return "ARTILLERY";
+  // No kill is ever credited "nuke" any more (the blast is gone — the streak
+  // grants a frag instead). The mapping stays so an old feed still renders;
+  // same for weapon-icons.ts, accolades.ts and score-pops.ts, which keep
+  // their "nuke" exclusions for the same reason.
   if (weapon === "nuke") return "TACTICAL NUKE";
   if (weapon === "melee" || weapon === "knife") return "MELEE";
   if (short) {

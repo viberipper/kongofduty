@@ -5,10 +5,10 @@
  * Mirrors the WebGL chain order exactly (game.ts/buildComposer):
  *
  *   scene (pass) → AO (GTAO, hardware tier) → selective HDR bloom →
- *   [afterimage (opt-in)] → CINEMATIC grade as a custom Fn node (maths 1:1
- *   from cinematic.ts, tonemapping+sRGB included, NO RenderOutput around it —
- *   a RenderOutputNode would convert working→sRGB a second time) →
- *   [FXAA (software tier only, needs sRGB input)].
+ *   [afterimage (opt-in)] → CINEMATIC extras as a custom Fn node (chroma,
+ *   DOF-lite, CAS-lite, warmth/contrast/slope/saturation, vignette, grain) →
+ *   renderOutput(ACES-Filmic, sRGB) →
+ *   [FXAA (both tiers, needs sRGB input)].
  *
  * BUNDLE DISCIPLINE: this file is loaded ONLY via dynamic import() from game.ts
  * (init()'s WebGPU branch). Every three/webgpu, three/tsl and
@@ -16,12 +16,15 @@
  * not a single byte of it (separate three.webgpu chunk, see build output).
  * Only "three" (main graph) is static here, for types/constants.
  *
- * TONEMAPPING DECISION (no double tonemapping): the grade node does
- * tonemapping (ACES approximation) AND sRGB encoding itself, 1:1 from cinematic.ts.
- * The renderer runs on NoToneMapping, and there is NO RenderOutputNode
- * around the grade — it would convert working→sRGB again
- * (double encoding). Only the ?nograde debug path uses renderOutput
- * (there it is the only sRGB conversion).
+ * TONEMAPPING DECISION: the extras run in linear HDR, then ONE RenderOutputNode
+ * applies the renderer's tone map (ACES-Filmic) and the working→sRGB transform.
+ * The renderer itself runs NoToneMapping so nothing is applied twice.
+ * History: this used to carry a hand-ported RRT/ODT + sRGB-knee + mid-band
+ * depth block copied from cinematic.ts. On three r187 that port rendered every
+ * lit surface blown out (walls pure white) while the same frame without the
+ * grade was correct, so the tone map and the encode now come from three's own
+ * node — the hand maths stays where it belongs, in the WebGL GLSL grade.
+ * ?nograde stays as the bisection path (scene → renderOutput, no extras).
  *
  * REBUILD RULE (WebGL m2 analogue): the scene pass survives structural changes
  * — only an MRT change (AO on/off) rebuilds it (fresh pass with an
@@ -50,7 +53,10 @@
  *    bright pixels via max-hold (damp 0.7 ≈ 3–4 frames). Opt-in, default OFF.
  *  - MSAA: the scene pass renders single-sample (PassNode RTs carry no
  *    samples); renderer antialias only applies on the default framebuffer.
- *    Hardware edge AA on WebGPU would need samples on the pass RTs.
+ *    True MSAA would need samples on the pass RTs — which the GTAO centre tap
+ *    (textureGather on a multisampled depth texture) does not support, see
+ *    gpu-backend.ts. Edges are therefore resolved by the FXAA tail after the
+ *    grade, on the software AND the hardware tier (?fxaa=0 drops it).
  *    8x CINEMATIC stays WebGL-only (see game.ts/resize).
  *  - AO resolution: GTAO runs full-res (resolutionScale 1), the WebGL
  *    ContactAO half-res with bilateral denoise blur — a different
@@ -63,6 +69,8 @@ import * as THREE from "three";
  *  WebGPURenderer is not a THREE.WebGLRenderer, see gpu-backend.ts). */
 export interface WebgpuCanvasRenderer {
   getDrawingBufferSize(target: THREE.Vector2): THREE.Vector2;
+  /** Read so the grade can cancel it: renderOutput applies it again. */
+  toneMappingExposure: number;
 }
 /** Live switches of the pipeline — one snapshot per setGraphicsOptions(). */
 export interface WebgpuPrefsSnapshot {
@@ -79,11 +87,6 @@ export interface WebgpuPrefsSnapshot {
   /** Effective value (map basis × slider), as game.ts also hands to the grade. */
   exposure: number;
   hurt?: number;
-}
-
-export interface WebgpuPipelineOpts {
-  /** FXAA at the chain end (sRGB input) — true only in the software tier. */
-  software: boolean;
 }
 
 /**
@@ -122,12 +125,10 @@ interface TslApi {
   float(v: number): TslNode;
   If(cond: unknown, then: () => void): unknown;
   and(a: unknown, b: unknown): unknown;
-  or(a: unknown, b: unknown): unknown;
   dot(a: unknown, b: unknown): TslNode;
   mix(a: unknown, b: unknown, t: unknown): TslNode;
   min(a: unknown, b: unknown): TslNode;
   max(a: unknown, b: unknown): TslNode;
-  pow(a: unknown, b: unknown): TslNode;
   fract(v: unknown): TslNode;
   sin(v: unknown): TslNode;
   smoothstep(e0: number, e1: number, x: unknown): TslNode;
@@ -190,6 +191,15 @@ function qaBloomOff(): boolean {
   }
 }
 
+/** QA killswitch (?fxaa=0): drop the FXAA tail (bisection edges vs. grade). */
+function qaFxaaOff(): boolean {
+  try {
+    return new URLSearchParams(location.search).get("fxaa") === "0";
+  } catch {
+    return false;
+  }
+}
+
 export class WebgpuPipeline {
   private renderer: WebgpuCanvasRenderer;
   private scene: THREE.Scene;
@@ -203,17 +213,21 @@ export class WebgpuPipeline {
   private api!: TslApi;
   private lib!: {
     NoToneMapping: unknown;
+    ACESFilmicToneMapping: unknown;
     SRGBColorSpace: unknown;
   };
   private fx!: {
     bloom(node: unknown, strength: unknown, radius: number, threshold: number): TslNode;
     ao(depth: unknown, normal: unknown, camera: THREE.Camera): TslNode & { dispose?: () => void };
+    denoise?: (node: unknown, depth: unknown, normal: unknown, camera: THREE.Camera) => TslNode & { dispose?: () => void };
     afterImage(node: unknown, damp: unknown): TslNode & { dispose?: () => void };
     fxaa(node: unknown): TslNode;
+    smaa(node: unknown): TslNode;
   };
 
   private scenePass: PassApi | null = null;
   private aoNode: (TslNode & { dispose?: () => void }) | null = null;
+  private aoClean: (TslNode & { dispose?: () => void }) | null = null;
   private bloomNode: (TslNode & { dispose?: () => void }) | null = null;
   private afterNode: (TslNode & { dispose?: () => void }) | null = null;
   /** Whether the living scene pass carries MRT normals (change = pass rebuild). */
@@ -239,6 +253,7 @@ export class WebgpuPipeline {
   private uWarmth!: TslUniform;
 
   private useFxaa: boolean;
+  private useSmaa: boolean;
   private aoForceOff = false;
   /** Structural key (ao/bloom/motion on-off) — rebuild only then. */
   private builtKey = "";
@@ -248,13 +263,19 @@ export class WebgpuPipeline {
     scene: THREE.Scene,
     camera: THREE.Camera,
     pipe: WebgpuPipeline["pipe"],
-    opts: WebgpuPipelineOpts,
+    aaMode: "off" | "fxaa" | "smaa",
   ) {
     this.renderer = renderer;
     this.scene = scene;
     this.camera = camera;
     this.pipe = pipe;
-    this.useFxaa = opts.software;
+    // EDGE AA. The WebGPU geometry pass is single-sample by necessity
+    // (antialias:false is a GTAO precondition — a multisampled depth texture has
+    // no textureGather overload), so edges are resolved by exactly one
+    // fullscreen filter at the end of the chain. The player picks which one in
+    // GRAPHICS ▸ Anti-Aliasing; ?fxaa=0 still forces it off for bisection.
+    this.useFxaa = !qaFxaaOff() && aaMode !== "smaa";
+    this.useSmaa = !qaFxaaOff() && aaMode === "smaa";
     this.aoForceOff = qaAoOff();
   }
 
@@ -267,12 +288,13 @@ export class WebgpuPipeline {
     renderer: WebgpuCanvasRenderer,
     scene: THREE.Scene,
     camera: THREE.Camera,
-    opts: WebgpuPipelineOpts,
+    aaMode: "off" | "fxaa" | "smaa" = "fxaa",
   ): Promise<WebgpuPipeline> {
-    const [webgpu, tsl, bloomM, aoM, afterM, fxaaM] = await Promise.all([
+    const [webgpu, tsl, bloomM, aoM, afterM, fxaaM, smaaM] = await Promise.all([
       import("three/webgpu") as Promise<{
         RenderPipeline: new (renderer: unknown, outputNode?: unknown) => WebgpuPipeline["pipe"];
         NoToneMapping: unknown;
+        ACESFilmicToneMapping: unknown;
         SRGBColorSpace: unknown;
       }>,
       import("three/tsl") as Promise<Record<string, unknown>>,
@@ -283,10 +305,11 @@ export class WebgpuPipeline {
     ]);
     const api = tsl as unknown as TslApi;
     const pipe = new webgpu.RenderPipeline(renderer as unknown, undefined);
-    // Manual output control (see file header): the grade maps itself,
-    // RenderOutput only contributes the sRGB conversion.
+    // Manual output control (see file header): the chain's own renderOutput
+    // node does the tone map + sRGB, so the pipeline must not apply a second
+    // transform on top of it.
     pipe.outputColorTransform = false;
-    const self = new WebgpuPipeline(renderer, scene, camera, pipe, opts);
+    const self = new WebgpuPipeline(renderer, scene, camera, pipe, aaMode);
     self.api = api;
     self.lib = webgpu as unknown as WebgpuPipeline["lib"];
     self.fx = {
@@ -294,7 +317,32 @@ export class WebgpuPipeline {
       ao: aoM.ao,
       afterImage: afterM.afterImage,
       fxaa: fxaaM.fxaa,
+      // Loaded on demand: SMAANode drags its own edge/weight machinery in, and
+      // a failing optional import must never take the whole post chain down.
+      smaa: null as unknown as WebgpuPipeline["fx"]["smaa"],
     };
+    if (self.useSmaa) {      try {
+        const smaaM = (await import("three/addons/tsl/display/SMAANode.js")) as unknown as {
+          smaa: WebgpuPipeline["fx"]["smaa"];
+        };
+        self.fx.smaa = smaaM.smaa;
+      } catch (e) {
+        console.warn(`[gpu] SMAA unavailable (${String(e instanceof Error ? e.message : e)}) — falling back to FXAA.`);
+        self.useSmaa = false;
+        self.useFxaa = !qaFxaaOff();
+      }
+    }
+    // AO denoiser, also optional: it needs the depth/normal guides, which the
+    // scene pass provides. Without it the AO stays the raw stochastic estimate.
+    try {
+      const dM = (await import("three/addons/tsl/display/DenoiseNode.js")) as unknown as {
+        denoise: NonNullable<WebgpuPipeline["fx"]["denoise"]>;
+      };
+      self.fx.denoise = dM.denoise;
+    } catch (e) {
+      console.warn(`[gpu] AO denoiser unavailable (${String(e instanceof Error ? e.message : e)}) — raw GTAO.`);
+    }
+
     self.buildUniforms();
     self.scenePass = api.pass(scene, camera);
     self.applyPrefs({
@@ -334,20 +382,23 @@ export class WebgpuPipeline {
     this.uTexelY = T.uniform(1 / 720);
     this.uAoStrength = T.uniform(0.7);
     this.uBloomStrength = T.uniform(0);
-    this.uDamp = T.uniform(0.7);
+    // Motion blur: the WebGL MotionBlurPass mixes at a fixed 0.25 (and clamps a
+    // 3x3 neighbourhood, so a moving edge cannot drag a hard smear). 0.7 here
+    // held the previous frame almost twice as long and smeared the whole scene.
+    // 0.2 matches the WebGL feel; AfterImageNode's max-hold reads a touch
+    // stronger than a plain mix, hence the hair below 0.25.
+    this.uDamp = T.uniform(0.2);
   }
 
   /**
-   * CINEMATIC grade as a TSL fn node. Ports the maths from
-   * cinematic.ts 1:1 (order + constants): chroma → DOF-lite →
-   * CAS-lite → warmth/contrast/slope/saturation → vignette/hurt → grain →
-   * RRT/ACES + exposure → sRGB → mid-band depth.
+   * CINEMATIC extras as a TSL fn node: chroma → DOF-lite → CAS-lite →
+   * warmth/contrast/slope/saturation → vignette/hurt → grain, all in linear
+   * HDR, then renderOutput(ACES-Filmic, sRGB) for tone map + encode.
    *
-   * Two deliberate micro-deviations (WGSL idioms instead of GLSL idioms):
-   *  - sRGB knee via max(power, linear) instead of a bool mask — deviation < 2e-4
-   *    in deep black, far below the ±0.004 grain.
-   *  - ACES matrices multiplied out (no mat3 API) — exactly the same
-   *    coefficients in column-major order as the GLSL constructor.
+   * The extras are 1:1 from cinematic.ts; the tone map and the sRGB transform
+   * are three's (see the header). cinematic.ts keeps its own RRT/ODT + knee for
+   * the WebGL path — one look, two backends, and only the encode differs by an
+   * ACES fit that no one sees side by side.
    */
   private buildGrade(input: TslNode): TslNode {
     const T = this.api;
@@ -435,50 +486,34 @@ export class WebgpuPipeline {
       const gr = T.fract(T.sin(T.dot(seed, T.vec2(12.9898, 78.233))).mul(43758.5453)).sub(0.5).mul(0.008).mul(uGrain);
       col.assign(col.add(T.vec3(gr, gr, gr)));
 
-      // --- NaN/Inf firewall + Karis clamp (as in cinematic.ts, per channel).
-      const guard = (v: TslNode): TslNode => {
-        const s = v.toVar();
-        T.If(T.or(s.lessThan(0), s.greaterThan(60000)), () => {
-          s.assign(0);
-        });
-        return s;
-      };
-      const hdr = T.vec3(guard(col.x), guard(col.y), guard(col.z));
-      const clamped = T.min(hdr, T.vec3(64, 64, 64));
-      // --- RRT/ACES with exposure (col *= uExposure / 0.6).
-      const ex = clamped.mul(uExposure.div(0.6));
-      const exx = ex.x;
-      const exy = ex.y;
-      const exz = ex.z;
-      const inR = T.float(0.59719).mul(exx).add(T.float(0.35458).mul(exy)).add(T.float(0.04823).mul(exz));
-      const inG = T.float(0.076).mul(exx).add(T.float(0.90834).mul(exy)).add(T.float(0.01566).mul(exz));
-      const inB = T.float(0.0284).mul(exx).add(T.float(0.13383).mul(exy)).add(T.float(0.83777).mul(exz));
-      const rrt = (v: TslNode): TslNode =>
-        v.mul(v.add(0.0245786)).sub(0.000090537).div(v.mul(v.mul(0.983729).add(0.432951)).add(0.238081));
-      const wR = rrt(inR);
-      const wG = rrt(inG);
-      const wB = rrt(inB);
-      const mapped = T.vec3(
-        T.float(1.60475).mul(wR).sub(T.float(0.53108).mul(wG)).sub(T.float(0.07367).mul(wB)),
-        T.float(-0.10208).mul(wR).add(T.float(1.10813).mul(wG)).sub(T.float(0.00605).mul(wB)),
-        T.float(-0.00327).mul(wR).sub(T.float(0.07276).mul(wG)).add(T.float(1.07602).mul(wB)),
-      );
-      const clamped01 = T.min(T.max(mapped, T.vec3(0, 0, 0)), T.vec3(1, 1, 1));
-      // --- sRGB encoding (knee via max instead of bool mask, < 2e-4 deviation).
-      const srgb = T.max(
-        T.pow(T.max(clamped01, T.vec3(0, 0, 0)), T.vec3(0.41666)).mul(1.055).sub(0.055),
-        clamped01.mul(12.92),
-      );
-
-      // --- MID-BAND DEPTH: filmic S-curve on LUMA, window 0.18..1.0.
-      const y = T.dot(srgb, T.vec3(0.2126, 0.7152, 0.0722));
-      const out = srgb.toVar();
-      T.If(y.greaterThan(0.18), () => {
-        const w = T.smoothstep(0.18, 0.52, y).mul(T.float(1).sub(T.smoothstep(0.6, 1.0, y)));
-        const s = y.mul(y).mul(T.float(3).sub(y.mul(2)));
-        out.assign(srgb.mul(T.float(1).add(s.sub(y).mul(0.55).mul(w).div(T.max(y, 0.0001)))));
-      });
-      return T.vec4(out, 1);
+      // --- TONE MAP + ENCODE: three's own ACES-Filmic and sRGB transform.
+      // What used to stand here was a TSL port of cinematic.ts' RRT/ODT
+      // matrices + hand-rolled sRGB knee + the mid-band depth S-curve. That
+      // doubled the surface exposed to TSL changes, and on r187 it rendered
+      // every lit surface blown out (walls pure white) while the same scene
+      // without the grade was correct. renderOutput() is the upstream-tested
+      // path: exposure, ACES and the sRGB knee in one node.
+      //
+      // Look delta vs the WebGL pass, on purpose: no mid-band depth S-curve
+      // (cinematic.ts:100-106) and three's ACES fit instead of RRT/ODT. Both
+      // are signed-look only on WebGL; reaching for them again means porting
+      // them into a node, which is what just broke.
+      //
+      // Exposure: map basis x slider still works. renderOutput applies the
+      // RENDERER's toneMappingExposure, so the grade cancels exactly that
+      // value — no literal to keep in sync with gpu-backend.ts. Read per build,
+      // and gpu-backend.ts sets it once before this pipeline exists; the guard
+      // only keeps a non-finite value from poisoning the shader.
+      const rExp = this.renderer.toneMappingExposure;
+      const exDiv = Number.isFinite(rExp) && rExp > 0 ? rExp : 1;
+      // Range guard before the tone map: cinematic.ts clamps to 64 the same way
+      // because the ACES quadratic overflows on huge HDR values (three's fit
+      // has no guard at all). This catches ±Inf and out-of-range brightness;
+      // NaN is not cleared by min/max on every backend, so it is not claimed
+      // here — upstream already NaN-guards (see cinematic.ts:80-88).
+      const safe = T.min(T.max(col, T.vec3(0, 0, 0)), T.vec3(64, 64, 64));
+      const exposed = safe.mul(uExposure.div(exDiv));
+      return T.renderOutput(T.vec4(exposed, 1), this.lib.ACESFilmicToneMapping, this.lib.SRGBColorSpace);
     });
     return grade() as TslNode;
   }
@@ -544,6 +579,14 @@ export class WebgpuPipeline {
           pass.getTextureNode("normal"),
           this.camera,
         );
+        // HALF-RESOLUTION AO. GTAO is a fill-rate bound fullscreen effect and
+        // the WebGL path has always run its ContactAO at half res (with a
+        // bilateral denoise on top). At full res it is the most expensive pass in
+        // the chain on an open map — Nuketown (foliage, sky, long sight lines)
+        // dropped to single-digit fps while the enclosed Ares ran fine. The
+        // denoiser below keeps half-res edges clean, so this is the same
+        // cost/quality point the other backend uses.
+        (this.aoNode as unknown as { resolutionScale?: number }).resolutionScale = 0.5;
       }
     } else {
       this.disposeNode(this.aoNode);
@@ -552,7 +595,23 @@ export class WebgpuPipeline {
 
     let color: TslNode = pass.getTextureNode("output");
     if (this.aoNode) {
-      color = color.mul(T.mix(T.float(1), this.aoNode, this.uAoStrength));
+      // DENOISE: GTAO is a stochastic estimate. At full resolution without a
+      // denoiser it shows up as grain across lit surfaces and contact areas —
+      // exactly the "körnig" report. The WebGL path gets the same smoothing for
+      // free from ContactAO's bilateral blur; this is the TSL answer, guided by
+      // the pass's own depth and normals so edges stay crisp.
+      let ao: TslNode = this.aoNode;
+      if (this.fx.denoise) {
+        this.disposeNode(this.aoClean);
+        this.aoClean = this.fx.denoise(
+          this.aoNode,
+          pass.getTextureNode("depth"),
+          pass.getTextureNode("normal"),
+          this.camera,
+        );
+        ao = this.aoClean;
+      }
+      color = color.mul(T.mix(T.float(1), ao, this.uAoStrength));
     }
 
     // Selective HDR bloom (threshold 1.0 like BloomPass, strength live).
@@ -575,13 +634,14 @@ export class WebgpuPipeline {
       this.afterNode = null;
     }
 
-    // Grade (does tonemapping+sRGB itself — 1:1 from cinematic.ts, like the
-    // WebGL grade pass, which also writes its sRGB directly) → [FXAA].
-    // IMPORTANT: NO renderOutput() around the grade — RenderOutputNode would
-    // convert working→sRGB AGAIN (double encoding = washed out/bright,
-    // measured). The grade is display-ready; FXAA gets sRGB input, as
-    // it needs it. Only the ?nograde debug path uses renderOutput (there
-    // it is the only sRGB conversion).
+    // Grade (extras in linear HDR, then one renderOutput with ACES-Filmic and
+    // the sRGB encode — see the file header; the tone map is three's, not a
+    // hand port) → [FXAA].
+    // Exactly ONE encoder in the chain: outputColorTransform is off (create()),
+    // so neither the pipeline nor the backend converts on top of this node.
+    // FXAA gets display-referred sRGB input, which is what its edge detector
+    // is built for. Only the ?nograde debug path encodes instead of the grade
+    // (there it is the only sRGB conversion).
     // convertToTexture: the grade taps its predecessor at 9+ places — an
     // operator result (mul/add) is not a texture and cannot be sampled with
     // free UVs, so the chain is materialised once here
@@ -593,7 +653,8 @@ export class WebgpuPipeline {
     } else {
       out = this.buildGrade(T.convertToTexture(color));
     }
-    if (this.useFxaa) out = this.fx.fxaa(out);
+    if (this.useSmaa) out = this.fx.smaa(out);
+    else if (this.useFxaa) out = this.fx.fxaa(out);
     this.pipe.outputNode = out;
     this.pipe.needsUpdate = true;
   }
@@ -601,7 +662,11 @@ export class WebgpuPipeline {
   /** Live switches + uniforms (game.ts/setGraphicsOptions, no reload). */
   applyPrefs(s: WebgpuPrefsSnapshot): void {
     this.uBloomStrength.value = s.bloom ? s.bloomStrength : 0;
-    this.uAoStrength.value = s.aoStrength;
+    // GTAO runs FULL-res here, while the WebGL path is a half-res ContactAO with
+    // a bilateral denoise on top. Without that denoise the same strength reads
+    // darker and rougher in the contact areas, so the contribution is scaled
+    // back a little to land on the WebGL look.
+    this.uAoStrength.value = s.aoStrength * 0.75;
     this.uChroma.value = s.chromatic ? 1 : 0;
     this.uGrain.value = s.grain ? 1 : 0;
     this.uVignette.value = s.vignette ? 1 : 0;
@@ -666,7 +731,7 @@ export async function createWebgpuPipeline(
   renderer: WebgpuCanvasRenderer,
   scene: THREE.Scene,
   camera: THREE.Camera,
-  opts: WebgpuPipelineOpts,
+  aaMode: "off" | "fxaa" | "smaa" = "fxaa",
 ): Promise<WebgpuPipeline> {
-  return WebgpuPipeline.create(renderer, scene, camera, opts);
+  return WebgpuPipeline.create(renderer, scene, camera, aaMode);
 }

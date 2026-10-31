@@ -382,15 +382,16 @@ export class Announcer {
   }
 
   /**
-   * THE KILLSTREAK NUKE (10 kills without dying, shared/sim.ts nukeBlast).
-   * Your nuke speaks like a multi-kill (prio 4, cuts the pacing gap — the
-   * moment already waited for nothing); anyone else's is subtitle-only.
-   * Outside the killstreak toggle: silent entirely, like streaks and multis.
+   * THE KILLSTREAK REWARD (10 kills without dying: a 10-kill-streak frag grant,
+   * event `nuke`). Your reward call speaks like a multi-kill (prio 4, cuts the
+   * pacing gap — the moment already waited for nothing); anyone else's is
+   * subtitle-only. Outside the killstreak toggle: silent entirely, like
+   * streaks and multis.
    */
-  nuke(killer: string, mine: boolean): void {
+  nuke(killer: string, mine: boolean, streak = 10): void {
     if (!prefs().killstreaks) return;
     this.say(
-      `TACTICAL NUKE! ${killer} — 10 IN A ROW`,
+      `TACTICAL NUKE! ${killer} — ${streak} IN A ROW`,
       mine ? 4 : 1,
       false,
       undefined,

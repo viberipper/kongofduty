@@ -408,7 +408,7 @@ export function patchSurface(mat: THREE.MeshStandardMaterial, o: SurfaceOpts): v
   if (o.facing) defs.push("NT_FACING");
   if (o.flat !== undefined) defs.push("NT_FLAT");
   if (o.cutout) defs.push("NT_CUTOUT");
-  if (o.vcol) defs.push("NT_VCOL");
+  if (o.vcol) defs.push("NT_VCOL"); // vColor reads below are safe only because makeMaterial forces vertexColors = true when these defines are set (line ~720)
   if (o.under?.c) defs.push("NT_UNDER");
   if (o.under?.n) defs.push("NT_UNDER_N");
   if (o.under?.orm) defs.push("NT_UNDER_ORM");

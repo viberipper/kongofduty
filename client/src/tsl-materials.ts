@@ -41,6 +41,8 @@ import {
   cos,
   abs,
   atan,
+  asin,
+  acos,
   floor,
   sqrt,
   dot,
@@ -53,15 +55,350 @@ import {
   texture,
   uv,
   positionLocal,
+  positionWorld,
+  normalWorld,
   cameraPosition,
   cameraViewMatrix,
   instanceIndex,
 } from "three/tsl";
-import { MeshBasicNodeMaterial } from "three/webgpu";
+import { MeshBasicNodeMaterial, MeshStandardNodeMaterial } from "three/webgpu";
 import type { FxUniforms } from "./weapons/fx/gpu";
 
 export interface TslMaterial {
   material: THREE.Material;
+}
+
+// ---------------------------------------------------------------------------
+// ASTRONAUT SUIT SKIN (astronaut.ts dressMaterial, GLSL onBeforeCompile)
+//
+// The suit is not a separate mesh: it is PAINTED onto the actor's body skin by a
+// shader patch that reads suitCol/suitMask/suitTeam per vertex. onBeforeCompile
+// is GLSL-only and node materials ignore it, so on WebGPU the actors rendered as
+// bare Kong bodies with the helmet and gauntlets floating on top. This is the
+// same maths as a node material.
+export function tslSuitSkin(src: THREE.MeshStandardMaterial, team: THREE.Color): TslMaterial & { team: { value: THREE.Color } } {
+  const suitCol = attribute("suitCol", "vec3");
+  const suitMask = attribute("suitMask", "float");
+  const suitTeam = attribute("suitTeam", "float");
+  const uTeam = uniform(team);
+
+  const mat = new MeshStandardNodeMaterial({
+    color: src.color,
+    metalness: src.metalness,
+    roughness: src.roughness,
+    map: src.map ?? null,
+    normalMap: src.normalMap ?? null,
+    envMapIntensity: src.envMapIntensity,
+    emissive: src.emissive,
+    emissiveIntensity: src.emissiveIntensity,
+    side: src.side,
+    transparent: src.transparent,
+    opacity: src.opacity,
+    alphaTest: src.alphaTest,
+  });
+  // GLSL reference (astronaut.ts dressMaterial):
+  //   lum   = dot(diffuseColor.rgb / diffuse, w)   == luminance of the MAP only
+  //   suit  = suitC * diffuse * (0.9 + 0.16*clamp(lum*1.6))
+  //   color = mix(diffuseColor.rgb, suit, vSuitMask)
+  // The suit term uses the MATERIAL COLOUR, not the map - multiplying by the
+  // fur texture (first attempt) kept the body brown and looked like no suit at
+  // all.
+  const mapRGB: TslNodeLike = src.map
+    ? (texture(src.map, uv()) as unknown as { rgb: TslNodeLike }).rgb
+    : vec3(1, 1, 1);
+  const flat = vec3(src.color.r, src.color.g, src.color.b);
+  const base: TslNodeLike = mapRGB.mul(flat);
+  const lum = dot(mapRGB, vec3(0.3, 0.59, 0.11));
+  const suitC = mix(suitCol, uTeam, suitTeam);
+  const suit = suitC.mul(flat).mul(float(0.9).add(clamp(lum.mul(1.6), 0, 1).mul(0.16)));
+  mat.colorNode = mix(base, suit, suitMask) as never;
+  mat.roughnessNode = mix(float(src.roughness), float(0.82), suitMask) as never;
+  return { material: mat as unknown as THREE.Material, team: uTeam as unknown as { value: THREE.Color } };
+}
+
+type TslNodeLike = ReturnType<typeof vec3>;
+
+// ---------------------------------------------------------------------------
+// ARES PROCEDURAL SHADERS (ares-world.ts ShaderMaterials)
+//
+// These were GLSL-only and fell back to flat built-ins on WebGPU. Ported 1:1 as
+// node materials. Output is LINEAR HDR: the WebGL versions encoded sRGB inside
+// the shader, but here the chain's own renderOutput does tone map + encode once,
+// which is the correct place for it.
+export function tslAresCore(): TslMaterial & { uniforms: { uTime: { value: number } } } {
+  const uTime = uniform(0);
+  const mat = new MeshBasicNodeMaterial({ name: "ares/core" });
+  const hash2 = (p: TslNodeLike): TslNodeLike => fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453));
+  const noise2 = (p: TslNodeLike): TslNodeLike => {
+    const i = floor(p);
+    const f0 = fract(p);
+    const f = f0.mul(f0).mul(float(3).sub(f0.mul(2)));
+    return mix(
+      mix(hash2(i), hash2(i.add(vec2(1, 0))), f.x),
+      mix(hash2(i.add(vec2(0, 1))), hash2(i.add(vec2(1, 1))), f.x),
+      f.y,
+    );
+  };
+  const wp = positionWorld;
+  const a = atan(wp.z, wp.x);
+  const y = wp.y;
+  const flow = noise2(vec2(a.mul(3), y.mul(1.6).sub(uTime.mul(0.9))))
+    .mul(0.6)
+    .add(noise2(vec2(a.mul(7), y.mul(3.2).sub(uTime.mul(1.7)))).mul(0.4));
+  const band = smoothstep(0.35, 1.0, flow);
+  const facing = pow(max(dot(normalize(normalWorld), normalize(cameraPosition.sub(wp))), 0), 0.6);
+  const hot = vec3(1.0, 0.86, 0.66);
+  const deep = vec3(0.95, 0.42, 0.16);
+  const col = mix(deep, hot, band.mul(0.8).add(facing.mul(0.35))).mul(float(1.25).add(band.mul(0.9)));
+  mat.colorNode = col as never;
+  return {
+    material: mat as unknown as THREE.Material,
+    uniforms: { uTime: uTime as unknown as { value: number } },
+  };
+}
+
+export function tslAresSky(milky: THREE.Texture, gain: number): TslMaterial & { uniforms: { uGain: { value: number } } } {
+  const mat = new MeshBasicNodeMaterial({ name: "ares/sky", side: THREE.BackSide, depthWrite: false, depthTest: false });
+  const uGain = uniform(gain);
+  const hash3 = (p: TslNodeLike): TslNodeLike => {
+    const q = fract(p.mul(0.3183099).add(vec3(0.71, 0.113, 0.419))).mul(17.0);
+    return fract(q.x.mul(q.y).mul(q.z).mul(q.x.add(q.y).add(q.z)));
+  };
+  const d = normalize(positionLocal);
+  // three octaves of crisp point stars: a hashed cell, one star per lucky cell
+  const starOctave = (scale: number, th: number, w: number): TslNodeLike => {
+    const p = d.mul(scale);
+    const c = floor(p);
+    const r = hash3(c);
+    const sp = c.add(0.5).add(
+      vec3(hash3(c.add(1.3)), hash3(c.add(2.7)), hash3(c.add(4.1))).sub(0.5).mul(0.6),
+    );
+    const dist = p.sub(sp).length();
+    const b = tslSS(0.55, 0.0, dist).mul(pow(max(r.sub(th).div(1.0 - th), 0), 1.6));
+    const t = hash3(c.add(9.0));
+    const tint = mix(vec3(0.75, 0.82, 1.0), vec3(1.0, 0.86, 0.7), t);
+    // keep only the lucky cells (GLSL: if (r > th))
+    return tint.mul(b).mul(w).mul(r.greaterThan(th).select(float(1), float(0)));
+  };
+  const stars = starOctave(160, 0.993, 1.8).add(starOctave(340, 0.988, 0.8)).add(starOctave(700, 0.982, 0.4));
+  const uvSph = vec2(
+    atan(d.z, d.x).div(6.2831853).add(0.5),
+    asin(clamp(d.y, -1, 1)).div(3.14159265).add(0.5),
+  );
+  const milkyCol = (texture(milky, uvSph) as unknown as { rgb: TslNodeLike }).rgb
+    .pow(vec3(1.35))
+    .mul(uGain);
+  mat.colorNode = milkyCol.add(stars) as never;
+  // The PMREM env bake dims the dome through this handle (ares-world.ts), so it
+  // has to stay reachable on the node path too.
+  return {
+    material: mat as unknown as THREE.Material,
+    uniforms: { uGain: uGain as unknown as { value: number } },
+  };
+}
+
+export function tslAresMars(albedo: THREE.Texture, sunDir: THREE.Vector3): TslMaterial {
+  const mat = new MeshBasicNodeMaterial({ name: "ares/mars", depthWrite: false });
+  const uSun = uniform(sunDir);
+  const N = normalize(normalWorld);
+  const V = normalize(cameraPosition.sub(positionWorld));
+  const alb = (texture(albedo, uv()) as unknown as { rgb: TslNodeLike }).rgb
+    .pow(vec3(1.15))
+    .mul(vec3(1.06, 0.95, 0.88));
+  const ndl = dot(N, uSun);
+  // soft terminator: Mars' thin atmosphere still scatters a little past it
+  const lit = smoothstep(-0.08, 0.35, ndl);
+  let col = alb.mul(lit.mul(1.55).add(0.012));
+  // limb haze: dusty butterscotch on the day side, thin blue at the edge
+  const fres = pow(float(1).sub(max(dot(N, V), 0)), 3);
+  const haze = mix(vec3(0.86, 0.55, 0.34), vec3(0.62, 0.72, 0.86), pow(fres, 2));
+  col = mix(col, haze.mul(smoothstep(-0.2, 0.4, ndl)).mul(1.1), fres.mul(0.75));
+  mat.colorNode = col as never;
+  return { material: mat as unknown as THREE.Material };
+}
+
+export function tslAresShell(sunDir: THREE.Vector3): TslMaterial {
+  const mat = new MeshBasicNodeMaterial({
+    name: "ares/shell",
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.BackSide,
+  });
+  const uSun = uniform(sunDir);
+  const N = normalize(normalWorld);
+  const V = normalize(cameraPosition.sub(positionWorld));
+  const rim = pow(float(1).sub(abs(dot(N, V))), 5);
+  const day = smoothstep(-0.25, 0.3, dot(N, uSun));
+  const c = mix(vec3(0.95, 0.62, 0.42), vec3(0.55, 0.68, 0.95), rim);
+  const a = rim.mul(day).mul(0.9);
+  // The GLSL emitted vec4(c*a, a) with SrcAlpha/One blending, i.e. the frame got
+  // c*a*a. AdditiveBlending in three is SrcAlpha/One too, so the colour must be
+  // premultiplied here as well or the shell reads ~1/a brighter than WebGL.
+  mat.colorNode = c.mul(a) as never;
+  mat.opacityNode = a as never;
+  return { material: mat as unknown as THREE.Material };
+}
+
+// ---------------------------------------------------------------------------
+// NUKETOWN SKY (nuketown-sky.ts makeSky, GLSL-only)
+//
+// The whole backdrop: gradient band, dust mass, rainbow, cumulus and the BO1 sun.
+// On WebGPU it fell back to a vertex-coloured gradient sphere, losing clouds,
+// rainbow and sun disc. Ported 1:1; the two GLSL `if`s (rainbow off, h > 0) are
+// folded into the maths (uRainbow already scales to 0, and the cloud plane is
+// only reached above the horizon).
+export function tslNuketownSky(o: {
+  sun: THREE.Vector3;
+  zenith: THREE.Color;
+  horizon: THREE.Color;
+  ground: THREE.Color;
+  cloudLit: THREE.Color;
+  cloudShade: THREE.Color;
+  dust: THREE.Color;
+  bowC: THREE.Vector3;
+  dustC: THREE.Vector3;
+  gain: number;
+  rainbow: number;
+  sunAmt: number;
+  tint: THREE.Color;
+}): TslMaterial {
+  const mat = new MeshBasicNodeMaterial({
+    name: "nuketown/sky",
+    side: THREE.BackSide,
+    depthWrite: false,
+    depthTest: false,
+  });
+  const uSun = uniform(o.sun.clone().normalize());
+  const uZenith = uniform(o.zenith);
+  const uHorizon = uniform(o.horizon);
+  const uGround = uniform(o.ground);
+  const uCloudLit = uniform(o.cloudLit);
+  const uCloudShade = uniform(o.cloudShade);
+  const uDust = uniform(o.dust);
+  const uBowC = uniform(o.bowC);
+  const uDustC = uniform(o.dustC);
+  const uGain = uniform(o.gain);
+  const uRainbow = uniform(o.rainbow);
+  const uSunAmt = uniform(o.sunAmt);
+  const uTint = uniform(o.tint);
+
+  const hash = (p: TslNodeLike): TslNodeLike => {
+    const q = fract(vec3(p.x, p.y, p.x).mul(0.1031));
+    const q2 = q.add(dot(q, vec3(q.y, q.z, q.x).add(33.33)));
+    return fract(q2.x.add(q2.y).mul(q2.z));
+  };
+  const vnoise = (p: TslNodeLike): TslNodeLike => {
+    const i = floor(p);
+    const f0 = fract(p);
+    const u = f0.mul(f0).mul(float(3).sub(f0.mul(2)));
+    return mix(
+      mix(hash(i), hash(i.add(vec2(1, 0))), u.x),
+      mix(hash(i.add(vec2(0, 1))), hash(i.add(vec2(1, 1))), u.x),
+      u.y,
+    );
+  };
+  const fbm = (p0: TslNodeLike): TslNodeLike => {
+    let s: TslNodeLike = float(0);
+    let p: TslNodeLike = p0;
+    let a = 0.5;
+    for (let i = 0; i < 5; i++) {
+      s = s.add(vnoise(p).mul(a));
+      p = p.mul(2.03).add(vec2(17.1, 9.2));
+      a *= 0.5;
+    }
+    return s;
+  };
+  const spectral = (t: TslNodeLike): TslNodeLike => {
+    const t4 = t.mul(4);
+    return clamp(
+      vec3(
+        float(1.5).sub(abs(t4.sub(0.5))),
+        float(1.4).sub(abs(t4.sub(2.0))),
+        float(1.3).sub(abs(t4.sub(3.3))),
+      ),
+      0,
+      1,
+    );
+  };
+  const lum = (c: TslNodeLike): TslNodeLike => dot(c, vec3(0.2126, 0.7152, 0.0722));
+
+  const d = normalize(positionLocal);
+  const h = d.y;
+  const cs = dot(d, uSun);
+  // gradient: horizon band -> zenith by ~25 deg, deeper overhead
+  const band = float(1).sub(smoothstep(0.07, 0.42, h));
+  let col: TslNodeLike = mix(
+    uZenith.mul(mix(float(1), float(0.9), smoothstep(0.5, 1.0, h))),
+    uHorizon,
+    band.mul(band).mul(float(3).sub(band.mul(2))),
+  );
+  // warmer band toward the sun (forward scatter in the dust)
+  const sunSide = float(0.5).add(
+    float(0.5).mul(dot(normalize(vec2(d.x, d.z).add(1e-5)), normalize(vec2(uSun.x, uSun.z)))),
+  );
+  col = col.mul(float(1).add(band.mul(sunSide.sub(0.5)).mul(0.16).mul(vec3(1.06, 1.0, 0.9))));
+  // last couple of degrees: dust hugging the ground
+  col = mix(col, uGround, float(1).sub(smoothstep(-0.005, 0.06, h)));
+  // brown dust mass, low in the north (soft, lumpy edge)
+  const dm = d.sub(uDustC);
+  const dmr = vec2(dm.x, dm.z).length().mul(0.95).add(max(dm.y, 0).mul(1.6)).add(max(dm.y.negate(), 0).mul(0.6));
+  const dn = fbm(vec2(d.x, d.z).div(h.add(0.35)).mul(2.6).add(3.0));
+  const dust = float(1)
+    .sub(smoothstep(0.2, 0.85, dmr.add(dn.sub(0.5).mul(0.7))))
+    .mul(smoothstep(-0.02, 0.08, h));
+  col = mix(col, uDust.mul(float(0.82).add(fbm(vec2(d.x, d.z).div(h.add(0.3)).mul(5.0).add(7.0)).mul(0.36))), dust.mul(0.78));
+  // rainbow: primary (violet inside), Alexander's dark band, secondary (fainter)
+  const ang = acos(clamp(dot(d, uBowC), -1, 1)).mul(57.29578);
+  const above = smoothstep(0.015, 0.16, h);
+  const p1 = smoothstep(39.4, 40.4, ang).mul(float(1).sub(smoothstep(42.2, 43.2, ang)));
+  const p2 = smoothstep(49.6, 50.8, ang).mul(float(1).sub(smoothstep(53.4, 54.6, ang)));
+  const bow = mix(vec3(0.55, 0.55, 0.55), spectral(float(1).sub(ang.sub(39.6).div(3.2))), 0.8)
+    .mul(p1)
+    .add(mix(vec3(0.55, 0.55, 0.55), spectral(ang.sub(50.0).div(4.0)), 0.7).mul(p2).mul(0.5));
+  const colLum = lum(col);
+  col = col.mul(
+    float(1).add(
+      above
+        .mul(uRainbow)
+        .mul(
+          float(0.04)
+            .mul(float(1).sub(smoothstep(38.0, 41.0, ang)))
+            .sub(float(0.035).mul(smoothstep(42.2, 43.5, ang)).mul(float(1).sub(smoothstep(49.0, 50.5, ang)))),
+        ),
+    ),
+  );
+  col = col.add(bow.mul(colLum).mul(0.2).mul(above).mul(uRainbow).mul(float(0.65).add(dust.mul(0.35))));
+  // cumulus on a sky plane: puffs in loose groups, lit toward the sun
+  const hUp = max(h, 0);
+  const cuv = vec2(d.x, d.z).div(hUp.add(0.1)).mul(1.6);
+  const cw = vec2(vnoise(cuv.mul(1.3).add(5.2)), vnoise(cuv.mul(1.3).add(1.7))).sub(0.5);
+  const cq = cuv.mul(2.4).add(cw.mul(0.55));
+  const cn = fbm(cq);
+  const cluster = smoothstep(0.42, 0.66, fbm(cuv.mul(0.42).add(11.0)));
+  const cbase = cn.mul(float(0.72).add(cluster.mul(0.5)));
+  const cov = smoothstep(0.56, 0.7, cbase);
+  const toSun = normalize(vec2(uSun.x, uSun.z).add(1e-5)).mul(0.09);
+  const n2 = fbm(cq.add(toSun)).mul(float(0.72).add(cluster.mul(0.5)));
+  const lit = clamp(float(0.62).add(cbase.sub(n2).mul(6)), 0, 1);
+  const core = smoothstep(0.66, 0.84, cbase);
+  let cc: TslNodeLike = mix(
+    uCloudShade,
+    uCloudLit,
+    lit.mul(float(1).sub(core.mul(0.45))).add(float(0.12).mul(float(1).sub(core))),
+  );
+  cc = cc.mul(float(1).add(float(0.3).mul(pow(max(cs, 0), 8))));
+  cc = mix(cc, col, float(1).sub(smoothstep(0.05, 0.4, h)));
+  col = mix(col, cc, cov.mul(smoothstep(0.02, 0.22, h)).mul(0.95));
+  // the sun: hot disc, tight halo, wide warm forward scatter (bloomed BO1 sun)
+  const c0 = max(cs, 0);
+  const glow = vec3(1.0, 0.9, 0.74).mul(
+    pow(c0, 5).mul(0.16).add(pow(c0, 30).mul(0.38)).add(pow(c0, 220).mul(1.3)).add(pow(c0, 1600).mul(7.0)),
+  );
+  col = col.add(uSunAmt.mul(glow).mul(lum(uZenith)).mul(2.2));
+  col = col.add(uSunAmt.mul(vec3(1.0, 0.97, 0.92)).mul(smoothstep(0.99975, 0.9999, cs)).mul(30));
+  mat.colorNode = col.mul(uGain).mul(uTint) as never;
+  return { material: mat as unknown as THREE.Material };
 }
 
 // ---------------------------------------------------------------------------
@@ -211,6 +548,13 @@ export function tslNadeRibbon(): TslMaterial {
 // ---------------------------------------------------------------------------
 // fx.ts spriteMat (flash/puffs/scorch): mask texture, R = coverage, G = mix.
 export function tslSprite(tex, blending, gain, colA, colB): TslMaterial {
+  // These masks are CANVAS textures. On the node path a minified sample of a
+  // canvas source without an explicit mip chain comes back blank, so the whole
+  // quad renders as one flat colour — that is the "black / white squares"
+  // report on WebGPU. Level 0 with LinearFilter is exact and cheaper.
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
   const uGain = uniform(gain);
   const uA = uniform(new THREE.Color(colA).convertSRGBToLinear());
   const uB = uniform(new THREE.Color(colB).convertSRGBToLinear());
@@ -283,13 +627,37 @@ export function tslQuadFamily(kind, u) {
   const iM = attribute("iM", "vec4");
   const iX = attribute("iX", "vec4");
 
-  const vUv = varying(vec2(0), "qUv");
-  const vN = varying(vec2(0), "qN");
-  const vC = varying(vec4(0), "qC");
-  const vA = varying(vec3(0), "qA");
+  // VARYINGS AS EXPRESSIONS. r187 no longer lets a Fn used as positionNode
+  // carry varying writes into the fragment stage ("build before() nodes only in
+  // the setup stage"), so the old `.assign()` pattern left every varying at its
+  // initial value: the decal frag saw a constant uv, its `r > 1` discard then
+  // swallowed the whole quad (invisible, or black where the blend still wrote),
+  // and smoke sampled a single texel (the white squares). Everything the
+  // fragment NEEDS is therefore an expression TSL emits itself.
+  const c0 = positionLocal.xy;
+  const modeV = iM.y;
+  const ang0 = iM.z.add(iM.w.mul(U.uTime.sub(iP.w)));
+  const ca0 = cos(ang0);
+  const sa0 = sin(ang0);
+  const rot0 = vec2(c0.x.mul(ca0).sub(c0.y.mul(sa0)), c0.x.mul(sa0).add(c0.y.mul(ca0)));
+  /** BILL (0) and PLANE (>= 5) use the raw corner, the strip modes the remap. */
+  const useCorner = modeV.lessThan(0.5).or(modeV.greaterThanEqual(4.5));
+
+  const vUv = varying(useCorner.select(c0, vec2(c0.x.mul(0.5).add(0.5), c0.y)), "qUv");
+  const vN = varying(useCorner.select(rot0, c0), "qN");
+  const vC = varying(iC, "qC");
+  const vA = varying(
+    vec3(
+      U.uTime.sub(iP.w).div(iV.w.max(0.0001)),
+      tslHash11(iP.w.mul(7.31).add(iP.x.mul(12.9898).add(iM.x.mul(1.618)))),
+      iM.x,
+    ),
+    "qA",
+  );
   const vX = varying(vec4(0), "qX");
   const vW = varying(float(1), "qW");
-  const vFog = varying(float(0), "qFog");
+  // vFog is declared AFTER decalWorld (below): its decal form reads that
+  // expression, and a const-before-use here is a TDZ crash at material build.
 
   const sideOf = (ax, toC, fallback) => {
     const cr = cross(ax, toC);
@@ -300,6 +668,60 @@ export function tslQuadFamily(kind, u) {
     });
     return out;
   };
+
+  /**
+   * A decal record is ALWAYS PLANE (M.PLANE), so it gets its own single-purpose
+   * position node instead of the five-branch mode dispatch. That dispatch is
+   * what left the decal family dead on WEBGPU ONLY (instances spawned, nothing
+   * rasterised, no compile error, no console warning) while the same mesh
+   * rendered fine with the smoke material: a shared positionNode whose chain
+   * ends in a branch the decal never takes. Standing alone also means the
+   * depth-pull below is plain, unguarded plane maths.
+   */
+  const decalWorld = (() => {
+    const c = positionLocal.xy;
+    const age = U.uTime.sub(iP.w);
+    const size = mix(iS.x, iS.y, age.div(iV.w.max(0.0001)));
+    const n = normalize(iV.xyz);
+    // As in the GLSL ternary: choose the up vector, never normalize(0).
+    const upv = abs(n.y).lessThan(0.99).select(vec3(0, 1, 0), vec3(1, 0, 0));
+    const t1 = normalize(cross(n, upv));
+    const t2 = cross(n, t1);
+    const a = iM.z.add(iM.w.mul(age));
+    const ca = cos(a);
+    const sa = sin(a);
+    const r = vec2(c.x.mul(ca).sub(c.y.mul(sa)), c.x.mul(sa).add(c.y.mul(ca)));
+    const dc = cameraPosition.sub(iP.xyz).length();
+    // OFFSET ALONG THE SURFACE NORMAL, NOT ALONG THE VIEW RAY.
+    //
+    // The decal is placed on the COLLIDER face, while the geometry you see is
+    // drawn up to ~7 cm proud of it. It therefore has to move off the collider,
+    // and the direction matters:
+    //   view ray  -> camera-dependent: the same splat can end up in front of a
+    //               crate standing between you and the wall it belongs to
+    //               (the "decals bleed through props" report).
+    //   normal    -> surface-dependent: it lands on the skin that belongs to
+    //               THAT face and cannot cross anything else.
+    // The record's view-ray budget (iX.x, 5 cm) is reused as extra normal lift,
+    // so the decal clears the skin exactly as before — it just no longer moves
+    // toward the camera.
+    const lift = iX.z.add(iX.x).add(dc.mul(0.00045));
+    return iP.xyz
+      .add(n.mul(lift))
+      .add(t1.mul(r.x).add(t2.mul(r.y)).mul(size).mul(0.5));
+  })();
+
+  // Decals carry their fog as an EXPRESSION: their position node is standalone,
+  // so the shared `vFog.assign()` further down never runs for them and the fog
+  // mix in tslDecalFrag would read a constant 0 (full contrast to the far plane,
+  // unlike the GLSL path). Declared here, after decalWorld.
+  const vFog =
+    kind === "decal"
+      ? varying(
+          tslSS(U.uFogNear, U.uFogFar, cameraViewMatrix.mul(vec4(decalWorld, 1)).z.mul(-1)),
+          "qFog",
+        )
+      : varying(float(0), "qFog");
 
   const positionNode = Fn(() => {
     const c = positionLocal.xy;
@@ -324,8 +746,6 @@ export function tslQuadFamily(kind, u) {
     });
     vW.assign(alive);
     vX.assign(vec4(0, 0, iX.z, 0));
-    vC.assign(iC);
-    vA.assign(vec3(k, tslHash11(iP.w.mul(7.31).add(iP.x.mul(12.9898).add(iM.x.mul(1.618)))), iM.x));
     If(mode.lessThan(1.5), () => {
       const drag = iS.z;
       const e = exp(drag.mul(age).mul(-1));
@@ -342,8 +762,6 @@ export function tslQuadFamily(kind, u) {
         const sa = sin(a);
         const r = vec2(c.x.mul(ca).sub(c.y.mul(sa)), c.x.mul(sa).add(c.y.mul(ca)));
         wp.assign(p2.add(camR.mul(r.x).add(camU.mul(r.y)).mul(size).mul(0.5)));
-        vUv.assign(c);
-        vN.assign(r);
       }).Else(() => {
         const vel = iV.xyz.mul(e);
         const vely = vel.y.sub(iS.w.mul(age));
@@ -360,8 +778,6 @@ export function tslQuadFamily(kind, u) {
         });
         const len = wdt.add(sp.mul(iX.x));
         wp.assign(p2.add(axn.mul(c.x.mul(0.5).sub(0.5)).mul(len)).add(sd.mul(c.y).mul(wdt).mul(0.5)));
-        vUv.assign(vec2(c.x.mul(0.5).add(0.5), c.y));
-        vN.assign(c);
         vX.assign(vec4(len.div(wdt), wdt, iX.z, toC.length()));
       });
     })
@@ -371,8 +787,6 @@ export function tslQuadFamily(kind, u) {
         const sdisc = sideOf(ax, toC, camR);
         const w = size.mul(iX.y);
         wp.assign(iP.xyz.add(ax.mul(c.x.mul(0.5).add(0.5)).mul(size)).add(sdisc.mul(c.y).mul(w).mul(0.5)));
-        vUv.assign(vec2(c.x.mul(0.5).add(0.5), c.y));
-        vN.assign(c);
       })
       .ElseIf(mode.lessThan(4.5), () => {
         const dir0 = iV.xyz;
@@ -397,18 +811,15 @@ export function tslQuadFamily(kind, u) {
           w.assign(wmin2);
         });
         wp.assign(mid.add(sdisc.mul(c.y).mul(w).mul(0.5)));
-        vUv.assign(vec2(c.x.mul(0.5).add(0.5), c.y));
-        vN.assign(c);
         vX.assign(vec4(h.sub(t), w, iX.z, dc));
       })
       .Else(() => {
         const n = normalize(iV.xyz);
-        const upY = vec3(0, 1, 0);
-        const upX = vec3(1, 0, 0);
-        const t1 = normalize(cross(n, upY)).toVar();
-        If(abs(n.y).greaterThanEqual(0.99), () => {
-          t1.assign(normalize(cross(n, upX)));
-        });
+        // GLSL chooses the up vector per ternary; doing normalize(0) first (and
+        // fixing it in an If afterwards) leaves a NaN in the graph for
+        // floor/ceiling decals — select() never forms it.
+        const upv = abs(n.y).lessThan(0.99).select(vec3(0, 1, 0), vec3(1, 0, 0));
+        const t1 = normalize(cross(n, upv));
         const t2 = cross(n, t1);
         const a = iM.z.add(iM.w.mul(age));
         const ca = cos(a);
@@ -421,8 +832,6 @@ export function tslQuadFamily(kind, u) {
         const tv = w2.sub(cameraPosition);
         const tl = tv.length();
         wp.assign(cameraPosition.add(tv.mul(max(float(0.05), float(1).sub(iX.x.add(dc.mul(0.002))).div(max(tl, 0.001))))));
-        vUv.assign(c);
-        vN.assign(r);
         vX.assign(vec4(n, 0));
       });
     If(mode.lessThan(1.5), () => {
@@ -437,7 +846,6 @@ export function tslQuadFamily(kind, u) {
     If(alive.lessThan(0.5), () => {
       wp.assign(iP.xyz);
       vW.assign(float(0));
-      vA.assign(vec3(0, 0, iM.x));
     });
     return wp;
   });
@@ -452,15 +860,25 @@ export function tslQuadFamily(kind, u) {
     depthWrite: false,
     depthTest: true,
     side: THREE.DoubleSide,
+    // As in the GLSL material: a decal is a MULTIPLIER on the surface, so it
+    // must not be tone-mapped (ACES would bend the modulate value).
+    toneMapped: kind !== "decal",
     blending: THREE.CustomBlending,
     blendEquation: THREE.AddEquation,
     ...(kind === "decal"
       ? {
-          blendSrc: THREE.DstColorFactor,
+          // MODULATE: dst * src, one pass. The GLSL path uses DstColor/SrcColor
+          // (dst*src + src*dst); the WebGPU backend drops a draw that carries
+          // DstColor as a blend factor (no error, the mesh simply never
+          // appears), so the equivalent Zero/SrcColor pair is used here and the
+          // fragment emits the multiplier itself (tslDecalFrag).
+          blendSrc: THREE.ZeroFactor,
           blendDst: THREE.SrcColorFactor,
           blendSrcAlpha: THREE.ZeroFactor,
           blendDstAlpha: THREE.OneFactor,
-          // ZERO-FLICKER rule as in the GLSL path: >= 3 mm toward the camera.
+          // ZERO-FLICKER, second half (the record's view-ray pull above is the
+          // first): a bias toward the camera, exactly as the GLSL material asks
+          // for. three negates it under reversed depth, so both depth modes agree.
           polygonOffset: true,
           polygonOffsetFactor: -1,
           polygonOffsetUnits: -2,
@@ -472,7 +890,7 @@ export function tslQuadFamily(kind, u) {
           blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
         }),
   });
-  (mat as unknown as { positionNode: unknown }).positionNode = positionNode();
+  (mat as unknown as { positionNode: unknown }).positionNode = (kind === "decal" ? () => decalWorld : positionNode)();
   (mat as unknown as { colorNode: unknown }).colorNode = (frag as unknown as { rgb: unknown }).rgb;
   (mat as unknown as { opacityNode: unknown }).opacityNode = (frag as unknown as { a: unknown }).a;
   return { material: mat as unknown as THREE.Material };
@@ -658,7 +1076,11 @@ function tslDecalFrag(V) {
     const k = V.vA.x;
     const seed = V.vA.y;
     const shape = V.vA.z;
-    const q = V.vUv;
+    // A decal always lies in its quad: the corner comes straight from the uv
+    // attribute (0..1 -> -1..1). Reading a varying here was the bug: r187 does
+    // not carry varying writes out of positionNode, so q was constant and every
+    // decal discarded itself.
+    const q = uv().mul(2).sub(1);
     const r = q.length();
     r.greaterThan(1).discard();
     const th = atan(q.y, q.x.add(1e-5));
@@ -714,7 +1136,7 @@ function tslDecalFrag(V) {
       F.assign(mix(1.0, 0.55, div));
       F.assign(mix(F, 0.62, crumbs.mul(0.8)));
       a.assign(max(div, crumbs.mul(0.8)));
-    }).Else(() => {
+    }).ElseIf(shape.lessThan(4.5), () => {
       // GLASS
       const sec = float(6.2831853).div(9);
       const i = floor(th.div(sec).add(0.5));
@@ -729,14 +1151,34 @@ function tslDecalFrag(V) {
       F.assign(mix(F, 0.15, hole));
       a.assign(max(max(line, ring), max(frost, hole)));
     });
+    // Every hole is a GREY multiplier; blood (shape 5) is the one TINTED decal:
+    // vC.rgb is its per-channel multiplier, so it reads red on any wall. The
+    // shape chain runs 0-4 only (GLSL: `if (shape == 5)` sits AFTER it), so the
+    // glass branch above must not swallow 5 — it is bounded by shape < 4.5.
+    const T = vec3(F).toVar();
+    If(shape.greaterThan(4.5), () => {
+      const blob = tslSS(0.6, 0.44, r.add(wob.sub(0.5).mul(0.55)).add(fine.sub(0.5).mul(0.16)));
+      const core = tslSS(0.34, 0.16, r.add(wob.sub(0.5).mul(0.3)));
+      const gq = q.mul(6).add(seed.mul(23));
+      const cell = gq.floor();
+      const hr = tslH11(cell.x.mul(7).add(cell.y.mul(13)).add(seed.mul(41)));
+      const drop = tslSS(0.719, 0.721, hr).mul(tslSS(0.24, 0.12, gq.fract().sub(0.5).length())).mul(tslSS(1.0, 0.5, r));
+      a.assign(max(max(blob, drop), core));
+      T.assign(mix(V.vC.rgb, V.vC.rgb.mul(0.5), core));
+    });
     const fade = float(1).sub(tslSS(0.82, 1.0, k)).mul(V.vC.a).mul(tslSS(0, 0.002, k));
-    const m = mix(1.0, F, a.mul(fade)).toVar();
-    m.assign(mix(m, 1.0, V.vFog));
-    // NaN guard (GLSL: !(m in [0,4]) -> 1.0; NaN falls through min/max to 0,
-    // hence explicit: outside [0,4] -> 1.0 (discard path below).
-    If(m.lessThan(0), () => { m.assign(1); });
-    If(m.greaterThan(4), () => { m.assign(1); });
-    m.sub(1).abs().lessThan(0.004).discard();
-    return vec4(vec3(m, m, m).mul(0.5), 1);
+    const m = mix(vec3(1), T, a.mul(fade)).toVar();
+    m.assign(mix(m, vec3(1), V.vFog));
+    // NaN firewall, exactly as GLSL (`!(x in [0,4]) -> 1`). min/max alone do NOT
+    // clear a NaN on every backend, so both range checks go through select():
+    // a NaN fails both comparisons and lands on the neutral 1.0.
+    m.assign(m.greaterThanEqual(0).select(m, vec3(1)));
+    m.assign(m.lessThanEqual(4).select(m, vec3(1)));
+    m.sub(1).length().lessThan(0.006).discard();
+    // MODULATE 1x: the material blends Zero/SrcColor (dst * src), so the
+    // multiplier IS the output. The GLSL path emitted m*0.5 and blended
+    // DstColor/SrcColor (dst*src + src*dst = 2*src*dst) — the same product,
+    // but DstColor as a blend factor is what WebGPU drops here.
+    return vec4(m, 1);
   })();
 }

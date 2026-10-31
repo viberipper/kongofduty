@@ -96,7 +96,13 @@ const POP = (c: RGB): RGB => {
 /** Blood splatter: how far behind a hit body a wall still catches the splash (m), and how long it stays (s). */
 const SPLAT_REACH = 2.4;
 const SPLAT_LIFE = 14;
+/** Collider tags whose visual face sits well off the OBB: no flat decal.
+ *  Nuketown's vehicles carry `prop:nuketown_car_a` style tags — the bare
+ *  "car"/"barrel" names never matched them, so holes and blood painted
+ *  themselves onto the window line of every car and truck. */
 const NO_DECAL = new Set(["car", "barrel", "forklift", "tire-stack"]);
+const NO_DECAL_RE = /nuketown_(?:car|bus|truck|jeep|m35)/;
+const noDecal = (tag: string): boolean => NO_DECAL.has(tag) || NO_DECAL_RE.test(tag);
 /** Collider tags whose visual face sits BEHIND the OBB face by a known amount (m): the hole is set back onto it. */
 const INSET: Record<string, number> = { dprop: 0.08 };
 
@@ -487,7 +493,7 @@ export class WeaponFx {
     // flat hole: their skins sit 15-35 cm off the collider box (measured), so a
     // decal would hang in the air in front of them.
     const tag = hit?.visual ?? "";
-    if (NO_DECAL.has(tag)) {
+    if (noDecal(tag)) {
       this.pull = 0;
       return;
     }
@@ -565,7 +571,7 @@ export class WeaponFx {
       dx = 0; dy = -1; dz = 0;
     }
     const hit = tr.hit;
-    if (NO_DECAL.has(hit?.visual ?? "")) return;
+    if (noDecal(hit?.visual ?? "")) return;
     let edge = Infinity;
     if (hit) {
       faceOf(hit, hx, hy, hz, 0, FACE);

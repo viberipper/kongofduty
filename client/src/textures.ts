@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { isWebGpuRenderer, type AnyRenderer } from "./gpu-backend";
 import { assetUrl } from "./asset-base";
+import { prefs } from "./ui/prefs";
 
 const cache = new Map<string, THREE.CanvasTexture>();
 
@@ -92,17 +93,33 @@ export function isSoftwareGL(renderer: AnyRenderer): boolean {
  * half the size, so 2x holds the fill budget on retina.
  *
  * 0 here means "no MULTISAMPLING", NOT "no anti-aliasing": Game.init() adds an
- * SMAA pass after the grade whenever this returns 0, because a software client
- * (and every headless qa/ contact sheet, which is judged by eye) must still get
- * smooth edges. Never treat this returning 0 as permission to ship a raw
- * staircase.
+ * FXAA pass (ShaderPass(FXAAShader)) after the grade whenever this returns 0
+ * (unless ?fxaa=0 drops it for bisection), because a software client (and every
+ * headless qa/ contact sheet, which is judged by eye) must still get smooth
+ * edges. Never treat this returning 0 as permission to ship a raw staircase.
  */
 export function aaSamples(renderer: AnyRenderer): number {
   // WebGPU path: TSL pipeline (no composer target) — the scene runs through
   // the render pipeline; the 0 here only means "no composer", not "no AA".
   if (isWebGpuRenderer(renderer)) return 0;
   if (isSoftwareGL(renderer)) return 0;
-  return renderer.getPixelRatio() <= 1.25 ? 4 : 2;
+  // Player's choice (GRAPHICS ▸ Anti-Aliasing). Post-filter modes carry no
+  // samples; MSAA levels are exact, and 8x is additionally gated by
+  // GL_MAX_SAMPLES at resize.
+  switch (prefs().aa) {
+    case "off":
+    case "fxaa":
+    case "smaa":
+      return 0;
+    case "msaa2":
+      return 2;
+    case "msaa4":
+      return 4;
+    case "msaa8":
+      return 8;
+    default:
+      return renderer.getPixelRatio() <= 1.25 ? 4 : 2;
+  }
 }
 
 /**

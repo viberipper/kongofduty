@@ -618,6 +618,9 @@ function applyAimStatic(bones: Record<string, THREE.Object3D>, bind: Record<stri
 
 const LEAN_EULER = new THREE.Euler();
 const LEAN_TMP_Q = new THREE.Quaternion();
+/** Deduped bone names of the lean tables, built once (the tables are static). */
+const LEAN_NAMES_RIGHT: readonly string[] = [...new Set([...Object.keys(LEAN_RIGHT), ...Object.keys(LEAN_RIGHT_CROUCH)])];
+const LEAN_NAMES_LEFT: readonly string[] = [...new Set([...Object.keys(LEAN_LEFT), ...Object.keys(LEAN_LEFT_CROUCH)])];
 
 /**
  * Layer the authored corner-lean pose onto the pose the mixer just wrote.
@@ -641,7 +644,8 @@ function applyLeanPose(bones: Record<string, THREE.Object3D>, w: number, crouch:
   const c = THREE.MathUtils.clamp(crouch, 0, 1);
   const stand: Record<string, LeanBone> = w > 0 ? LEAN_RIGHT : LEAN_LEFT;
   const crouched: Record<string, LeanBone> = w > 0 ? LEAN_RIGHT_CROUCH : LEAN_LEFT_CROUCH;
-  for (const name of new Set([...Object.keys(stand), ...Object.keys(crouched)])) {
+  const names = w > 0 ? LEAN_NAMES_RIGHT : LEAN_NAMES_LEFT;
+  for (const name of names) {
     const a = stand[name];
     const b = crouched[name];
     const bObj = bones[name];
@@ -1803,12 +1807,8 @@ export class BruiserActor {
   ally = false;
   private relationSet = false;
   private relationMode = "";
-  /** Per-actor material clones setRelation tints (see constructor). */
-  private tintMats: { material: THREE.MeshStandardMaterial | THREE.MeshBasicMaterial; base: THREE.Color }[] = [];
-  /** Cloned body materials carrying the authored map, with that map kept so
-   * setRelation can swap the team-shorts variant back to red. */
-  private shortsMats: { material: THREE.MeshStandardMaterial; orig: THREE.Texture }[] = [];
-  private nameTag!: THREE.Sprite;
+  /** Per-actor material clones (body) — owned by this actor, disposed with it. */
+  private actorMats: THREE.Material[] = [];
 
   /**
    * Friend-or-foe, the whole package: chevron colour, whether it reads through
@@ -1839,25 +1839,49 @@ export class BruiserActor {
       paintName(nm.map.image as HTMLCanvasElement, this.tagName, ally);
       nm.map.needsUpdate = true;
     }
-    for (const { material: m, base } of this.tintMats) {
-      if (m instanceof THREE.MeshStandardMaterial) {
-        m.emissive.setHex(ally ? 0xffb830 : 0xff2a18);
-        // ARES suits carry team bands; an additive glow on white fabric reads
-        // as a pink astronaut, so the relation cue is kept faint there
-        const k = activeMap().id === "ares" ? 0.3 : 1;
-        m.emissiveIntensity = (ally ? 0.05 : 0.1) * k;
-      } else {
-        m.color.copy(base).lerp(new THREE.Color(ally ? 0xffb830 : 0xff2a18), ally ? 0.05 : 0.1);
-      }
-    }
-    // TEAM DRESSING, same relation as the chevron above: blue shorts for the
-    // own team (enemies keep the authored red map), EVA bands in the
-    // colour-vision-aware ally/enemy pair. Runs on every real relation or
-    // colour-mode change — respawns, team switches and spectate re-resolve
-    // through the per-frame call in game.ts.
+    // Resolve the body materials AT APPLY TIME instead of through a snapshot
+    // list: the EVA suit replaces body materials during construction, and any
+    // later swap left a list pointing at orphans (the relation tint and the ally
+    // shorts never reached the player). setRelation only runs on a real change
+    // (the early return above), so this traverse is not a per-frame cost.
+    const tintHex = ally ? 0xffb830 : 0xff2a18;
+    const suitK = activeMap().id === "ares" ? 0.3 : 1;
     const tc = teamColors();
-    for (const s of this.shortsMats) {
-      s.material.map = ally ? shortsTextureFor(s.orig, tc.ally) : s.orig;
+    // Iterate the OWNED materials (body clones + the suit materials adopted after
+    // dressing). A traverse would also reach the EVA gear, whose materials are
+    // module singletons shared by every actor — tinting those repaints all of them.
+    for (const mat of this.actorMats) {
+      {
+        const m = mat as THREE.Material & {
+          color?: THREE.Color;
+          map?: THREE.Texture | null;
+          colorNode?: unknown;
+          emissive?: THREE.Color;
+          emissiveIntensity?: number;
+          userData: Record<string, unknown>;
+        };
+        if (m.emissive && m.color) {
+          m.emissive.setHex(tintHex);
+          // ARES suits carry team bands; an additive glow on white fabric reads
+          // as a pink astronaut, so the relation cue is kept faint there.
+          m.emissiveIntensity = (ally ? 0.05 : 0.1) * suitK;
+        } else if (m.color) {
+          // Absolute, from the stored base: lerping the live colour in place
+          // compounded on every flip (ally -> enemy -> ally drifted darker).
+          const base = (m.userData.__baseColor as THREE.Color | undefined) ?? m.color.clone();
+          m.userData.__baseColor = base;
+          m.color.copy(base).lerp(new THREE.Color(tintHex), ally ? 0.05 : 0.1);
+        }
+        // TEAM DRESSING: blue shorts for the own team (enemies keep the authored
+        // red map). Only where the map is sampled directly — the node suit bakes
+        // its texture into colorNode, so swapping `.map` there would no-op.
+        if (m.map && !m.colorNode) {
+          const orig = (m.userData.__origMap as THREE.Texture | undefined) ?? m.map;
+          m.userData.__origMap = orig;
+          m.map = ally ? shortsTextureFor(orig, tc.ally) : orig;
+          m.needsUpdate = true;
+        }
+      }
     }
     this.eva?.setAlly(ally);
   }
@@ -1937,8 +1961,7 @@ export class BruiserActor {
     // repainting the character art.
     const cloneMaterial = (m: THREE.Material): THREE.Material => {
       const c = m.clone();
-      if (c instanceof THREE.MeshStandardMaterial || c instanceof THREE.MeshBasicMaterial) this.tintMats.push({ material: c, base: c.color.clone() });
-      if (c instanceof THREE.MeshStandardMaterial && c.map) this.shortsMats.push({ material: c, orig: c.map });
+      this.actorMats.push(c);
       return c;
     };
     this.body.traverse((o) => {
@@ -1953,7 +1976,27 @@ export class BruiserActor {
     // ARES dresses the same operator in an EVA suit; the weapons are the same
     // everywhere. Team bands follow the relation via setRelation (initially
     // the enemy default, corrected on the first per-frame call in game.ts).
-    if (activeMap().id === "ares") this.eva = attachAstronaut(this.body, this.bones, false);
+    if (activeMap().id === "ares") {
+      this.eva = attachAstronaut(this.body, this.bones, false);
+      // The suit swaps the body materials for fresh node materials. Adopt them
+      // so they are tinted and disposed like the clones they replaced — but never
+      // the EVA gear: those materials are module singletons shared by every
+      // actor, and tinting them would repaint all of them (last writer wins).
+      const owned = new Set(this.actorMats);
+      this.body.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh || !mesh.material || mesh.userData.evaGear) return;
+        for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+          if (mat && !owned.has(mat)) {
+            owned.add(mat);
+            this.actorMats.push(mat);
+          }
+        }
+      });
+    }
+    // Record the tint/shorts materials AFTER the suit has been dressed. The EVA
+    // skin swap replaces body materials with fresh node materials on WebGPU, so
+    // collecting them during the clone pass left these records pointing at
     // THE GUN MOUNT: a frame on R_Hand whose local space IS gun space (metres),
     // so the operator's gun — whichever it is — just sits at its origin.
     const m = tpl.gunMount;
@@ -3340,7 +3383,7 @@ export class BruiserActor {
     for (const skeleton of skeletons) skeleton.dispose();
     // The per-actor material clones (constructor) — the shared maps they
     // reference stay alive with the template.
-    for (const { material } of this.tintMats) material.dispose();
+    for (const mat of this.actorMats) mat.dispose();
     (this.nameTag.material as THREE.SpriteMaterial).map?.dispose();
     (this.nameTag.material as THREE.SpriteMaterial).dispose();
     (this.chevron.material as THREE.SpriteMaterial).dispose();

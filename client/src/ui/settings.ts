@@ -229,6 +229,21 @@ const ROWS: Record<Exclude<Tab, "controls">, Row[]> = {
       ],
     },
     {
+      key: "aa",
+      label: "Anti-Aliasing",
+      desc: "AUTO keeps the shipped look (MSAA on the composer, FXAA where MSAA cannot run). MSAA 2x/4x/8x is geometric anti-aliasing - the cleanest edges; 8x only lands where the GPU reports support. FXAA and SMAA are fullscreen post filters: cheap, and SMAA resolves edges noticeably better than FXAA. On WebGPU the geometry pass is single-sample by necessity (GTAO needs a single-sample depth texture), so an MSAA choice there runs SMAA instead. An explicit level overrides the quality preset. Applies immediately on WebGL; the WebGPU filter is built at boot and needs a reload.",
+      kind: "seg",
+      opts: [
+        { v: "auto", label: "AUTO" },
+        { v: "off", label: "OFF" },
+        { v: "fxaa", label: "FXAA" },
+        { v: "smaa", label: "SMAA" },
+        { v: "msaa2", label: "MSAA 2X" },
+        { v: "msaa4", label: "MSAA 4X" },
+        { v: "msaa8", label: "MSAA 8X" },
+      ],
+    },
+    {
       key: "shadowQuality",
       label: "Shadow Quality",
       desc: "Shadow map resolution. HIGH keeps the map's own resolution, OFF disables shadows entirely (fastest). Applies live, no reload.",
@@ -611,7 +626,7 @@ function render(): void {
   if (keepScroll) rows.scrollTop = keepScroll;
 }
 
-/** Backend finding dropped (WebGPU retired, WebGL2 only) — plain desc. */
+/** Description for a row. */
 function descOf(row: Exclude<Row, { group: string }>): string {
   return row.desc;
 }
@@ -665,6 +680,7 @@ function buildRow(row: Exclude<Row, { group: string }>, describe: (t: string, d:
     const seg = h("div", "seg seg--sm");
     seg.setAttribute("role", "radiogroup");
     seg.id = id;
+    let note: HTMLElement | null = null;
     const cur = p[row.key as keyof Prefs];
     for (const o of row.opts) {
       const b = h("button", o.v === cur ? "is-on" : "", o.label);
@@ -680,12 +696,17 @@ function buildRow(row: Exclude<Row, { group: string }>, describe: (t: string, d:
           render();
           return;
         }
+        const changed = o.v !== (prefs()[row.key as keyof Prefs] as unknown);
+        void changed;
         setPrefs({ [row.key]: o.v } as Partial<Prefs>);
         seg.querySelectorAll("button").forEach((n) => {
           const on = n === b;
           n.classList.toggle("is-on", on);
           n.setAttribute("aria-checked", String(on));
         });
+        // NOTE: there is no renderer row any more — the backend is pinned to
+        // WebGL2 for players and only reachable for development through
+        // ?renderer=webgpu at boot (see RendererPref in prefs.ts).
         // gamepad stream: the button table below depends on the layout.
         if (row.key === "padLayout") {
           uiSfx("select");

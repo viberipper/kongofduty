@@ -415,7 +415,52 @@ function renameCallsign(): void {
 
 // ---------------------------------------------------------------- deploy
 
+/**
+ * ONE PAINTED FRAME between the loading card and the bring-up.
+ * The audio rig builds its whole Web Audio graph synchronously (~0.7 s
+ * measured), and the renderer is created right behind it; running both in
+ * the click task froze the menu with the card still unpainted, which is
+ * what Chrome reported as "'click' handler took 696ms". A frame here means
+ * the card is on screen before that work starts. rAF first (the compositor
+ * really has painted), a 100 ms timer as the fallback for a hidden/occluded
+ * tab where rAF never fires — boot must not depend on being visible.
+ */
+const nextPaint = (): Promise<void> => new Promise<void>((resolve) => {
+  let done = false;
+  const fin = (): void => { if (!done) { done = true; resolve(); } };
+  // A non-browser harness has no rAF (a bare call is a ReferenceError there);
+  // the zero-delay timer is the same "one tick later" guarantee.
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => setTimeout(fin, 0));
+  else setTimeout(fin, 0);
+  setTimeout(fin, 100);
+});
+
+/**
+ * DEPLOY RE-ENTRANCY GUARD: deploy() is async with an awaited painted frame
+ * behind it, so a double click / double pad-press / Enter x2 can interleave
+ * two runs — two createRenderer() on one canvas and two AudioContext builds
+ * racing each other (the inner game.init() "already inited" and Game.start()
+ * "booting||running" guards contain the worst case, but the renderer/audio
+ * race is still real). One module flag serialises it: a second deploy while
+ * one is in flight returns immediately, and the flag clears in a finally, so
+ * every exit path — early returns, the error cards, and thrown errors —
+ * re-arms the door.
+ */
+let deploying = false;
+
+/** The door. The bring-up itself is deployRun() below, unchanged. */
 async function deploy(online: boolean, phase: MatchPhase | null = null, spectate = false): Promise<void> {
+  if (deploying) return;
+  deploying = true;
+  try {
+    await deployRun(online, phase, spectate);
+  } finally {
+    deploying = false;
+  }
+}
+
+/** The bring-up: loading card, one painted frame, world, match. */
+async function deployRun(online: boolean, phase: MatchPhase | null = null, spectate = false): Promise<void> {
   state.online = online;
   showLoading(PAGE_MAP, state.mode, state.kind);
   show("menu", false);
@@ -428,6 +473,8 @@ async function deploy(online: boolean, phase: MatchPhase | null = null, spectate
   if (phase === "pregame") selectMenuMusic(PAGE_MAP);
   else stopMenuMusic();
   try {
+    // Let the loading card paint before the synchronous bring-up behind it.
+    await nextPaint();
     bootStage("AUDIO");
     await Promise.all([game.init(), game.audio.boot()]);
     game.audio.setMix?.(prefs().effects, prefs().ui, prefs().ambience);

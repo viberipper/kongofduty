@@ -554,6 +554,10 @@ export class QuadFamily {
     this.buf.setUsage(THREE.DynamicDrawUsage);
     const g = new THREE.InstancedBufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]), 3));
+    // uv: the node path reads the quad corner through the standard attribute.
+    // A varying written inside positionNode never reaches the fragment on r187,
+    // which left every TSL decal with a constant uv (-> zero coverage).
+    g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]), 2));
     g.setIndex([0, 1, 2, 0, 2, 3]);
     ["iP", "iV", "iS", "iC", "iM", "iX"].forEach((n, i) => g.setAttribute(n, new THREE.InterleavedBufferAttribute(this.buf, 4, i * 4)));
     g.instanceCount = 0;

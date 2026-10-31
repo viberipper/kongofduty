@@ -182,7 +182,21 @@ function screenTexture(): THREE.CanvasTexture {
 // by step via TSL ports. WebGL: unchanged GLSL.
 const useTsl = (): boolean => gpuCapabilities().active === "webgpu";
 
+/** TSL module (WebGPU only): handed in before the world is built. */
+type TslMod = typeof import("./tsl-materials");
+let tslMod: TslMod | null = null;
+export function setAresTsl(m: TslMod | null): void {
+  tslMod = m;
+}
+
 function coreMaterial(): THREE.Material {
+  if (useTsl() && tslMod) {
+    const made = tslMod.tslAresCore();
+    // Keep the time handle: ares-world ticks it once per frame, and a node
+    // material has no `.uniforms` of its own (dropping it froze the reactor).
+    (made.material as unknown as { uniforms: unknown }).uniforms = made.uniforms;
+    return made.material;
+  }
   if (useTsl()) {
     return new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 0.85, 0.42) });
   }
@@ -249,6 +263,17 @@ const STAR_FRAG = `precision highp float;
   }`;
 
 function skyDome(milky: THREE.Texture, gain: number): THREE.Mesh {
+  if (useTsl() && tslMod) {
+    const made = tslMod.tslAresSky(milky, gain);
+    const m = new THREE.Mesh(new THREE.SphereGeometry(SKY_R, 64, 32), made.material);
+    // The PMREM env bake dims the dome via uniforms.uGain (see the traversal).
+    (m.material as unknown as { uniforms: unknown }).uniforms = made.uniforms;
+    m.renderOrder = -100;
+    m.frustumCulled = false;
+    m.name = "ares/sky";
+    m.userData.qaIgnore = true;
+    return m;
+  }
   if (useTsl()) {
     const m = new THREE.Mesh(
       new THREE.SphereGeometry(SKY_R, 64, 32),
@@ -278,6 +303,9 @@ function skyDome(milky: THREE.Texture, gain: number): THREE.Mesh {
 }
 
 function marsMaterial(albedo: THREE.Texture, sunDir: THREE.Vector3): THREE.Material {
+  if (useTsl() && tslMod) {
+    return tslMod.tslAresMars(albedo, sunDir).material;
+  }
   if (useTsl()) {
     return new THREE.MeshStandardMaterial({ map: albedo, roughness: 1, metalness: 0 });
   }
@@ -312,6 +340,12 @@ function marsMaterial(albedo: THREE.Texture, sunDir: THREE.Vector3): THREE.Mater
 }
 
 function atmosphereShell(sunDir: THREE.Vector3): THREE.Mesh {
+  if (useTsl() && tslMod) {
+    return new THREE.Mesh(
+      new THREE.SphereGeometry(MARS_R * 1.025, 96, 64),
+      tslMod.tslAresShell(sunDir).material,
+    );
+  }
   if (useTsl()) {
     void sunDir;
     return new THREE.Mesh(
@@ -510,7 +544,7 @@ export async function buildAresWorld(renderer: AnyRenderer): Promise<WorldApi> {
   sc.left = -48; sc.right = 48; sc.top = 44; sc.bottom = -44; sc.near = 20; sc.far = 160;
   sun.shadow.bias = -0.0002;
   sun.shadow.normalBias = 0.03;
-  sun.shadow.radius = 1.5;
+  sun.shadow.radius = 1.5; // below Game.clampShadowRadii's 1.6 cap, so it runs as authored (r187 5-tap disk)
   scene.add(sun, sun.target);
   // Mars bounce: a broad warm fill from the planet's direction, no shadows.
   const marsFill = new THREE.DirectionalLight(0xd9ab8f, 0.12);
