@@ -223,7 +223,9 @@ export function paintHud(game: Game, s: HudState, mapId: string): void {
   cls("wlethal", "cooking", cooking);
   cls("wlethal", "empty", nades <= 0);
   if (lethal) {
-    // One pip per frag the belt can carry (NADE_CARRY_MAX, 2).
+    // One pip per frag the belt actually carries: a fresh kit has one, and the
+    // 10-kill reward (NADE_CARRY_MAX 2) grows the row to two, so it never
+    // advertises a frag that is not there.
     // Wire numbers are untrusted: floor the float, clamp 1..8 so a hostile
     // max can neither OOM the pip array nor print a fractional pip count.
     const lethalMax = Math.min(8, Math.max(1, Math.floor(num(lethal.max))));

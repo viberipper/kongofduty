@@ -168,6 +168,8 @@ export class WeaponHudDriver {
     const L = this.lethal;
     L.count = me.nades ?? 0;
     // The pips follow what the belt carries; the 10-kill reward makes it two.
+    // (Deliberately not pinned to NADE_CARRY_MAX: a fresh kit still draws the
+    // single pip it always did, and the meter grows when the reward lands.)
     L.max = Math.max(NADE_AMMO, L.count);
     L.cooking = f.cooking;
     L.fuseLeft = fuseLeft;

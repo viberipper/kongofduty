@@ -3033,10 +3033,14 @@ export class Game {
       const ready = this.nadePhaseT >= NADE_READY_T;
       const me = this.me();
       const dead = !me || !me.alive;
-      // Cooked off in the paw: we were cooking and now we are not (the sim
-      // zeroes `cook` exactly when the frag is spent — `handBoom` detonation
-      // or `dropCooked` on death). A belt-count comparison breaks as soon as
-      // the belt can hold two and a grant lands mid-cook, so the count is
+      // Cooked off in the paw: we were cooking and now we are not. The sim
+      // zeroes `cook` in exactly three places — `handBoom` (detonates in the
+      // hand, always lethal), `dropCooked` (death with the pin out) and
+      // `throwNade` (a throw the sim honoured). The first two kill the body, so
+      // the `dead` branch would also catch them; the throw is safe because the
+      // client is in phase 2 by then (release at NADE_RELEASE_AT) and this check
+      // only runs in phase 1. A belt-count comparison would break as soon as the
+      // belt can hold two and a grant lands mid-cook, so the count is
       // deliberately not consulted here.
       const cookedOff = this.nadePhaseT > 0.1 && this.nadeSawCook && this.localCook() <= 0;
       if (dead || cookedOff) {
@@ -4027,8 +4031,15 @@ export class Game {
       if (e.t === "nuke" && !this.ended && prefs().killstreaks) {
         const kn = this.players.get(e.src)?.name ?? "UNKNOWN";
         const mine = e.src === this.you;
-        this.banner(mine ? "TACTICAL NUKE — YOURS" : `TACTICAL NUKE — ${kn}`, 3, `${e.streak} KILLS WITHOUT DYING · EXTRA FRAG`);
-        this.announcer.nuke(kn, mine, e.streak);
+        // The streak rides the wire untrusted (a hostile/replayed frame can put
+        // anything in it) and lands in a subtitle AND a spoken line: coerce it
+        // to the only values this callout can honestly mean — a multiple of ten
+        // between 10 and 990 — so it can neither spoof text nor pin the
+        // subtitle with a huge number.
+        const raw = Number(e.streak);
+        const streak = Number.isFinite(raw) ? Math.min(990, Math.max(10, Math.trunc(raw))) : 10;
+        this.banner(mine ? "TACTICAL NUKE — YOURS" : `TACTICAL NUKE — ${kn}`, 3, `${streak} KILLS WITHOUT DYING · EXTRA FRAG`);
+        this.announcer.nuke(kn, mine, streak);
       }
       // ROUND CARDS. The result holds for the whole intermission (the sim's
       // ROUND_INTERMISSION_S) so the 3-2-1 that follows lands on a screen that

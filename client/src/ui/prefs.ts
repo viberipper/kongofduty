@@ -92,7 +92,7 @@ export interface Prefs {
   announcer: boolean;
   /** Your Kong's own gruff voice lines (announcer.ts kong()). */
   kongVoice: boolean;
-  /** Double/Multi/Triple/Quad/Mega-Kill and streak calls (Rampage/Unstoppable/Legend) — voice + subtitles. On by default. Cosmetic-only: the sim blasts (artillery) still land with it off; only banner/shake/voice go quiet (game.ts nuke event, announcer.nuke). The nuke event itself is cosmetic — no blast, no shake. */
+  /** Double/Multi/Triple/Quad/Mega-Kill and streak calls (Rampage/Unstoppable/Legend) — voice + subtitles. On by default. Cosmetic only: the sim's artillery still lands with it off, and the 10-kill frag reward is a sim grant the toggle never gates — only the banner and the voice go quiet. */
   killstreaks: boolean;
   // GRAPHICS
   renderScale: RenderScaleMode;
@@ -111,7 +111,7 @@ export interface Prefs {
   quality: QualityPreset;
   /** Anti-aliasing mode (AUTO = shipped: MSAA on WebGL, FXAA elsewhere). */
   aa: AAMode;
-  /** Selective HDR bloom (sun, muzzle flash, nuke). */
+  /** Selective HDR bloom (sun, muzzle flash, explosions). */
   bloom: boolean;
   /** Additive halo strength (0 = the pass is a no-op). */
   bloomStrength: number;

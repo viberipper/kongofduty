@@ -3074,8 +3074,10 @@ export class GameSession {
         reserve: p.reserve,
         // Structural wire bound: the sim invariant already caps the belt at
         // NADE_CARRY_MAX, but the snapshot clamps it again so a hostile or
-        // stale value can never widen the client's belt past the cap.
-        nades: Math.min(NADE_CARRY_MAX, Math.max(0, p.nades)),
+        // stale value can never widen the client's belt past the cap. A
+        // non-finite belt reads as the base kit, never as NaN (NaN would slip
+        // through Math.max and read as "throwable" on every > 0 test).
+        nades: Number.isFinite(p.nades) ? Math.min(NADE_CARRY_MAX, Math.max(0, p.nades)) : NADE_AMMO,
         nadeUp: p.nadeUp,
         alt: p.alt,
         altAmmo: p.altAmmo,
