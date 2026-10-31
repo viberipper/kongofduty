@@ -49,10 +49,15 @@ import { captureBugReport } from "./bug-report";
 const MAP = activeMap();
 const MAP_SOLIDS = MAP.solids;
 /**
- * SHADOW PENUMBRA CAP (both backends): r187 removed PCFSoft entirely, so WebGL
- * and WebGPU run the same 5-tap Vogel-disk PCF kernel whose only width knob is
- * shadowRadius in shadow texels — and widening it toward the old authored
- * radii reads as speckle. Clamped to 1.6 texels; see clampShadowRadii.
+ * SHADOW PENUMBRA CAP (both backends): r187 removed PCFSoft entirely, and both
+ * surviving PCF paths are a FIVE-SAMPLE VOGEL-DISK filter whose only width knob
+ * is shadowRadius in shadow texels — WebGL: the PCF `getShadow` in
+ * `ShaderChunk.shadowmap_pars_fragment` (build/three.module.js — note the chunk
+ * lives there, NOT in three.core.js, where a grep finds nothing) sums
+ * `vogelDiskSample( 0..4, 5, phi )` over `radius = shadowRadius * texelSize`;
+ * WebGPU/TSL: `PCFShadowFilter` in build/three.webgpu.nodes.js, "5 samples using
+ * Vogel disk distribution". Widening that toward the old authored radii reads
+ * as speckle. Clamped to 1.6 texels; see clampShadowRadii.
  */
 const SHADOW_RADIUS_MAX = 1.6;
 /**
@@ -866,12 +871,12 @@ export class Game {
     const [loadedWorld, [rig, , effects]] = await Promise.all([world, assets]);
     this.world = loadedWorld;
     // SHADOW PENUMBRA, BOTH BACKENDS — see clampShadowRadii: r187 removed
-    // PCFSoft entirely, so WebGL and WebGPU run the same 5-tap Vogel-disk PCF
-    // kernel (authored: ares 1.5, nuketown 2.0, jungle 3.1, dust2 3.1 from its
-    // env data — all tuned against PCFSoft's much wider kernel). Called here
-    // and from applyShadowQuality so late-added lights and a quality re-arm
-    // get clamped too; cheap and idempotent, and the authored per-map values
-    // at their sources stay untouched.
+    // PCFSoft entirely, and both surviving PCF paths are the 5-sample Vogel-disk
+    // filter (authored: ares 1.5, nuketown 2.0, jungle 3.1, dust2 3.1 from its
+    // env data — all tuned against PCFSoft's much wider kernel). Called here so
+    // every map's sun is covered; applyShadowQuality calls it again at each
+    // re-arm, so lights PRESENT THEN are covered too (a light added after boot
+    // without a quality change is not — no map does that today).
     this.clampShadowRadii();
     // feel stream: Nuketown live events — clock tower = match clock, live POPULATION sign, the nuke at match end (client/src/nuketown-live.ts)
     if (MAP.id === "nuketown") await (await import("./nuketown-live")).attachNuketownLive(this);
@@ -1439,9 +1444,11 @@ export class Game {
 
   /**
    * Clamp every shadow-casting directional light's penumbra to
-   * SHADOW_RADIUS_MAX (runs at init() and after a quality re-arm). Total, not
-   * just a top bound: a NaN/negative radius (dust2's comes from its ENVV env
-   * data) would otherwise pass Math.min straight into the sampler.
+   * SHADOW_RADIUS_MAX (runs at init() and at every applyShadowQuality()
+   * re-arm). Total, not just a top bound — defensive: every radius in the tree
+   * is a finite literal today (dust2 reads its `ENVV` record, also a literal),
+   * but a future non-finite or negative value would otherwise pass Math.min
+   * straight into the shadow sampler.
    */
   private clampShadowRadii(): void {
     if (!this.world) return;

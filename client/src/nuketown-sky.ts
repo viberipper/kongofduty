@@ -345,12 +345,13 @@ function installHeightFog(sunDir: THREE.Vector3): void {
 
 // ------------------------------------------------------------------ soft sun shadows (removed tent, history kept)
 // WORK-ORDERS L3 once patched the PCF_SOFT branch here into a 3x3 tent of
-// bilinear compare taps at 1.5-texel spacing (~5 texels, ~14 cm) for a hazy
-// desert penumbra. r187 removed that SHADOWMAP_TYPE_PCF_SOFT branch entirely
+// bilinear compare taps at 1.5-texel spacing (about 4-5 texels across, i.e.
+// ~11-14 cm on this 4096 map at 116 m frustum width) for a hazy desert
+// penumbra. r187 removed that SHADOWMAP_TYPE_PCF_SOFT branch entirely
 // (zero occurrences in the vendored ShaderChunk; WebGLShadowMap logs the type
 // as removed), so the patch's guard could never match again and the installer
 // silently no-opped — this is a deliberate removal of dead code, not a look
-// change. Its replacement PCF kernel is a 5-tap Vogel-disk sample whose only
+// change. Its replacement PCF kernel is a five-sample Vogel disk whose only
 // width knob is shadowRadius (in shadow texels); widening that toward ~14 cm
 // reads as speckle, which is why the penumbra is now a clamped ~1.6-texel disk
 // (see Game.clampShadowRadii's SHADOW_RADIUS_MAX).

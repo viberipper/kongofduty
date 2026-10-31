@@ -110,19 +110,22 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 - `fix(shadows): PCFSoft gone on the WebGL2 path too` — `gpu-backend.ts`
   still set `THREE.PCFSoftShadowMap` on WebGL2, which r187 removed for both
   backends (the WebGPU path already used `PCFShadowMap`); it now names `PCF`
-  directly, which is what the old type silently fell back to (a 5-tap
-  Vogel-disk `sampler2DShadow` sample with `radius = shadowRadius *
-  texelSize`, per the vendored chunk's PCF `getShadow` in
-  `shadowmap_pars_fragment`) — only now without
-  the `PCFSoftShadowMap has been removed` warning (d62fcfe).
+  directly, which is what the old type silently fell back to — a five-sample
+  Vogel disk (`vogelDiskSample( 0..4, 5, phi )`) over `radius = shadowRadius *
+  texelSize`, from the PCF `getShadow` of `ShaderChunk.shadowmap_pars_fragment`
+  in `build/three.module.js` (the chunk lives there, not in `three.core.js`) —
+  only now without the `PCFSoftShadowMap has been removed` warning (d62fcfe).
 
 - `fix(shadows): penumbra clamp on both backends` — the directional-light
-  `shadow.radius <= 1.6` clamp in `game.ts` only ran on WebGPU, but both
-  backends run the same PCF kernel since r187 removed PCFSoft, while every
-  map's radius was tuned against the old wider kernel (ares 1.5, nuketown
-  2.0, jungle 3.1, dust2 from its env data); the clamp now applies
-  unconditionally (still cheap and idempotent via `Math.min`), and no map's
-  authored radius was changed at its source (d62fcfe).
+  `shadow.radius <= 1.6` clamp in `game.ts` only ran on WebGPU, but since r187
+  removed PCFSoft both backends filter shadows with a five-sample Vogel disk
+  (WebGL: `shadowmap_pars_fragment` in `three.module.js`; WebGPU/TSL:
+  `PCFShadowFilter` in `three.webgpu.nodes.js`), whose only width knob is
+  `shadowRadius` in shadow texels — while every map's radius was tuned against
+  the old wider kernel (ares 1.5, nuketown 2.0, jungle 3.1, dust2 from its env
+  data); the clamp now applies unconditionally (still cheap and idempotent via
+  `Math.min`), and no map's authored radius was changed at its source
+  (d62fcfe).
 
 - `fix(boot): no more toNonIndexed warnings on Nuketown` — `sageGeometry`
   and `boulderGeometry` in `client/src/nuketown-backdrop.ts` called
@@ -145,28 +148,29 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 - `fix(shadows): remove the dead Nuketown PCFSoft tent patch` — the
   WORK-ORDERS L3 `installSoftShadows()` in `client/src/nuketown-sky.ts`
   patched the `SHADOWMAP_TYPE_PCF_SOFT` branch into a 3x3 tent of bilinear
-  taps at 1.5-texel spacing (~14 cm penumbra), but r187 removed that branch
-  entirely (zero occurrences in the vendored `ShaderChunk`, and
-  `WebGLShadowMap` logs the type as removed), so its guard could never match
-  and the call silently no-opped since the upgrade. The function, its
-  `PCF_STEP` constant and the call are deleted, with a history note kept in
-  place — a dead-code removal with no visual delta. The replacement 5-tap
-  Vogel-disk PCF kernel cannot reproduce the old ~14 cm width without reading
-  as speckle, so the nuketown/dust2/shipment penumbrae run narrower than
-  authored (2.0 and 3.1 → 1.6) by deliberate clamp, not by this removal
+  taps at 1.5-texel spacing (about 4-5 texels across, ~11-14 cm on this 4096
+  map), but r187 removed that branch entirely (zero occurrences in the vendored
+  `ShaderChunk`, and `WebGLShadowMap` logs the type as removed), so its guard
+  could never match and the call silently no-opped since the upgrade. The
+  function, its `PCF_STEP` constant and the call are deleted, with a history
+  note kept in place — a dead-code removal with no visual delta. The
+  replacement five-sample Vogel disk cannot reproduce the old width without
+  reading as speckle, so the nuketown/dust2/shipment penumbrae run narrower
+  than authored (2.0 and 3.1 → 1.6) by deliberate clamp, not by this removal
   (2916dda).
 
 - `fix(shadows): penumbra clamp is explicit, total and re-applied` — the
   `shadow.radius <= 1.6` clamp in `game.ts` ran once at `init()` with a bare
-  `Math.min`, so lights added later escaped it and a `NaN`/negative radius
-  (dust2's comes from its `ENVV` env data) passed straight into the shadow
-  sampler. It is now `Game.clampShadowRadii()` behind a module-level
+  `Math.min`, so lights present at a later quality re-arm escaped it and a
+  non-finite/negative radius would have passed straight into the shadow
+  sampler (defensive: every radius in the tree is a finite literal today,
+  dust2 included). It is now `Game.clampShadowRadii()` behind a module-level
   `SHADOW_RADIUS_MAX = 1.6`, clamping totally (`NaN` → the cap, negatives →
-  0), and it runs both at `init()` and in `applyShadowQuality()` so late
-  lights and a quality re-arm are clamped too — cheap, idempotent, no shadow
-  map source touched. Plainly: nuketown/dust2/shipment penumbrae get narrower
-  than authored (2.0 and 3.1 → 1.6) because the removed PCFSoft kernel cannot
-  be reproduced by the 5-tap replacement without speckle (2916dda).
+  0), and it runs both at `init()` and in `applyShadowQuality()` so a quality
+  re-arm is clamped too — cheap, idempotent, no shadow map source touched.
+  Plainly: nuketown/dust2/shipment penumbrae get narrower than authored (2.0
+  and 3.1 → 1.6) because the removed PCFSoft kernel cannot be reproduced by
+  the five-sample replacement without speckle (2916dda).
 
 - `fix(boot): deploy() re-entrancy guard plus a non-browser paint fallback` —
   `deploy()` in `client/src/main.ts` had no in-flight guard, and the awaited
