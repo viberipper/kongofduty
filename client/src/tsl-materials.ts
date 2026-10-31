@@ -359,14 +359,13 @@ export function tslQuadFamily(kind, u) {
       .add(t1.mul(r.x).add(t2.mul(r.y)).mul(size).mul(0.5));
     const tv = w2.sub(cameraPosition);
     const tl = tv.length();
-    // NO view-ray pull. Any camera-ward travel (the record wants 5 cm + 2 mm/m)
-    // makes a splat on the far side of a panel surface on the near side, i.e.
-    // decals bleeding through props — the report this fixes. The quad now sits
-    // exactly where it was painted; the only offset is the small normal lift
-    // above, which moves it off the surface in the direction the surface faces
-    // and therefore can never cross the geometry.
-    void tl;
-    return w2;
+    // EXACTLY the GLSL numbers: pull the plane toward the camera by the record's
+    // iX.x plus 2 mm per metre. This is what makes the decal win over the
+    // visual skin that sits proud of its collider — without it the decal hides
+    // inside the geometry and only shows through seams. WebGL runs the same
+    // formula, so the two backends now agree; the polygonOffset below is the
+    // second half of that pair (three negates it under reversed depth).
+    return cameraPosition.add(tv.mul(max(float(0.05), float(1).sub(iX.x.add(dc.mul(0.002))).div(max(tl, 0.001)))));
   });
 
   const positionNode = Fn(() => {
@@ -522,11 +521,12 @@ export function tslQuadFamily(kind, u) {
           blendDst: THREE.SrcColorFactor,
           blendSrcAlpha: THREE.ZeroFactor,
           blendDstAlpha: THREE.OneFactor,
-          // NO polygonOffset: on WebGPU these factors become depthBias /
-          // depthBiasSlopeScale and the negative bias this decal wants walks the
-          // sample behind its own surface. The plane node already lifts the quad
-          // off the surface (iX.z + distance margin) and pulls it along the view
-          // ray — that is the ZERO-FLICKER mechanism that matters.
+          // ZERO-FLICKER, second half (the record's view-ray pull above is the
+          // first): a bias toward the camera, exactly as the GLSL material asks
+          // for. three negates it under reversed depth, so both depth modes agree.
+          polygonOffset: true,
+          polygonOffsetFactor: -1,
+          polygonOffsetUnits: -2,
         }
       : {
           blendSrc: THREE.OneFactor,
