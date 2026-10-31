@@ -167,6 +167,8 @@ export class WeaponHudDriver {
     const fuseLeft = f.cooking ? Math.max(0, NADE_FUSE - f.cook) : NADE_FUSE;
     const L = this.lethal;
     L.count = me.nades ?? 0;
+    // The pips follow what the belt carries; the 10-kill reward makes it two.
+    L.max = Math.max(NADE_AMMO, L.count);
     L.cooking = f.cooking;
     L.fuseLeft = fuseLeft;
     setLethalHud(L);

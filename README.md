@@ -37,7 +37,7 @@ Self-hostable version of the browser game at https://cnvs.dev/kong/ — playable
 - **5 s spawn protection that breaks on your own shot:** fresh bodies are immune for 5 s, but firing, knifing, or throwing/cooking a frag ends your own immunity at once while incoming cover stays soaked — artillery and the streak blast respect it too.
 - **AFK warning and kick:** a live seat with no real input for 60 s gets one private warning and is removed at 90 s (bench promotion / bot backfill runs through the usual drop path); the kick carries a visible reason instead of reading as a dropped connection. Movement, buttons, ADS, lean, or a moved aim count — idle streaming, ping, and chat do not.
 - **Q/E corner lean (view-only):** lean around corners with Q/E (rebindable) — the eye shifts and the model rolls with easing while the hit capsule never moves; replicated on snapshots for every renderer.
-- **Ten-streak tactical nuke:** 10 kills without dying calls a heavy 12 m blast on the victim's position (150→50 falloff, credited TACTICAL NUKE, chains into medals) plus banner, shake, and announcer call — a reward, never a match end; with killstreak calls muted the blast still lands but stays quiet.
+- **Ten-streak extra frag:** every 10 kills without dying grants an extra frag (the belt carries up to 2, the HUD shows both pips), plus banner and announcer call and no blast; applies to human and bot killers on every map and in every mode.
 - **Authored corner-lean body animation:** the lean is a Blender-authored body pose (pelvis slide, IK-kept feet, spine roll with a level head) rather than a rigid tilt, with its own baked crouch variant. Bots lean tactically as well, but only where the straight eye is blocked and the leaned eye clears the target.
 
 ## Changelog

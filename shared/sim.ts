@@ -379,6 +379,12 @@ export const NADE_DMG_POW = 1.1;
 export const NADE_SELF = 0.55;
 /** Frags per life (CoD standard: one lethal). Restocked on respawn, never picked up. */
 export const NADE_AMMO = 1;
+/**
+ * Most frags a belt ever carries. The base kit is one frag per life; the
+ * 10-kill-streak reward tops the belt back up to two, never past it, so a
+ * long streak cannot become a grenade bag.
+ */
+export const NADE_CARRY_MAX = 2;
 /** Minimum seconds between throws. */
 export const NADE_CD = 0.95;
 /** Tumble rate, rad/s. Sim-owned so every POV sees the same spin. */
@@ -2801,13 +2807,15 @@ export class GameSession {
       this.events.push({ t: "strike", x: dst.x, z: dst.z, team: src.team });
       this.artillery(dst.x, dst.z, src);
     }
-    // KILLSTREAK NUKE — 10 kills without dying. A heavy strike on the
-    // victim's position (reward, NOT a match end: the match plays on) plus a
-    // `nuke` event for the banner/announcer moment. Fires once per streak:
-    // the count only ever equals 10 on the step that reaches it.
-    if (src.streak === 10) {
-      this.events.push({ t: "nuke", src: src.id, x: dst.x, z: dst.z, streak: 10 });
-      this.nukeBlast(dst.x, dst.z, src);
+    // KILLSTREAK FRAG — every 10 kills without dying tops the killer's belt
+    // back up by one frag, capped at NADE_CARRY_MAX. The old 12 m blast at the
+    // victim's position was removed on purpose (it handed a streak free area
+    // damage); the reward is the grenade, granted sim-side. Fires at 10, 20,
+    // 30 …: a long streak only tops the belt back up, never past the cap.
+    // The `nuke` event stays as-is — the client banner/announcer is driven by it.
+    if (src.streak % 10 === 0) {
+      src.nades = Math.min(NADE_CARRY_MAX, src.nades + 1);
+      this.events.push({ t: "nuke", src: src.id, x: dst.x, z: dst.z, streak: src.streak });
     }
 
     const limitHit =
@@ -2851,26 +2859,6 @@ export class GameSession {
         o.regenT = 0;
         if (o.hp <= 0) this.kill(src, o, "strike", false);
       }
-    }
-  }
-
-  /**
-   * THE KILLSTREAK NUKE (10 without dying). Same shape as artillery, bigger:
-   * 12 m radius, 150 → 50 falloff, credited as weapon "nuke" (killfeed labels
-   * it TACTICAL NUKE). Respects teams, spawn protection and regen reset like
-   * every other blast; kills chain through kill() so multi-kill medals and
-   * the ladder still count them. Deliberately NOT a match end — the reward is
-   * the blast plus the call, never a free win.
-   */
-  nukeBlast(x: number, z: number, src: SimPlayer): void {
-    for (const o of this.players.values()) {
-      if (!o.alive || o.protect > 0 || o.id === src.id) continue;
-      if (this.mode !== "ffa" && o.team === src.team) continue;
-      const d = Math.hypot(o.x - x, o.z - z);
-      if (!Number.isFinite(d) || d >= 12) continue;
-      o.hp -= Math.round(lerp(150, 50, d / 12));
-      o.regenT = 0;
-      if (o.hp <= 0) this.kill(src, o, "nuke", false);
     }
   }
 

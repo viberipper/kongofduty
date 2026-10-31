@@ -2969,6 +2969,8 @@ export class Game {
   nadePhaseT = 0;
   /** G (or MMB) is physically down. */
   nadeHeld = false;
+  /** Frags in the belt when the current cook started — the cook-off baseline. */
+  private nadeCookStart = 0;
   /** The release command for this cycle has already been sent. */
   nadeSent = false;
   /** Predicted arc, refilled every fixed tick while readying. Never realloced. */
@@ -2996,6 +2998,7 @@ export class Game {
     this.nadePhaseT = 0;
     this.nadeSent = false;
     this.lastCookTick = 0;
+    this.nadeCookStart = me.nades ?? 1;
     this.audio.play("nade-pin", { vol: 0.42 });
     this.hideNadeHint();
   }
@@ -3022,7 +3025,11 @@ export class Game {
       const me = this.me();
       const dead = !me || !me.alive;
       // Cooked off in the paw (the sim has spent the frag and zeroed the cook).
-      const cookedOff = this.nadePhaseT > 0.1 && this.localCook() <= 0 && (this.heldBody()?.nades ?? 0) <= 0;
+      // Measured against the belt when the pin was pulled, NOT "nades <= 0":
+      // since the 10-kill reward the belt can hold two, and a cook-off only
+      // spends one — the old test would have kept the cycle alive and thrown
+      // the second frag on release.
+      const cookedOff = this.nadePhaseT > 0.1 && this.localCook() <= 0 && (this.heldBody()?.nades ?? 0) < this.nadeCookStart;
       if (dead || cookedOff) {
         this.nadePhase = 0;
         this.nadePhaseT = 0;
@@ -4000,19 +4007,16 @@ export class Game {
         if (e.team !== mine) this.banner("ENEMY UAV ONLINE", 1.7);
         else if (this.accolades.streakOf(this.you) < 3) this.banner("UAV ONLINE", 1.5);
       }
-      // KILLSTREAK NUKE (10 without dying): the blast already landed sim-side
-      // (nukeBlast); this is the moment — banner, announcer call, a shake.
-      // Reward, never a match end: the match plays on.
-      // THE KILLSTREAK TOGGLE IS COSMETIC-ONLY: with killstreaks off the sim
-      // blast still lands (no server flag by design), but there is no banner,
-      // no shake and no voice — announcer.nuke() gates the same way.
+      // KILLSTREAK REWARD (10 without dying): the blast no longer exists — the
+      // reward is the frag, granted sim-side — so this is the moment only:
+      // banner, announcer call, no shake. Reward, never a match end: the match plays on.
+      // THE KILLSTREAK TOGGLE IS COSMETIC-ONLY: with killstreaks off there is no
+      // banner and no voice — announcer.nuke() gates the same way.
       if (e.t === "nuke" && !this.ended && prefs().killstreaks) {
         const kn = this.players.get(e.src)?.name ?? "UNKNOWN";
         const mine = e.src === this.you;
         this.banner(mine ? "TACTICAL NUKE — YOURS" : `TACTICAL NUKE — ${kn}`, 3, "10 KILLS WITHOUT DYING");
         this.announcer.nuke(kn, mine);
-        this.shakeAmp = Math.min(0.05, Math.max(this.shakeAmp, 0.03));
-        this.shakeT = 0;
       }
       // ROUND CARDS. The result holds for the whole intermission (the sim's
       // ROUND_INTERMISSION_S) so the 3-2-1 that follows lands on a screen that

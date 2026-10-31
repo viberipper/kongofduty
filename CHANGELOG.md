@@ -19,6 +19,8 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ### Fixed
 
+- `fix(streak): 10-kill reward grants the second frag instead of the 12 m blast` — the 10-kill streak no longer fires the 12 m blast at the victim's position; every 10 kills without dying tops the killer's belt back up by one frag instead (carries up to `NADE_CARRY_MAX` 2, at 10/20/30 …, for human and bot killers on every map and in every mode), the HUD now renders a pip per carried frag, and the banner plus announcer call stay; no protocol change (`nades` was already replicated) (Pending commit — hash follows on commit.).
+
 - `fix(maps): hard reload crashes on a remembered JSON map` — selecting
   Nuketown (or dust2) in the menu and hard-reloading at a bare URL died with
   `map "nuketown" has no data loaded` before the menu appeared. The module-level
