@@ -92,16 +92,21 @@ export function tslSuitSkin(src: THREE.MeshStandardMaterial, team: THREE.Color):
     opacity: src.opacity,
     alphaTest: src.alphaTest,
   });
-  // The base the patch starts from: the body's own texture (or flat colour),
-  // exactly what <map_fragment> leaves in diffuseColor.
-  const base: TslNodeLike = src.map
-    ? (texture(src.map, uv()) as unknown as { rgb: TslNodeLike }).rgb.mul(vec3(src.color.r, src.color.g, src.color.b))
-    : vec3(src.color.r, src.color.g, src.color.b);
-  // Paint's light/dark pattern kept as soft fabric folds (GLSL: normalised
-  // luminance of the map). One luminance for the whole paint, as before.
-  const lum = dot(base, vec3(0.3, 0.59, 0.11));
+  // GLSL reference (astronaut.ts dressMaterial):
+  //   lum   = dot(diffuseColor.rgb / diffuse, w)   == luminance of the MAP only
+  //   suit  = suitC * diffuse * (0.9 + 0.16*clamp(lum*1.6))
+  //   color = mix(diffuseColor.rgb, suit, vSuitMask)
+  // The suit term uses the MATERIAL COLOUR, not the map - multiplying by the
+  // fur texture (first attempt) kept the body brown and looked like no suit at
+  // all.
+  const mapRGB: TslNodeLike = src.map
+    ? (texture(src.map, uv()) as unknown as { rgb: TslNodeLike }).rgb
+    : vec3(1, 1, 1);
+  const flat = vec3(src.color.r, src.color.g, src.color.b);
+  const base: TslNodeLike = mapRGB.mul(flat);
+  const lum = dot(mapRGB, vec3(0.3, 0.59, 0.11));
   const suitC = mix(suitCol, uTeam, suitTeam);
-  const suit = suitC.mul(base).mul(float(0.9).add(clamp(lum.mul(1.6), 0, 1).mul(0.16)));
+  const suit = suitC.mul(flat).mul(float(0.9).add(clamp(lum.mul(1.6), 0, 1).mul(0.16)));
   mat.colorNode = mix(base, suit, suitMask) as never;
   mat.roughnessNode = mix(float(src.roughness), float(0.82), suitMask) as never;
   return { material: mat as unknown as THREE.Material, team: uTeam as unknown as { value: THREE.Color } };
