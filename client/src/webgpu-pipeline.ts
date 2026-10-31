@@ -626,7 +626,11 @@ export class WebgpuPipeline {
   /** Live switches + uniforms (game.ts/setGraphicsOptions, no reload). */
   applyPrefs(s: WebgpuPrefsSnapshot): void {
     this.uBloomStrength.value = s.bloom ? s.bloomStrength : 0;
-    this.uAoStrength.value = s.aoStrength;
+    // GTAO runs FULL-res here, while the WebGL path is a half-res ContactAO with
+    // a bilateral denoise on top. Without that denoise the same strength reads
+    // darker and rougher in the contact areas, so the contribution is scaled
+    // back a little to land on the WebGL look.
+    this.uAoStrength.value = s.aoStrength * 0.75;
     this.uChroma.value = s.chromatic ? 1 : 0;
     this.uGrain.value = s.grain ? 1 : 0;
     this.uVignette.value = s.vignette ? 1 : 0;

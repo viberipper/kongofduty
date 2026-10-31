@@ -841,6 +841,19 @@ export class Game {
         : import("./jungle-world").then(m => m.buildJungleWorld(this.renderer));
     const [loadedWorld, [rig, , effects]] = await Promise.all([world, assets]);
     this.world = loadedWorld;
+    // WEBGPU SHADOW TUNING. The renderer only has PCF here (PCFSoft was removed
+    // upstream: "PCF is soft too"), while every map's bias/radius pair was tuned
+    // against PCFSoft's much wider kernel. With PCF the same radius spreads the
+    // taps far enough to read as grain - a speckled, blotchy penumbra that also
+    // darkens contact areas. Tightening the kernel on this backend keeps the
+    // WebGL look untouched.
+    if (this.backend === "webgpu") {
+      this.world.scene.traverse((o) => {
+        const l = o as THREE.DirectionalLight;
+        if (!l.isDirectionalLight || !l.castShadow) return;
+        l.shadow.radius = Math.min(l.shadow.radius, 1.6);
+      });
+    }
     // feel stream: Nuketown live events — clock tower = match clock, live POPULATION sign, the nuke at match end (client/src/nuketown-live.ts)
     if (MAP.id === "nuketown") await (await import("./nuketown-live")).attachNuketownLive(this);
     // November-December set dressing (client/src/xmas.ts) — ?xmas=1 / ?xmas=0 force it.
