@@ -156,7 +156,7 @@ export function tslAresCore(): TslMaterial & { uniforms: { uTime: { value: numbe
   };
 }
 
-export function tslAresSky(milky: THREE.Texture, gain: number): TslMaterial {
+export function tslAresSky(milky: THREE.Texture, gain: number): TslMaterial & { uniforms: { uGain: { value: number } } } {
   const mat = new MeshBasicNodeMaterial({ name: "ares/sky", side: THREE.BackSide, depthWrite: false, depthTest: false });
   const uGain = uniform(gain);
   const hash3 = (p: TslNodeLike): TslNodeLike => {
@@ -188,7 +188,12 @@ export function tslAresSky(milky: THREE.Texture, gain: number): TslMaterial {
     .pow(vec3(1.35))
     .mul(uGain);
   mat.colorNode = milkyCol.add(stars) as never;
-  return { material: mat as unknown as THREE.Material };
+  // The PMREM env bake dims the dome through this handle (ares-world.ts), so it
+  // has to stay reachable on the node path too.
+  return {
+    material: mat as unknown as THREE.Material,
+    uniforms: { uGain: uGain as unknown as { value: number } },
+  };
 }
 
 export function tslAresMars(albedo: THREE.Texture, sunDir: THREE.Vector3): TslMaterial {
@@ -226,7 +231,10 @@ export function tslAresShell(sunDir: THREE.Vector3): TslMaterial {
   const day = smoothstep(-0.25, 0.3, dot(N, uSun));
   const c = mix(vec3(0.95, 0.62, 0.42), vec3(0.55, 0.68, 0.95), rim);
   const a = rim.mul(day).mul(0.9);
-  mat.colorNode = c as never;
+  // The GLSL emitted vec4(c*a, a) with SrcAlpha/One blending, i.e. the frame got
+  // c*a*a. AdditiveBlending in three is SrcAlpha/One too, so the colour must be
+  // premultiplied here as well or the shell reads ~1/a brighter than WebGL.
+  mat.colorNode = c.mul(a) as never;
   mat.opacityNode = a as never;
   return { material: mat as unknown as THREE.Material };
 }

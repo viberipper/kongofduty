@@ -191,7 +191,11 @@ export function setAresTsl(m: TslMod | null): void {
 
 function coreMaterial(): THREE.Material {
   if (useTsl() && tslMod) {
-    return tslMod.tslAresCore().material;
+    const made = tslMod.tslAresCore();
+    // Keep the time handle: ares-world ticks it once per frame, and a node
+    // material has no `.uniforms` of its own (dropping it froze the reactor).
+    (made.material as unknown as { uniforms: unknown }).uniforms = made.uniforms;
+    return made.material;
   }
   if (useTsl()) {
     return new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 0.85, 0.42) });
@@ -260,10 +264,10 @@ const STAR_FRAG = `precision highp float;
 
 function skyDome(milky: THREE.Texture, gain: number): THREE.Mesh {
   if (useTsl() && tslMod) {
-    const m = new THREE.Mesh(
-      new THREE.SphereGeometry(SKY_R, 64, 32),
-      tslMod.tslAresSky(milky, gain).material,
-    );
+    const made = tslMod.tslAresSky(milky, gain);
+    const m = new THREE.Mesh(new THREE.SphereGeometry(SKY_R, 64, 32), made.material);
+    // The PMREM env bake dims the dome via uniforms.uGain (see the traversal).
+    (m.material as unknown as { uniforms: unknown }).uniforms = made.uniforms;
     m.renderOrder = -100;
     m.frustumCulled = false;
     m.name = "ares/sky";
