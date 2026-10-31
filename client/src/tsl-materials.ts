@@ -211,6 +211,13 @@ export function tslNadeRibbon(): TslMaterial {
 // ---------------------------------------------------------------------------
 // fx.ts spriteMat (flash/puffs/scorch): mask texture, R = coverage, G = mix.
 export function tslSprite(tex, blending, gain, colA, colB): TslMaterial {
+  // These masks are CANVAS textures. On the node path a minified sample of a
+  // canvas source without an explicit mip chain comes back blank, so the whole
+  // quad renders as one flat colour — that is the "black / white squares"
+  // report on WebGPU. Level 0 with LinearFilter is exact and cheaper.
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
   const uGain = uniform(gain);
   const uA = uniform(new THREE.Color(colA).convertSRGBToLinear());
   const uB = uniform(new THREE.Color(colB).convertSRGBToLinear());
@@ -403,12 +410,11 @@ export function tslQuadFamily(kind, u) {
       })
       .Else(() => {
         const n = normalize(iV.xyz);
-        const upY = vec3(0, 1, 0);
-        const upX = vec3(1, 0, 0);
-        const t1 = normalize(cross(n, upY)).toVar();
-        If(abs(n.y).greaterThanEqual(0.99), () => {
-          t1.assign(normalize(cross(n, upX)));
-        });
+        // GLSL chooses the up vector per ternary; doing normalize(0) first (and
+        // fixing it in an If afterwards) leaves a NaN in the graph for
+        // floor/ceiling decals — select() never forms it.
+        const upv = abs(n.y).lessThan(0.99).select(vec3(0, 1, 0), vec3(1, 0, 0));
+        const t1 = normalize(cross(n, upv));
         const t2 = cross(n, t1);
         const a = iM.z.add(iM.w.mul(age));
         const ca = cos(a);
@@ -452,6 +458,9 @@ export function tslQuadFamily(kind, u) {
     depthWrite: false,
     depthTest: true,
     side: THREE.DoubleSide,
+    // As in the GLSL material: a decal is a MULTIPLIER on the surface, so it
+    // must not be tone-mapped (ACES would bend the modulate value).
+    toneMapped: kind !== "decal",
     blending: THREE.CustomBlending,
     blendEquation: THREE.AddEquation,
     ...(kind === "decal"
@@ -714,7 +723,7 @@ function tslDecalFrag(V) {
       F.assign(mix(1.0, 0.55, div));
       F.assign(mix(F, 0.62, crumbs.mul(0.8)));
       a.assign(max(div, crumbs.mul(0.8)));
-    }).Else(() => {
+    }).ElseIf(shape.lessThan(4.5), () => {
       // GLASS
       const sec = float(6.2831853).div(9);
       const i = floor(th.div(sec).add(0.5));
@@ -729,14 +738,30 @@ function tslDecalFrag(V) {
       F.assign(mix(F, 0.15, hole));
       a.assign(max(max(line, ring), max(frost, hole)));
     });
+    // Every hole is a GREY multiplier; blood (shape 5) is the one TINTED decal:
+    // vC.rgb is its per-channel multiplier, so it reads red on any wall. The
+    // shape chain runs 0-4 only (GLSL: `if (shape == 5)` sits AFTER it), so the
+    // glass branch above must not swallow 5 — it is bounded by shape < 4.5.
+    const T = vec3(F).toVar();
+    If(shape.greaterThan(4.5), () => {
+      const blob = tslSS(0.6, 0.44, r.add(wob.sub(0.5).mul(0.55)).add(fine.sub(0.5).mul(0.16)));
+      const core = tslSS(0.34, 0.16, r.add(wob.sub(0.5).mul(0.3)));
+      const gq = q.mul(6).add(seed.mul(23));
+      const cell = gq.floor();
+      const hr = tslH11(cell.x.mul(7).add(cell.y.mul(13)).add(seed.mul(41)));
+      const drop = tslSS(0.719, 0.721, hr).mul(tslSS(0.24, 0.12, gq.fract().sub(0.5).length())).mul(tslSS(1.0, 0.5, r));
+      a.assign(max(max(blob, drop), core));
+      T.assign(mix(V.vC.rgb, V.vC.rgb.mul(0.5), core));
+    });
     const fade = float(1).sub(tslSS(0.82, 1.0, k)).mul(V.vC.a).mul(tslSS(0, 0.002, k));
-    const m = mix(1.0, F, a.mul(fade)).toVar();
-    m.assign(mix(m, 1.0, V.vFog));
-    // NaN guard (GLSL: !(m in [0,4]) -> 1.0; NaN falls through min/max to 0,
-    // hence explicit: outside [0,4] -> 1.0 (discard path below).
-    If(m.lessThan(0), () => { m.assign(1); });
-    If(m.greaterThan(4), () => { m.assign(1); });
-    m.sub(1).abs().lessThan(0.004).discard();
-    return vec4(vec3(m, m, m).mul(0.5), 1);
+    const m = mix(vec3(1), T, a.mul(fade)).toVar();
+    m.assign(mix(m, vec3(1), V.vFog));
+    // NaN firewall, exactly as GLSL (`!(x in [0,4]) -> 1`). min/max alone do NOT
+    // clear a NaN on every backend, so both range checks go through select():
+    // a NaN fails both comparisons and lands on the neutral 1.0.
+    m.assign(m.greaterThanEqual(0).select(m, vec3(1)));
+    m.assign(m.lessThanEqual(4).select(m, vec3(1)));
+    m.sub(1).length().lessThan(0.006).discard();
+    return vec4(m.mul(0.5), 1);
   })();
 }
