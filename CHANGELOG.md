@@ -17,6 +17,8 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ## Unreleased
 
+## 2026-11-01
+
 ### Fixed
 
 - `fix(streak): callout streak is coerced before it is rendered` — the
@@ -56,28 +58,27 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   badge blinked from "42 MS" to "—" mid-session; the roster now remembers the
   last measured value per player for the current room and keeps showing it
   until the new measurement lands, with "—" only before a player's first
-  measurement ever (Pending commit — hash follows on commit.).
+  measurement ever (deb810b).
 
 - `fix(lobby): real ping badges before a match` — only the in-match loop ever
   reported an RTT, so a fresh lobby left every seat at 0 and the roster's 1 ms
   clamp made everyone look like a 1 ms connection until a match had run on that
   socket; the lobby now measures the pong and reports it once a second (seats
   without a measurement show "—", the server re-pushes the roster every 2 s
-  instead of 5 s) (Pending commit — hash follows on commit.).
+  instead of 5 s) (ce5fef4).
 - `fix(lobby): footer pinned to the window bottom` — `.nana-wrap`'s middle row
   kept its auto minimum, so switching the mode to GUN GAME (the extra "kills per
   gun" row) made the row taller than the viewport and pushed the keyline footer
   off screen; the frame is now a flex column where only the middle band gives
   (header and footer keep their height, the columns scroll inside), verified in
-  headless Chrome at 1999x877 and 1366x768 with the real fonts (Pending
-  commit — hash follows on commit.).
+  headless Chrome at 1999x877 and 1366x768 with the real fonts (7bac7cf).
 
 - `fix(lobby): invite box under the teams, scrollable columns` — on a
   1080p-class viewport the right rail (map card, rules, mode/map setup, the
   invite box and the actions) was taller than the grid row, so SETTINGS and
   LEAVE fell off the bottom with no way to scroll to them; the invite box now
   sits in the left column between the teams and the spectator bench, and both
-  columns own their scroll area (Pending commit — hash follows on commit.).
+  columns own their scroll area (9477fd6).
 
 - `fix(spawns): spread FFA and Gun Game spawns over the whole map` — Ares
   Relay let its eight authored mid-lane points be the entire FFA pool, so both
@@ -87,26 +88,24 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   points covering 100 % of the map and a simulated twelve-man fill from
   51 x 50 % to the full footprint. Pool assembly also dedupes to 1.5 m, which
   removes same-floor pairs as close as 0.11 m (dust2) and 0.43 m (Shipment);
-  Nuketown's 0.00 m pairs are real stacked floors and stay (Pending commit —
-  hash follows on commit.).
+  Nuketown's 0.00 m pairs are real stacked floors and stay (e317d2e).
 
 - `fix(guns): no false override warnings at boot` — the dev override guard
   fired for the intended placeholder-to-real hand-off (four warnings every
   load); placeholders now register through their own path, so only a real
   builder collision warns — and a placeholder imported last is dropped with a
-  warning instead of turning the first-person guns into grey boxes (Pending
-  commit — hash follows on commit.).
+  warning instead of turning the first-person guns into grey boxes (3f24c57).
 
 - `fix(lean): tracer leaves the leaned muzzle` — the local shot tracer
   started from a camera pose re-set to the un-leaned standing eye, so the
   trace lines left the middle of the screen at visor height instead of the
   leaned weapon; the muzzle is now read from the live camera pose the frame
-  actually drew (Pending commit — hash follows on commit.).
+  actually drew (033ce58).
 - `fix(report): private room code redacted` — the bug report embeds the
   private lobby code, which leaked the join code when pasted publicly; the
   text now masks anything shaped like a room code, collapses line breaks and
   strips bidi/zero-width controls so a field cannot forge report lines
-  (Pending commit — hash follows on commit.).
+  (033ce58).
 
 - `fix(shaders): Nuketown plant clumps compile under three r187` — the
   `color_pars_fragment` chunk is still guarded by `USE_COLOR` /
@@ -202,6 +201,51 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   back to a zero-delay timer) so a non-browser harness no longer throws a
   `ReferenceError` (2916dda).
 
+
+- `fix(settings): WebGPU off the GRAPHICS tab` — the renderer row is gone and
+  the pref sanitises back to `webgl`, so a player cannot land on the WebGPU
+  backend (nor can a stale or hand-edited save bring it back). Nothing is
+  deleted: `gpu-backend.ts`, `webgpu-pipeline.ts`, `tsl-materials.ts` and the
+  TSL ports of the Ares shaders, the astronaut suit and the weapon FX all stay,
+  and `?renderer=webgpu|auto` still forces the backend for development and QA
+  without ever being persisted. The remaining world-shader gaps (Nuketown sky,
+  the `onBeforeCompile` patches) are why it is out of the menu again (16e2c12).
+- `fix(lean): shots follow the lean eye` — shots use the same 0.30 m eye
+  offset as the camera with a parallel ray, clamped at walls, and the
+  preview matches the server (ccf5501).
+- `fix(lean): Blender-authored lean pose on the model` — lean was only a
+  rigid root tilt on the model so the feet slid; now it layers the
+  Blender-authored pose, including its baked crouch variant blended by
+  crouchW with the feet near-planted (measured foot drift ≤ 1.2 cm in model
+  units), and latch/overlay gaps
+  (`Hip`/`Waist`/`NeckTwist02`, `hip.position.x`) plus the aim-slerp order
+  are fixed too (650b783).
+- `fix(lean): camera lean offset wall-clamped` — the leaned camera eye is
+  clamped against walls so it can never see through them (7b569e3).
+- `fix(bots): lean hold breaks on flee/reposition/swap/slide/reload/low HP` — the tactical lean
+  hold aborts correctly on fleeing, repositioning, swapping, sliding,
+  reloading, low HP, or when a squadmate already holds that target (7b569e3).
+- `perf(fx): no instanced uploads for effects that draw nothing` — the
+  BoomFx flash/ring/frags/puffs/scorch pools flagged ten instance buffers
+  for upload every frame even with all four counts at 0, the ThrowMarker aim
+  marker uploaded while every dot sat behind the camera, and the NadeFx
+  ribbon sampled its trail ring, wrote ribbons and flagged rPos/rAlpha
+  uploads for an invisible mesh; each family now uploads only while it draws
+  (the frag instances always draw)
+  (8f96caa).
+- `fix(post): WebGPU grade no longer blows out the frame` — the TSL grade
+  carried a hand port of cinematic.ts' RRT/ODT matrices, sRGB knee and
+  mid-band depth S-curve; on three r187 it rendered every lit surface clipped
+  white (walls pure 255) with exposure having no effect, while the same frame
+  through `?pipeline=nograde` was correct. The tone map and the working→sRGB
+  encode now come from three's own `renderOutput(ACESFilmic, sRGB)` node, the
+  filmic extras stay in linear HDR in front of it and the map exposure is
+  pre-divided by the renderer's 1.12 so nothing multiplies twice (1f81920).
+- `perf(lean): no per-actor Set allocation in the lean pose` — the lean bone
+  name list was rebuilt from two key spreads for every actor on every leaning
+  frame; it is derived once per lean direction from the static pose tables now
+  (8f96caa).
+
 ### Added
 
 - `feat(bots): tactical corner lean` — bots lean around cover with Q/E
@@ -212,15 +256,14 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   no permanent lean), held 0.4–1.1 s without mid-hold flips and followed
   by a cooldown, taken only about three times in four so it stays
   situational; same view-only 0.30 m eye shift with no damage, accuracy,
-  or hitbox bonus (Pending commit — hash follows on commit.).
+  or hitbox bonus (38da578).
 
 - `feat(post): FXAA tail on hardware WebGPU` — the WebGPU path renders its
   scene pass into single-sample pass targets with `antialias:false` (a GTAO
   precondition: the centre tap needs a single-sample depth texture), so edges
   reached the screen stair-stepped while the WebGL path pays 4x/2x MSAA on the
   composer targets; the FXAA tail the software tier already ran now runs on
-  hardware too, after the grade (`?fxaa=0` drops it for bisection) (Pending
-  commit — hash follows on commit.).
+  hardware too, after the grade (`?fxaa=0` drops it for bisection) (8f96caa).
 
 - `feat(settings): renderer switch (AUTO / WEBGPU / WEBGL2)` — GRAPHICS gained
   a Renderer row and `?renderer=` pins the backend again for one page load;
@@ -229,61 +272,10 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   WEBGL2 on purpose: the TSL port for the custom FX ShaderMaterials is still
   open, so the WebGPU look has gaps. A switch reloads from the menu and only
   banners "applies after the next load" mid-match, because a canvas binds one
-  context type and the renderer is chosen in `init()` (Pending commit — hash
-  follows on commit.).
+  context type and the renderer is chosen in `init()` (1f81920).
   **Withdrawn again for players**: see `fix(settings): WebGPU off the GRAPHICS
   tab` below — the row is gone, the pref is pinned, the code stays behind
   `?renderer=webgpu`.
-
-### Fixed
-
-- `fix(settings): WebGPU off the GRAPHICS tab` — the renderer row is gone and
-  the pref sanitises back to `webgl`, so a player cannot land on the WebGPU
-  backend (nor can a stale or hand-edited save bring it back). Nothing is
-  deleted: `gpu-backend.ts`, `webgpu-pipeline.ts`, `tsl-materials.ts` and the
-  TSL ports of the Ares shaders, the astronaut suit and the weapon FX all stay,
-  and `?renderer=webgpu|auto` still forces the backend for development and QA
-  without ever being persisted. The remaining world-shader gaps (Nuketown sky,
-  the `onBeforeCompile` patches) are why it is out of the menu again (Pending
-  commit - hash follows on commit.).
-- `fix(lean): shots follow the lean eye` — shots use the same 0.30 m eye
-  offset as the camera with a parallel ray, clamped at walls, and the
-  preview matches the server (Pending commit — hash follows on commit.).
-- `fix(lean): Blender-authored lean pose on the model` — lean was only a
-  rigid root tilt on the model so the feet slid; now it layers the
-  Blender-authored pose, including its baked crouch variant blended by
-  crouchW with the feet near-planted (measured foot drift ≤ 1.2 cm in model
-  units), and latch/overlay gaps
-  (`Hip`/`Waist`/`NeckTwist02`, `hip.position.x`) plus the aim-slerp order
-  are fixed too (Pending commit — hash follows on commit.).
-- `fix(lean): camera lean offset wall-clamped` — the leaned camera eye is
-  clamped against walls so it can never see through them (Pending commit
-  — hash follows on commit.).
-- `fix(bots): lean hold breaks on flee/reposition/swap/slide/reload/low HP` — the tactical lean
-  hold aborts correctly on fleeing, repositioning, swapping, sliding,
-  reloading, low HP, or when a squadmate already holds that target (Pending commit
-  — hash follows on commit.).
-- `perf(fx): no instanced uploads for effects that draw nothing` — the
-  BoomFx flash/ring/frags/puffs/scorch pools flagged ten instance buffers
-  for upload every frame even with all four counts at 0, the ThrowMarker aim
-  marker uploaded while every dot sat behind the camera, and the NadeFx
-  ribbon sampled its trail ring, wrote ribbons and flagged rPos/rAlpha
-  uploads for an invisible mesh; each family now uploads only while it draws
-  (the frag instances always draw)
-  (Pending commit — hash follows on commit.).
-- `fix(post): WebGPU grade no longer blows out the frame` — the TSL grade
-  carried a hand port of cinematic.ts' RRT/ODT matrices, sRGB knee and
-  mid-band depth S-curve; on three r187 it rendered every lit surface clipped
-  white (walls pure 255) with exposure having no effect, while the same frame
-  through `?pipeline=nograde` was correct. The tone map and the working→sRGB
-  encode now come from three's own `renderOutput(ACESFilmic, sRGB)` node, the
-  filmic extras stay in linear HDR in front of it and the map exposure is
-  pre-divided by the renderer's 1.12 so nothing multiplies twice (Pending
-  commit — hash follows on commit.).
-- `perf(lean): no per-actor Set allocation in the lean pose` — the lean bone
-  name list was rebuilt from two key spreads for every actor on every leaning
-  frame; it is derived once per lean direction from the static pose tables now
-  (Pending commit — hash follows on commit.).
 
 ### Tests
 
@@ -291,8 +283,7 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   check needed a trusted click to take the pointer lock, which a headless
   harness cannot produce, so weapon FX, decals and blood were only ever
   verified by hand. The flag widens the input gate only (keyboard + mouse
-  fire); nothing else about the game changes (Pending commit — hash follows
-  on commit.).
+  fire); nothing else about the game changes (61ea47e).
 
 ## 2026-10-30
 
