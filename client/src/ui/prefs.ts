@@ -20,12 +20,19 @@
 export type AdsMode = "hold" | "toggle";
 export type RenderScaleMode = "auto" | "native";
 export type MotionPref = "system" | "reduce" | "full";
-/** GPU backend wish (resolved by gpu-backend.ts; WebGPU falls back). */
-/** WebGPU is retired (WebGL2 only). The WebGPU code (gpu-backend.ts,
- * webgpu-pipeline.ts, tsl-materials.ts) is kept but never loaded.
- * That is why the pref only knows "webgl" — old stored values ("auto",
- * "webgpu") fall back to "webgl" via sanitize. */
-export type RendererPref = "webgl";
+/**
+ * GPU backend wish, resolved by gpu-backend.ts (a refused WebGPU device falls
+ * back to WebGL2 with a console warning — never a black canvas).
+ *
+ * AUTO prefers WebGPU where the browser offers it, WEBGPU forces that path,
+ * WEBGL2 stays on the old one. Opt-in and NOT the default: the WebGPU path is
+ * still missing the TSL ports for the custom FX ShaderMaterials (tracers,
+ * muzzle, smoke, decals, nuke, Ares core, Nuketown sky fall back to an empty
+ * node material — see webgpu-pipeline.ts), so next to WebGL2 it looks
+ * unfinished. Takes effect on the next page load: a canvas binds one context
+ * type, so the renderer cannot be swapped live.
+ */
+export type RendererPref = "auto" | "webgpu" | "webgl";
 /** Quality preset (graphics-presets.ts): starting point, freely adjustable afterwards. */
 export type QualityPreset = "low" | "medium" | "high" | "ultra" | "cinematic";
 /** Shadow map resolution. HIGH = map-authored (no overwrite), MEDIUM = 2048. */
@@ -247,7 +254,7 @@ export function sanitizePrefs(x: unknown): Prefs {
     hudScale: clamp(o.hudScale, RANGES.hudScale[0], RANGES.hudScale[1], d.hudScale),
     motion: pick(o.motion, ["system", "reduce", "full"] as const, d.motion),
     colorMode: pick(o.colorMode, ["default", "protanopia", "deuteranopia", "tritanopia"] as const, d.colorMode),
-    renderer: "webgl",
+    renderer: pick(o.renderer, ["auto", "webgpu", "webgl"] as const, d.renderer),
     quality: pick(o.quality, ["low", "medium", "high", "ultra", "cinematic"] as const, d.quality),
     bloom: bool(o.bloom, d.bloom),
     bloomStrength: clamp(o.bloomStrength, RANGES.bloomStrength[0], RANGES.bloomStrength[1], d.bloomStrength),
@@ -287,11 +294,14 @@ function load(): Prefs {
 let current: Prefs = load();
 // `?quality=native` (the old Ares-only control, and what QA links pin) still
 // wins for this page load without overwriting the saved choice.
-// (`?renderer=` is retired: WebGPU is off, only WebGL2 exists.)
+// `?renderer=webgl|webgpu|auto` also pins the backend for this page load
+// without overwriting the saved choice (same contract as `?quality`).
 try {
   if (typeof location !== "undefined") {
     const q = new URLSearchParams(location.search);
     if (q.get("quality") === "native") current = { ...current, renderScale: "native" };
+    const r = q.get("renderer");
+    if (r === "auto" || r === "webgpu" || r === "webgl") current = { ...current, renderer: r };
   }
 } catch {
   /* no location */

@@ -23,6 +23,8 @@ export interface SettingsDeps {
   /** Persist + load a sound pack; resolves with a status line for the note. */
   setPack: (key: string) => Promise<string>;
   packNote: () => string;
+  /** Live match in progress — a renderer switch waits for the next load then. */
+  inMatch?: () => boolean;
 }
 
 type Tab = "gameplay" | "audio" | "graphics" | "controls";
@@ -226,6 +228,17 @@ const ROWS: Record<Exclude<Tab, "controls">, Row[]> = {
       opts: [
         { v: "auto", label: "ADAPTIVE" },
         { v: "native", label: "NATIVE" },
+      ],
+    },
+    {
+      key: "renderer",
+      label: "Renderer",
+      desc: "Which graphics backend the game boots on. AUTO prefers WebGPU where the browser has it and otherwise stays on WebGL2; WEBGPU forces it (a refused device still falls back, with a console warning); WEBGL2 is the mature path. The WebGPU path is still missing the node-material ports for some weapon and explosion effects, so expect gaps there. Needs a reload: a canvas binds one context type.",
+      kind: "seg",
+      opts: [
+        { v: "auto", label: "AUTO" },
+        { v: "webgpu", label: "WEBGPU" },
+        { v: "webgl", label: "WEBGL2" },
       ],
     },
     {
@@ -665,6 +678,7 @@ function buildRow(row: Exclude<Row, { group: string }>, describe: (t: string, d:
     const seg = h("div", "seg seg--sm");
     seg.setAttribute("role", "radiogroup");
     seg.id = id;
+    let note: HTMLElement | null = null;
     const cur = p[row.key as keyof Prefs];
     for (const o of row.opts) {
       const b = h("button", o.v === cur ? "is-on" : "", o.label);
@@ -680,12 +694,31 @@ function buildRow(row: Exclude<Row, { group: string }>, describe: (t: string, d:
           render();
           return;
         }
+        const changed = o.v !== (prefs()[row.key as keyof Prefs] as unknown);
         setPrefs({ [row.key]: o.v } as Partial<Prefs>);
         seg.querySelectorAll("button").forEach((n) => {
           const on = n === b;
           n.classList.toggle("is-on", on);
           n.setAttribute("aria-checked", String(on));
         });
+        // The backend is picked in init() and a canvas binds one context type,
+        // so a switch only lands on a fresh page: reload from the menu right
+        // away, but never pull the rug out of a live match.
+        if (row.key === "renderer" && changed) {
+          uiSfx("select");
+          if (deps?.inMatch?.()) {
+            if (!note) {
+              note = h("small", "set-note");
+              note.style.fontSize = "var(--fs-micro)";
+              note.style.color = "var(--c-text-3)";
+              el.append(note);
+            }
+            note.textContent = "APPLIES AFTER THE NEXT LOAD";
+          } else {
+            location.reload();
+          }
+          return;
+        }
         // gamepad stream: the button table below depends on the layout.
         if (row.key === "padLayout") {
           uiSfx("select");

@@ -5,9 +5,9 @@
  * Mirrors the WebGL chain order exactly (game.ts/buildComposer):
  *
  *   scene (pass) → AO (GTAO, hardware tier) → selective HDR bloom →
- *   [afterimage (opt-in)] → CINEMATIC grade as a custom Fn node (maths 1:1
- *   from cinematic.ts, tonemapping+sRGB included, NO RenderOutput around it —
- *   a RenderOutputNode would convert working→sRGB a second time) →
+ *   [afterimage (opt-in)] → CINEMATIC extras as a custom Fn node (chroma,
+ *   DOF-lite, CAS-lite, warmth/contrast/slope/saturation, vignette, grain) →
+ *   renderOutput(ACES-Filmic, sRGB) →
  *   [FXAA (both tiers, needs sRGB input)].
  *
  * BUNDLE DISCIPLINE: this file is loaded ONLY via dynamic import() from game.ts
@@ -16,12 +16,15 @@
  * not a single byte of it (separate three.webgpu chunk, see build output).
  * Only "three" (main graph) is static here, for types/constants.
  *
- * TONEMAPPING DECISION (no double tonemapping): the grade node does
- * tonemapping (ACES approximation) AND sRGB encoding itself, 1:1 from cinematic.ts.
- * The renderer runs on NoToneMapping, and there is NO RenderOutputNode
- * around the grade — it would convert working→sRGB again
- * (double encoding). Only the ?nograde debug path uses renderOutput
- * (there it is the only sRGB conversion).
+ * TONEMAPPING DECISION: the extras run in linear HDR, then ONE RenderOutputNode
+ * applies the renderer's tone map (ACES-Filmic) and the working→sRGB transform.
+ * The renderer itself runs NoToneMapping so nothing is applied twice.
+ * History: this used to carry a hand-ported RRT/ODT + sRGB-knee + mid-band
+ * depth block copied from cinematic.ts. On three r187 that port rendered every
+ * lit surface blown out (walls pure white) while the same frame without the
+ * grade was correct, so the tone map and the encode now come from three's own
+ * node — the hand maths stays where it belongs, in the WebGL GLSL grade.
+ * ?nograde stays as the bisection path (scene → renderOutput, no extras).
  *
  * REBUILD RULE (WebGL m2 analogue): the scene pass survives structural changes
  * — only an MRT change (AO on/off) rebuilds it (fresh pass with an
@@ -210,6 +213,7 @@ export class WebgpuPipeline {
   private api!: TslApi;
   private lib!: {
     NoToneMapping: unknown;
+    ACESFilmicToneMapping: unknown;
     SRGBColorSpace: unknown;
   };
   private fx!: {
@@ -285,6 +289,7 @@ export class WebgpuPipeline {
       import("three/webgpu") as Promise<{
         RenderPipeline: new (renderer: unknown, outputNode?: unknown) => WebgpuPipeline["pipe"];
         NoToneMapping: unknown;
+        ACESFilmicToneMapping: unknown;
         SRGBColorSpace: unknown;
       }>,
       import("three/tsl") as Promise<Record<string, unknown>>,
@@ -350,16 +355,14 @@ export class WebgpuPipeline {
   }
 
   /**
-   * CINEMATIC grade as a TSL fn node. Ports the maths from
-   * cinematic.ts 1:1 (order + constants): chroma → DOF-lite →
-   * CAS-lite → warmth/contrast/slope/saturation → vignette/hurt → grain →
-   * RRT/ACES + exposure → sRGB → mid-band depth.
+   * CINEMATIC extras as a TSL fn node: chroma → DOF-lite → CAS-lite →
+   * warmth/contrast/slope/saturation → vignette/hurt → grain, all in linear
+   * HDR, then renderOutput(ACES-Filmic, sRGB) for tone map + encode.
    *
-   * Two deliberate micro-deviations (WGSL idioms instead of GLSL idioms):
-   *  - sRGB knee via max(power, linear) instead of a bool mask — deviation < 2e-4
-   *    in deep black, far below the ±0.004 grain.
-   *  - ACES matrices multiplied out (no mat3 API) — exactly the same
-   *    coefficients in column-major order as the GLSL constructor.
+   * The extras are 1:1 from cinematic.ts; the tone map and the sRGB transform
+   * are three's (see the header). cinematic.ts keeps its own RRT/ODT + knee for
+   * the WebGL path — one look, two backends, and only the encode differs by an
+   * ACES fit that no one sees side by side.
    */
   private buildGrade(input: TslNode): TslNode {
     const T = this.api;
@@ -447,50 +450,17 @@ export class WebgpuPipeline {
       const gr = T.fract(T.sin(T.dot(seed, T.vec2(12.9898, 78.233))).mul(43758.5453)).sub(0.5).mul(0.008).mul(uGrain);
       col.assign(col.add(T.vec3(gr, gr, gr)));
 
-      // --- NaN/Inf firewall + Karis clamp (as in cinematic.ts, per channel).
-      const guard = (v: TslNode): TslNode => {
-        const s = v.toVar();
-        T.If(T.or(s.lessThan(0), s.greaterThan(60000)), () => {
-          s.assign(0);
-        });
-        return s;
-      };
-      const hdr = T.vec3(guard(col.x), guard(col.y), guard(col.z));
-      const clamped = T.min(hdr, T.vec3(64, 64, 64));
-      // --- RRT/ACES with exposure (col *= uExposure / 0.6).
-      const ex = clamped.mul(uExposure.div(0.6));
-      const exx = ex.x;
-      const exy = ex.y;
-      const exz = ex.z;
-      const inR = T.float(0.59719).mul(exx).add(T.float(0.35458).mul(exy)).add(T.float(0.04823).mul(exz));
-      const inG = T.float(0.076).mul(exx).add(T.float(0.90834).mul(exy)).add(T.float(0.01566).mul(exz));
-      const inB = T.float(0.0284).mul(exx).add(T.float(0.13383).mul(exy)).add(T.float(0.83777).mul(exz));
-      const rrt = (v: TslNode): TslNode =>
-        v.mul(v.add(0.0245786)).sub(0.000090537).div(v.mul(v.mul(0.983729).add(0.432951)).add(0.238081));
-      const wR = rrt(inR);
-      const wG = rrt(inG);
-      const wB = rrt(inB);
-      const mapped = T.vec3(
-        T.float(1.60475).mul(wR).sub(T.float(0.53108).mul(wG)).sub(T.float(0.07367).mul(wB)),
-        T.float(-0.10208).mul(wR).add(T.float(1.10813).mul(wG)).sub(T.float(0.00605).mul(wB)),
-        T.float(-0.00327).mul(wR).sub(T.float(0.07276).mul(wG)).add(T.float(1.07602).mul(wB)),
-      );
-      const clamped01 = T.min(T.max(mapped, T.vec3(0, 0, 0)), T.vec3(1, 1, 1));
-      // --- sRGB encoding (knee via max instead of bool mask, < 2e-4 deviation).
-      const srgb = T.max(
-        T.pow(T.max(clamped01, T.vec3(0, 0, 0)), T.vec3(0.41666)).mul(1.055).sub(0.055),
-        clamped01.mul(12.92),
-      );
-
-      // --- MID-BAND DEPTH: filmic S-curve on LUMA, window 0.18..1.0.
-      const y = T.dot(srgb, T.vec3(0.2126, 0.7152, 0.0722));
-      const out = srgb.toVar();
-      T.If(y.greaterThan(0.18), () => {
-        const w = T.smoothstep(0.18, 0.52, y).mul(T.float(1).sub(T.smoothstep(0.6, 1.0, y)));
-        const s = y.mul(y).mul(T.float(3).sub(y.mul(2)));
-        out.assign(srgb.mul(T.float(1).add(s.sub(y).mul(0.55).mul(w).div(T.max(y, 0.0001)))));
-      });
-      return T.vec4(out, 1);
+      // --- TONE MAP + ENCODE: three's own ACES-Filmic and sRGB transform.
+      // What used to stand here was a 1:1 TSL port of cinematic.ts' RRT/ODT
+      // matrices + hand-rolled sRGB knee + the mid-band depth S-curve. That
+      // doubled the surface exposed to TSL changes, and on r187 it rendered
+      // every lit surface blown out (walls pure white) while the same scene
+      // without the grade was correct. renderOutput() is the upstream-tested
+      // path: exposure, ACES and the sRGB knee in one node.
+      // Exposure: the map basis x slider still works, pre-divided by the
+      // renderer's own 1.12 so the two do not multiply twice.
+      const exposed = col.mul(uExposure.div(1.12));
+      return T.renderOutput(T.vec4(exposed, 1), this.lib.ACESFilmicToneMapping, this.lib.SRGBColorSpace);
     });
     return grade() as TslNode;
   }

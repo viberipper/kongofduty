@@ -97,6 +97,16 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   hardware too, after the grade (`?fxaa=0` drops it for bisection) (Pending
   commit — hash follows on commit.).
 
+- `feat(settings): renderer switch (AUTO / WEBGPU / WEBGL2)` — GRAPHICS gained
+  a Renderer row and `?renderer=` pins the backend again for one page load;
+  the pref had been nailed to `webgl`, which is why the WebGPU path could not
+  be reached at all (every "WebGPU" test so far booted WebGL2). Default stays
+  WEBGL2 on purpose: the TSL port for the custom FX ShaderMaterials is still
+  open, so the WebGPU look has gaps. A switch reloads from the menu and only
+  banners "applies after the next load" mid-match, because a canvas binds one
+  context type and the renderer is chosen in `init()` (Pending commit — hash
+  follows on commit.).
+
 ### Fixed
 
 - `fix(lean): shots follow the lean eye` — shots use the same 0.30 m eye
@@ -124,6 +134,15 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   uploads for an invisible mesh; each family now uploads only while it draws
   (the frag instances always draw)
   (Pending commit — hash follows on commit.).
+- `fix(post): WebGPU grade no longer blows out the frame` — the TSL grade
+  carried a hand port of cinematic.ts' RRT/ODT matrices, sRGB knee and
+  mid-band depth S-curve; on three r187 it rendered every lit surface clipped
+  white (walls pure 255) with exposure having no effect, while the same frame
+  through `?pipeline=nograde` was correct. The tone map and the working→sRGB
+  encode now come from three's own `renderOutput(ACESFilmic, sRGB)` node, the
+  filmic extras stay in linear HDR in front of it and the map exposure is
+  pre-divided by the renderer's 1.12 so nothing multiplies twice (Pending
+  commit — hash follows on commit.).
 - `perf(lean): no per-actor Set allocation in the lean pose` — the lean bone
   name list was rebuilt from two key spreads for every actor on every leaning
   frame; it is derived once per lean direction from the static pose tables now
