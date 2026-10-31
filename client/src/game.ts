@@ -838,7 +838,13 @@ export class Game {
     const world = useClassic
       ? buildWorld(this.renderer)
       : MAP.id === "ares"
-        ? import("./ares-world").then(m => m.buildAresWorld(this.renderer))
+        ? import("./ares-world").then((m) => {
+            // The Ares procedural shaders (core/sky/Mars/shell) are GLSL-only in
+            // their original form; the TSL port needs the module before the world
+            // is built, so hand it over first.
+            m.setAresTsl(TSL);
+            return m.buildAresWorld(this.renderer);
+          })
         : MAP.id === "nuketown" // nuketown: Blender-built map + PBR library (client/src/nuketown-world.ts)
         ? import("./nuketown-world").then(m => m.buildNuketownWorld(this.renderer))
         : MAP.id === "dust2"

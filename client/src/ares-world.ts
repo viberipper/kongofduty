@@ -182,7 +182,17 @@ function screenTexture(): THREE.CanvasTexture {
 // by step via TSL ports. WebGL: unchanged GLSL.
 const useTsl = (): boolean => gpuCapabilities().active === "webgpu";
 
+/** TSL module (WebGPU only): handed in before the world is built. */
+type TslMod = typeof import("./tsl-materials");
+let tslMod: TslMod | null = null;
+export function setAresTsl(m: TslMod | null): void {
+  tslMod = m;
+}
+
 function coreMaterial(): THREE.Material {
+  if (useTsl() && tslMod) {
+    return tslMod.tslAresCore().material;
+  }
   if (useTsl()) {
     return new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 0.85, 0.42) });
   }
@@ -249,6 +259,17 @@ const STAR_FRAG = `precision highp float;
   }`;
 
 function skyDome(milky: THREE.Texture, gain: number): THREE.Mesh {
+  if (useTsl() && tslMod) {
+    const m = new THREE.Mesh(
+      new THREE.SphereGeometry(SKY_R, 64, 32),
+      tslMod.tslAresSky(milky, gain).material,
+    );
+    m.renderOrder = -100;
+    m.frustumCulled = false;
+    m.name = "ares/sky";
+    m.userData.qaIgnore = true;
+    return m;
+  }
   if (useTsl()) {
     const m = new THREE.Mesh(
       new THREE.SphereGeometry(SKY_R, 64, 32),
@@ -278,6 +299,9 @@ function skyDome(milky: THREE.Texture, gain: number): THREE.Mesh {
 }
 
 function marsMaterial(albedo: THREE.Texture, sunDir: THREE.Vector3): THREE.Material {
+  if (useTsl() && tslMod) {
+    return tslMod.tslAresMars(albedo, sunDir).material;
+  }
   if (useTsl()) {
     return new THREE.MeshStandardMaterial({ map: albedo, roughness: 1, metalness: 0 });
   }
@@ -312,6 +336,12 @@ function marsMaterial(albedo: THREE.Texture, sunDir: THREE.Vector3): THREE.Mater
 }
 
 function atmosphereShell(sunDir: THREE.Vector3): THREE.Mesh {
+  if (useTsl() && tslMod) {
+    return new THREE.Mesh(
+      new THREE.SphereGeometry(MARS_R * 1.025, 96, 64),
+      tslMod.tslAresShell(sunDir).material,
+    );
+  }
   if (useTsl()) {
     void sunDir;
     return new THREE.Mesh(

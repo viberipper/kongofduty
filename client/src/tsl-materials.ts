@@ -41,6 +41,7 @@ import {
   cos,
   abs,
   atan,
+  asin,
   floor,
   sqrt,
   dot,
@@ -53,6 +54,8 @@ import {
   texture,
   uv,
   positionLocal,
+  positionWorld,
+  normalWorld,
   cameraPosition,
   cameraViewMatrix,
   instanceIndex,
@@ -113,6 +116,120 @@ export function tslSuitSkin(src: THREE.MeshStandardMaterial, team: THREE.Color):
 }
 
 type TslNodeLike = ReturnType<typeof vec3>;
+
+// ---------------------------------------------------------------------------
+// ARES PROCEDURAL SHADERS (ares-world.ts ShaderMaterials)
+//
+// These were GLSL-only and fell back to flat built-ins on WebGPU. Ported 1:1 as
+// node materials. Output is LINEAR HDR: the WebGL versions encoded sRGB inside
+// the shader, but here the chain's own renderOutput does tone map + encode once,
+// which is the correct place for it.
+export function tslAresCore(): TslMaterial & { uniforms: { uTime: { value: number } } } {
+  const uTime = uniform(0);
+  const mat = new MeshBasicNodeMaterial({ name: "ares/core" });
+  const hash2 = (p: TslNodeLike): TslNodeLike => fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453));
+  const noise2 = (p: TslNodeLike): TslNodeLike => {
+    const i = floor(p);
+    const f0 = fract(p);
+    const f = f0.mul(f0).mul(float(3).sub(f0.mul(2)));
+    return mix(
+      mix(hash2(i), hash2(i.add(vec2(1, 0))), f.x),
+      mix(hash2(i.add(vec2(0, 1))), hash2(i.add(vec2(1, 1))), f.x),
+      f.y,
+    );
+  };
+  const wp = positionWorld;
+  const a = atan(wp.z, wp.x);
+  const y = wp.y;
+  const flow = noise2(vec2(a.mul(3), y.mul(1.6).sub(uTime.mul(0.9))))
+    .mul(0.6)
+    .add(noise2(vec2(a.mul(7), y.mul(3.2).sub(uTime.mul(1.7)))).mul(0.4));
+  const band = smoothstep(0.35, 1.0, flow);
+  const facing = pow(max(dot(normalize(normalWorld), normalize(cameraPosition.sub(wp))), 0), 0.6);
+  const hot = vec3(1.0, 0.86, 0.66);
+  const deep = vec3(0.95, 0.42, 0.16);
+  const col = mix(deep, hot, band.mul(0.8).add(facing.mul(0.35))).mul(float(1.25).add(band.mul(0.9)));
+  mat.colorNode = col as never;
+  return {
+    material: mat as unknown as THREE.Material,
+    uniforms: { uTime: uTime as unknown as { value: number } },
+  };
+}
+
+export function tslAresSky(milky: THREE.Texture, gain: number): TslMaterial {
+  const mat = new MeshBasicNodeMaterial({ name: "ares/sky", side: THREE.BackSide, depthWrite: false, depthTest: false });
+  const uGain = uniform(gain);
+  const hash3 = (p: TslNodeLike): TslNodeLike => {
+    const q = fract(p.mul(0.3183099).add(vec3(0.71, 0.113, 0.419))).mul(17.0);
+    return fract(q.x.mul(q.y).mul(q.z).mul(q.x.add(q.y).add(q.z)));
+  };
+  const d = normalize(positionLocal);
+  // three octaves of crisp point stars: a hashed cell, one star per lucky cell
+  const starOctave = (scale: number, th: number, w: number): TslNodeLike => {
+    const p = d.mul(scale);
+    const c = floor(p);
+    const r = hash3(c);
+    const sp = c.add(0.5).add(
+      vec3(hash3(c.add(1.3)), hash3(c.add(2.7)), hash3(c.add(4.1))).sub(0.5).mul(0.6),
+    );
+    const dist = p.sub(sp).length();
+    const b = tslSS(0.55, 0.0, dist).mul(pow(max(r.sub(th).div(1.0 - th), 0), 1.6));
+    const t = hash3(c.add(9.0));
+    const tint = mix(vec3(0.75, 0.82, 1.0), vec3(1.0, 0.86, 0.7), t);
+    // keep only the lucky cells (GLSL: if (r > th))
+    return tint.mul(b).mul(w).mul(r.greaterThan(th).select(float(1), float(0)));
+  };
+  const stars = starOctave(160, 0.993, 1.8).add(starOctave(340, 0.988, 0.8)).add(starOctave(700, 0.982, 0.4));
+  const uvSph = vec2(
+    atan(d.z, d.x).div(6.2831853).add(0.5),
+    asin(clamp(d.y, -1, 1)).div(3.14159265).add(0.5),
+  );
+  const milkyCol = (texture(milky, uvSph) as unknown as { rgb: TslNodeLike }).rgb
+    .pow(vec3(1.35))
+    .mul(uGain);
+  mat.colorNode = milkyCol.add(stars) as never;
+  return { material: mat as unknown as THREE.Material };
+}
+
+export function tslAresMars(albedo: THREE.Texture, sunDir: THREE.Vector3): TslMaterial {
+  const mat = new MeshBasicNodeMaterial({ name: "ares/mars", depthWrite: false });
+  const uSun = uniform(sunDir);
+  const N = normalize(normalWorld);
+  const V = normalize(cameraPosition.sub(positionWorld));
+  const alb = (texture(albedo, uv()) as unknown as { rgb: TslNodeLike }).rgb
+    .pow(vec3(1.15))
+    .mul(vec3(1.06, 0.95, 0.88));
+  const ndl = dot(N, uSun);
+  // soft terminator: Mars' thin atmosphere still scatters a little past it
+  const lit = smoothstep(-0.08, 0.35, ndl);
+  let col = alb.mul(lit.mul(1.55).add(0.012));
+  // limb haze: dusty butterscotch on the day side, thin blue at the edge
+  const fres = pow(float(1).sub(max(dot(N, V), 0)), 3);
+  const haze = mix(vec3(0.86, 0.55, 0.34), vec3(0.62, 0.72, 0.86), pow(fres, 2));
+  col = mix(col, haze.mul(smoothstep(-0.2, 0.4, ndl)).mul(1.1), fres.mul(0.75));
+  mat.colorNode = col as never;
+  return { material: mat as unknown as THREE.Material };
+}
+
+export function tslAresShell(sunDir: THREE.Vector3): TslMaterial {
+  const mat = new MeshBasicNodeMaterial({
+    name: "ares/shell",
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.BackSide,
+  });
+  const uSun = uniform(sunDir);
+  const N = normalize(normalWorld);
+  const V = normalize(cameraPosition.sub(positionWorld));
+  const rim = pow(float(1).sub(abs(dot(N, V))), 5);
+  const day = smoothstep(-0.25, 0.3, dot(N, uSun));
+  const c = mix(vec3(0.95, 0.62, 0.42), vec3(0.55, 0.68, 0.95), rim);
+  const a = rim.mul(day).mul(0.9);
+  mat.colorNode = c as never;
+  mat.opacityNode = a as never;
+  return { material: mat as unknown as THREE.Material };
+}
 
 // ---------------------------------------------------------------------------
 // Shared building blocks (1:1 from the GLSL COMMON blocks, smoothstep with
