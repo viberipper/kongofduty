@@ -331,6 +331,37 @@ export function tslQuadFamily(kind, u) {
     return out;
   };
 
+  /**
+   * A decal record is ALWAYS PLANE (M.PLANE), so it gets its own single-purpose
+   * position node instead of the five-branch mode dispatch. That dispatch is
+   * what left the decal family dead on WEBGPU ONLY (instances spawned, nothing
+   * rasterised, no compile error, no console warning) while the same mesh
+   * rendered fine with the smoke material: a shared positionNode whose chain
+   * ends in a branch the decal never takes. Standing alone also means the
+   * depth-pull below is plain, unguarded plane maths.
+   */
+  const decalPositionNode = Fn(() => {
+    const c = positionLocal.xy;
+    const age = U.uTime.sub(iP.w);
+    const size = mix(iS.x, iS.y, age.div(iV.w.max(0.0001)));
+    const n = normalize(iV.xyz);
+    // As in the GLSL ternary: choose the up vector, never normalize(0).
+    const upv = abs(n.y).lessThan(0.99).select(vec3(0, 1, 0), vec3(1, 0, 0));
+    const t1 = normalize(cross(n, upv));
+    const t2 = cross(n, t1);
+    const a = iM.z.add(iM.w.mul(age));
+    const ca = cos(a);
+    const sa = sin(a);
+    const r = vec2(c.x.mul(ca).sub(c.y.mul(sa)), c.x.mul(sa).add(c.y.mul(ca)));
+    const dc = cameraPosition.sub(iP.xyz).length();
+    const w2 = iP.xyz
+      .add(n.mul(iX.z.add(dc.mul(0.00045))))
+      .add(t1.mul(r.x).add(t2.mul(r.y)).mul(size).mul(0.5));
+    const tv = w2.sub(cameraPosition);
+    const tl = tv.length();
+    return cameraPosition.add(tv.mul(max(float(0.05), float(1).sub(iX.x.add(dc.mul(0.002))).div(max(tl, 0.001)))));
+  });
+
   const positionNode = Fn(() => {
     const c = positionLocal.xy;
     const age = U.uTime.sub(iP.w);
@@ -484,10 +515,11 @@ export function tslQuadFamily(kind, u) {
           blendDst: THREE.SrcColorFactor,
           blendSrcAlpha: THREE.ZeroFactor,
           blendDstAlpha: THREE.OneFactor,
-          // ZERO-FLICKER rule as in the GLSL path: >= 3 mm toward the camera.
-          polygonOffset: true,
-          polygonOffsetFactor: -1,
-          polygonOffsetUnits: -2,
+          // NO polygonOffset: on WebGPU these factors become depthBias /
+          // depthBiasSlopeScale and the negative bias this decal wants walks the
+          // sample behind its own surface. The plane node already lifts the quad
+          // off the surface (iX.z + distance margin) and pulls it along the view
+          // ray — that is the ZERO-FLICKER mechanism that matters.
         }
       : {
           blendSrc: THREE.OneFactor,
@@ -496,7 +528,7 @@ export function tslQuadFamily(kind, u) {
           blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
         }),
   });
-  (mat as unknown as { positionNode: unknown }).positionNode = positionNode();
+  (mat as unknown as { positionNode: unknown }).positionNode = (kind === "decal" ? decalPositionNode : positionNode)();
   (mat as unknown as { colorNode: unknown }).colorNode = (frag as unknown as { rgb: unknown }).rgb;
   (mat as unknown as { opacityNode: unknown }).opacityNode = (frag as unknown as { a: unknown }).a;
   return { material: mat as unknown as THREE.Material };
@@ -682,7 +714,11 @@ function tslDecalFrag(V) {
     const k = V.vA.x;
     const seed = V.vA.y;
     const shape = V.vA.z;
-    const q = V.vUv;
+    // A decal always lies in its quad: the corner comes straight from the uv
+    // attribute (0..1 -> -1..1). Reading a varying here was the bug: r187 does
+    // not carry varying writes out of positionNode, so q was constant and every
+    // decal discarded itself.
+    const q = uv().mul(2).sub(1);
     const r = q.length();
     r.greaterThan(1).discard();
     const th = atan(q.y, q.x.add(1e-5));
