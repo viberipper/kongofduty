@@ -788,6 +788,7 @@ export class Game {
     this.renderer = created.renderer;
     this.backend = created.backend;
     console.info(`[gpu] renderer: ${created.note}`);
+    if (this.backend === "webgpu") void import("./webgpu-gaps").then((m) => m.reportGpuGaps()).catch(() => undefined);
     // ZERO-FLICKER hook: WebGL-only (reversed-Z request + standard-depth
     // shadows, see depth-precision.ts). The WebGPU path uses the backend's native
     // reversed float depth (reversedDepthBuffer, no split pass).
@@ -846,7 +847,12 @@ export class Game {
             return m.buildAresWorld(this.renderer);
           })
         : MAP.id === "nuketown" // nuketown: Blender-built map + PBR library (client/src/nuketown-world.ts)
-        ? import("./nuketown-world").then(m => m.buildNuketownWorld(this.renderer))
+          ? import("./nuketown-world").then(async (m) => {
+              // The procedural sky is GLSL-only; its TSL port needs the module
+              // before buildSkyRig runs.
+              (await import("./nuketown-sky")).setSkyTsl(TSL);
+              return m.buildNuketownWorld(this.renderer);
+            })
         : MAP.id === "dust2"
         ? import("./dust-world").then(m => m.buildDustWorld(this.renderer))
         : import("./jungle-world").then(m => m.buildJungleWorld(this.renderer));

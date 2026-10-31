@@ -5,6 +5,13 @@ import type { TexSet } from "./nuketown-specs";
 import { softwareSky } from "./software-sky";
 import { pmremEnv, gpuCapabilities, type AnyRenderer } from "./gpu-backend";
 
+/** TSL module (WebGPU only): handed in before the sky is built. */
+type SkyTslMod = typeof import("./tsl-materials");
+let skyTsl: SkyTslMod | null = null;
+export function setSkyTsl(m: SkyTslMod | null): void {
+  skyTsl = m;
+}
+
 /**
  * NUKETOWN sky, atmosphere and light (OWNER: LIGHT, P1): the sun direction
  * (shared with the bake: SUN_DIR in nt_build.py), the exposure target, the
@@ -118,10 +125,34 @@ const dirAzEl = (azDeg: number, elDeg: number) => {
  * `sunAmt` 0 / `rainbow` 0 / `gain` < 1 build the sun-free PMREM fill sky.
  */
 export function makeSky(sunDir: THREE.Vector3, gain = 1, rainbow = 1, sunAmt = 1, tint: THREE.Color = new THREE.Color(1, 1, 1)): THREE.Mesh {
-  // WebGPU: custom GLSL has no node mapping ("not compatible" + empty
-  // fallback). Replacement: sphere with a baked-in vertical gradient
-  // (vertex colours, built-in material) — horizon/haze/zenith stay
-  // recognisable; clouds/rainbow/sun follow via TSL port.
+  // WebGPU: custom GLSL has no node mapping. The TSL port (tsl-materials) is the
+  // real sky now — clouds, rainbow and the sun disc included. The vertex-colour
+  // gradient below survives only as the fallback for a build that never handed
+  // the module over.
+  if (gpuCapabilities().active === "webgpu" && skyTsl) {
+    const m = new THREE.Mesh(
+      new THREE.SphereGeometry(SKY_R, 96, 48),
+      skyTsl.tslNuketownSky({
+        sun: sunDir,
+        zenith: displayToScene(ZENITH_HEX),
+        horizon: displayToScene(HORIZON_HEX),
+        ground: displayToScene(GROUND_HAZE_HEX),
+        cloudLit: displayToScene(CLOUD_LIT_HEX),
+        cloudShade: displayToScene(CLOUD_SHADE_HEX),
+        dust: displayToScene(DUST_HEX),
+        bowC: dirAzEl(RAINBOW_AZ, RAINBOW_EL),
+        dustC: dirAzEl(DUST_AZ, DUST_EL),
+        gain,
+        rainbow,
+        sunAmt,
+        tint,
+      }).material,
+    );
+    m.renderOrder = -100;
+    m.frustumCulled = false;
+    m.name = "nuketown/sky";
+    return m;
+  }
   if (gpuCapabilities().active === "webgpu") {
     void rainbow;
     void sunAmt;

@@ -42,6 +42,7 @@ import {
   abs,
   atan,
   asin,
+  acos,
   floor,
   sqrt,
   dot,
@@ -236,6 +237,167 @@ export function tslAresShell(sunDir: THREE.Vector3): TslMaterial {
   // premultiplied here as well or the shell reads ~1/a brighter than WebGL.
   mat.colorNode = c.mul(a) as never;
   mat.opacityNode = a as never;
+  return { material: mat as unknown as THREE.Material };
+}
+
+// ---------------------------------------------------------------------------
+// NUKETOWN SKY (nuketown-sky.ts makeSky, GLSL-only)
+//
+// The whole backdrop: gradient band, dust mass, rainbow, cumulus and the BO1 sun.
+// On WebGPU it fell back to a vertex-coloured gradient sphere, losing clouds,
+// rainbow and sun disc. Ported 1:1; the two GLSL `if`s (rainbow off, h > 0) are
+// folded into the maths (uRainbow already scales to 0, and the cloud plane is
+// only reached above the horizon).
+export function tslNuketownSky(o: {
+  sun: THREE.Vector3;
+  zenith: THREE.Color;
+  horizon: THREE.Color;
+  ground: THREE.Color;
+  cloudLit: THREE.Color;
+  cloudShade: THREE.Color;
+  dust: THREE.Color;
+  bowC: THREE.Vector3;
+  dustC: THREE.Vector3;
+  gain: number;
+  rainbow: number;
+  sunAmt: number;
+  tint: THREE.Color;
+}): TslMaterial {
+  const mat = new MeshBasicNodeMaterial({
+    name: "nuketown/sky",
+    side: THREE.BackSide,
+    depthWrite: false,
+    depthTest: false,
+  });
+  const uSun = uniform(o.sun.clone().normalize());
+  const uZenith = uniform(o.zenith);
+  const uHorizon = uniform(o.horizon);
+  const uGround = uniform(o.ground);
+  const uCloudLit = uniform(o.cloudLit);
+  const uCloudShade = uniform(o.cloudShade);
+  const uDust = uniform(o.dust);
+  const uBowC = uniform(o.bowC);
+  const uDustC = uniform(o.dustC);
+  const uGain = uniform(o.gain);
+  const uRainbow = uniform(o.rainbow);
+  const uSunAmt = uniform(o.sunAmt);
+  const uTint = uniform(o.tint);
+
+  const hash = (p: TslNodeLike): TslNodeLike => {
+    const q = fract(vec3(p.x, p.y, p.x).mul(0.1031));
+    const q2 = q.add(dot(q, vec3(q.y, q.z, q.x).add(33.33)));
+    return fract(q2.x.add(q2.y).mul(q2.z));
+  };
+  const vnoise = (p: TslNodeLike): TslNodeLike => {
+    const i = floor(p);
+    const f0 = fract(p);
+    const u = f0.mul(f0).mul(float(3).sub(f0.mul(2)));
+    return mix(
+      mix(hash(i), hash(i.add(vec2(1, 0))), u.x),
+      mix(hash(i.add(vec2(0, 1))), hash(i.add(vec2(1, 1))), u.x),
+      u.y,
+    );
+  };
+  const fbm = (p0: TslNodeLike): TslNodeLike => {
+    let s: TslNodeLike = float(0);
+    let p: TslNodeLike = p0;
+    let a = 0.5;
+    for (let i = 0; i < 5; i++) {
+      s = s.add(vnoise(p).mul(a));
+      p = p.mul(2.03).add(vec2(17.1, 9.2));
+      a *= 0.5;
+    }
+    return s;
+  };
+  const spectral = (t: TslNodeLike): TslNodeLike => {
+    const t4 = t.mul(4);
+    return clamp(
+      vec3(
+        float(1.5).sub(abs(t4.sub(0.5))),
+        float(1.4).sub(abs(t4.sub(2.0))),
+        float(1.3).sub(abs(t4.sub(3.3))),
+      ),
+      0,
+      1,
+    );
+  };
+  const lum = (c: TslNodeLike): TslNodeLike => dot(c, vec3(0.2126, 0.7152, 0.0722));
+
+  const d = normalize(positionLocal);
+  const h = d.y;
+  const cs = dot(d, uSun);
+  // gradient: horizon band -> zenith by ~25 deg, deeper overhead
+  const band = float(1).sub(smoothstep(0.07, 0.42, h));
+  let col: TslNodeLike = mix(
+    uZenith.mul(mix(float(1), float(0.9), smoothstep(0.5, 1.0, h))),
+    uHorizon,
+    band.mul(band).mul(float(3).sub(band.mul(2))),
+  );
+  // warmer band toward the sun (forward scatter in the dust)
+  const sunSide = float(0.5).add(
+    float(0.5).mul(dot(normalize(vec2(d.x, d.z).add(1e-5)), normalize(vec2(uSun.x, uSun.z)))),
+  );
+  col = col.mul(float(1).add(band.mul(sunSide.sub(0.5)).mul(0.16).mul(vec3(1.06, 1.0, 0.9))));
+  // last couple of degrees: dust hugging the ground
+  col = mix(col, uGround, float(1).sub(smoothstep(-0.005, 0.06, h)));
+  // brown dust mass, low in the north (soft, lumpy edge)
+  const dm = d.sub(uDustC);
+  const dmr = vec2(dm.x, dm.z).length().mul(0.95).add(max(dm.y, 0).mul(1.6)).add(max(dm.y.negate(), 0).mul(0.6));
+  const dn = fbm(vec2(d.x, d.z).div(h.add(0.35)).mul(2.6).add(3.0));
+  const dust = float(1)
+    .sub(smoothstep(0.2, 0.85, dmr.add(dn.sub(0.5).mul(0.7))))
+    .mul(smoothstep(-0.02, 0.08, h));
+  col = mix(col, uDust.mul(float(0.82).add(fbm(vec2(d.x, d.z).div(h.add(0.3)).mul(5.0).add(7.0)).mul(0.36))), dust.mul(0.78));
+  // rainbow: primary (violet inside), Alexander's dark band, secondary (fainter)
+  const ang = acos(clamp(dot(d, uBowC), -1, 1)).mul(57.29578);
+  const above = smoothstep(0.015, 0.16, h);
+  const p1 = smoothstep(39.4, 40.4, ang).mul(float(1).sub(smoothstep(42.2, 43.2, ang)));
+  const p2 = smoothstep(49.6, 50.8, ang).mul(float(1).sub(smoothstep(53.4, 54.6, ang)));
+  const bow = mix(vec3(0.55, 0.55, 0.55), spectral(float(1).sub(ang.sub(39.6).div(3.2))), 0.8)
+    .mul(p1)
+    .add(mix(vec3(0.55, 0.55, 0.55), spectral(ang.sub(50.0).div(4.0)), 0.7).mul(p2).mul(0.5));
+  const colLum = lum(col);
+  col = col.mul(
+    float(1).add(
+      above
+        .mul(uRainbow)
+        .mul(
+          float(0.04)
+            .mul(float(1).sub(smoothstep(38.0, 41.0, ang)))
+            .sub(float(0.035).mul(smoothstep(42.2, 43.5, ang)).mul(float(1).sub(smoothstep(49.0, 50.5, ang)))),
+        ),
+    ),
+  );
+  col = col.add(bow.mul(colLum).mul(0.2).mul(above).mul(uRainbow).mul(float(0.65).add(dust.mul(0.35))));
+  // cumulus on a sky plane: puffs in loose groups, lit toward the sun
+  const hUp = max(h, 0);
+  const cuv = vec2(d.x, d.z).div(hUp.add(0.1)).mul(1.6);
+  const cw = vec2(vnoise(cuv.mul(1.3).add(5.2)), vnoise(cuv.mul(1.3).add(1.7))).sub(0.5);
+  const cq = cuv.mul(2.4).add(cw.mul(0.55));
+  const cn = fbm(cq);
+  const cluster = smoothstep(0.42, 0.66, fbm(cuv.mul(0.42).add(11.0)));
+  const cbase = cn.mul(float(0.72).add(cluster.mul(0.5)));
+  const cov = smoothstep(0.56, 0.7, cbase);
+  const toSun = normalize(vec2(uSun.x, uSun.z).add(1e-5)).mul(0.09);
+  const n2 = fbm(cq.add(toSun)).mul(float(0.72).add(cluster.mul(0.5)));
+  const lit = clamp(float(0.62).add(cbase.sub(n2).mul(6)), 0, 1);
+  const core = smoothstep(0.66, 0.84, cbase);
+  let cc: TslNodeLike = mix(
+    uCloudShade,
+    uCloudLit,
+    lit.mul(float(1).sub(core.mul(0.45))).add(float(0.12).mul(float(1).sub(core))),
+  );
+  cc = cc.mul(float(1).add(float(0.3).mul(pow(max(cs, 0), 8))));
+  cc = mix(cc, col, float(1).sub(smoothstep(0.05, 0.4, h)));
+  col = mix(col, cc, cov.mul(smoothstep(0.02, 0.22, h)).mul(0.95));
+  // the sun: hot disc, tight halo, wide warm forward scatter (bloomed BO1 sun)
+  const c0 = max(cs, 0);
+  const glow = vec3(1.0, 0.9, 0.74).mul(
+    pow(c0, 5).mul(0.16).add(pow(c0, 30).mul(0.38)).add(pow(c0, 220).mul(1.3)).add(pow(c0, 1600).mul(7.0)),
+  );
+  col = col.add(uSunAmt.mul(glow).mul(lum(uZenith)).mul(2.2));
+  col = col.add(uSunAmt.mul(vec3(1.0, 0.97, 0.92)).mul(smoothstep(0.99975, 0.9999, cs)).mul(30));
+  mat.colorNode = col.mul(uGain).mul(uTint) as never;
   return { material: mat as unknown as THREE.Material };
 }
 
