@@ -2969,8 +2969,14 @@ export class Game {
   nadePhaseT = 0;
   /** G (or MMB) is physically down. */
   nadeHeld = false;
-  /** Frags in the belt when the current cook started — the cook-off baseline. */
-  private nadeCookStart = 0;
+  /** TRUE once the current cook has actually been seen burning — the cook-off
+   *  signal. The sim zeroes `cook` exactly when the frag is spent (`handBoom`
+   *  detonation or `dropCooked` on death), so "we were cooking and now we are
+   *  not" stands the cycle down. A belt-count comparison breaks as soon as the
+   *  belt can hold two and a streak grant lands mid-cook: the sim spends
+   *  exactly one frag, so the count can still equal the start value and the
+   *  cycle would stay live and throw the second frag. */
+  private nadeSawCook = false;
   /** The release command for this cycle has already been sent. */
   nadeSent = false;
   /** Predicted arc, refilled every fixed tick while readying. Never realloced. */
@@ -2998,7 +3004,7 @@ export class Game {
     this.nadePhaseT = 0;
     this.nadeSent = false;
     this.lastCookTick = 0;
-    this.nadeCookStart = me.nades ?? 1;
+    this.nadeSawCook = false;
     this.audio.play("nade-pin", { vol: 0.42 });
     this.hideNadeHint();
   }
@@ -3021,18 +3027,22 @@ export class Game {
     let release = false;
     if (this.nadePhase === 1) {
       this.nadePhaseT += TICK_DT;
+      // The cook has really started once the sim reports it burning — this
+      // latches, so a streak grant landing mid-cook cannot confuse the signal.
+      if (this.localCook() > 0) this.nadeSawCook = true;
       const ready = this.nadePhaseT >= NADE_READY_T;
       const me = this.me();
       const dead = !me || !me.alive;
-      // Cooked off in the paw (the sim has spent the frag and zeroed the cook).
-      // Measured against the belt when the pin was pulled, NOT "nades <= 0":
-      // since the 10-kill reward the belt can hold two, and a cook-off only
-      // spends one — the old test would have kept the cycle alive and thrown
-      // the second frag on release.
-      const cookedOff = this.nadePhaseT > 0.1 && this.localCook() <= 0 && (this.heldBody()?.nades ?? 0) < this.nadeCookStart;
+      // Cooked off in the paw: we were cooking and now we are not (the sim
+      // zeroes `cook` exactly when the frag is spent — `handBoom` detonation
+      // or `dropCooked` on death). A belt-count comparison breaks as soon as
+      // the belt can hold two and a grant lands mid-cook, so the count is
+      // deliberately not consulted here.
+      const cookedOff = this.nadePhaseT > 0.1 && this.nadeSawCook && this.localCook() <= 0;
       if (dead || cookedOff) {
         this.nadePhase = 0;
         this.nadePhaseT = 0;
+        this.nadeSawCook = false;
       } else if (!this.nadeHeld && ready) {
         this.nadePhase = 2;
         this.nadePhaseT = 0;
@@ -3988,9 +3998,11 @@ export class Game {
           // Where you fell: the killcam plants the ghost ring here.
           const meNow = this.players.get(this.you);
           if (meNow) this.deathAt = { x: meNow.x, y: meNow.y, z: meNow.z };
-          // Winding up when you died: put the paw away.
+          // Winding up when you died: put the paw away (and forget the cook —
+          // the next pin-pull re-arms the signal from scratch in nadeDown()).
           this.nadePhase = 0;
           this.nadePhaseT = 0;
+          this.nadeSawCook = false;
           this.vm.setNade(0, 0);
         }
       }
@@ -4015,8 +4027,8 @@ export class Game {
       if (e.t === "nuke" && !this.ended && prefs().killstreaks) {
         const kn = this.players.get(e.src)?.name ?? "UNKNOWN";
         const mine = e.src === this.you;
-        this.banner(mine ? "TACTICAL NUKE — YOURS" : `TACTICAL NUKE — ${kn}`, 3, "10 KILLS WITHOUT DYING");
-        this.announcer.nuke(kn, mine);
+        this.banner(mine ? "TACTICAL NUKE — YOURS" : `TACTICAL NUKE — ${kn}`, 3, `${e.streak} KILLS WITHOUT DYING · EXTRA FRAG`);
+        this.announcer.nuke(kn, mine, e.streak);
       }
       // ROUND CARDS. The result holds for the whole intermission (the sim's
       // ROUND_INTERMISSION_S) so the 3-2-1 that follows lands on a screen that

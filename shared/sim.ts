@@ -2812,9 +2812,11 @@ export class GameSession {
     // victim's position was removed on purpose (it handed a streak free area
     // damage); the reward is the grenade, granted sim-side. Fires at 10, 20,
     // 30 …: a long streak only tops the belt back up, never past the cap.
-    // The `nuke` event stays as-is — the client banner/announcer is driven by it.
-    if (src.streak % 10 === 0) {
-      src.nades = Math.min(NADE_CARRY_MAX, src.nades + 1);
+    // The `nuke` event IS the grant marker: no event means nothing was granted
+    // (e.g. the belt was already full), so the client banner/announcer only
+    // ever fires for a frag actually received.
+    if (src.streak % 10 === 0 && src.nades < NADE_CARRY_MAX) {
+      src.nades += 1;
       this.events.push({ t: "nuke", src: src.id, x: dst.x, z: dst.z, streak: src.streak });
     }
 
@@ -3070,7 +3072,10 @@ export class GameSession {
         ping: p.ping,
         ammo: p.ammo,
         reserve: p.reserve,
-        nades: p.nades,
+        // Structural wire bound: the sim invariant already caps the belt at
+        // NADE_CARRY_MAX, but the snapshot clamps it again so a hostile or
+        // stale value can never widen the client's belt past the cap.
+        nades: Math.min(NADE_CARRY_MAX, Math.max(0, p.nades)),
         nadeUp: p.nadeUp,
         alt: p.alt,
         altAmmo: p.altAmmo,

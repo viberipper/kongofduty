@@ -323,9 +323,13 @@ export type NetEvent =
   | { t: "uav"; team: Team }
   | { t: "strike"; x: number; z: number; team: Team }
   /**
-   * KILLSTREAK NUKE (10 kills without dying): a heavy strike on the victim's
-   * position plus a banner/announcer moment. Reward, not a match end — the
-   * match plays on. Additive: old clients ignore unknown event types.
+   * KILLSTREAK FRAG GRANT (every 10 kills without dying): the marker for the
+   * bonus frag the sim just put on the killer's belt — banner/announcer moment
+   * only. `x`/`z` are the victim's position for flavour and carry no damage
+   * meaning any more (the old blast is gone); `streak` names the actual streak
+   * (10, 20, 30 …). No event means nothing was granted (belt already full).
+   * Reward, not a match end — the match plays on. Additive: old clients ignore
+   * unknown event types.
    */
   | { t: "nuke"; src: string; x: number; z: number; streak: number }
   | { t: "chat"; name: string; text: string }

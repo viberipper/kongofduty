@@ -17,7 +17,7 @@ import { Pass, FullScreenQuad } from "three/addons/postprocessing/Pass.js";
  * One pass slot in the composer, four internal fullscreen draws — cheaper than
  * three entangled passes and with no further RT switches in the chain.
  * Subtle by default: threshold 1.0 (only HDR highlights: sun, muzzle
- * flash, nuke), strength 0.35. `strength = 0` or `enabled = false` costs
+ * flash), strength 0.35. `strength = 0` or `enabled = false` costs
  * a single fullscreen copy.
  */
 

@@ -388,10 +388,10 @@ export class Announcer {
    * subtitle-only. Outside the killstreak toggle: silent entirely, like
    * streaks and multis.
    */
-  nuke(killer: string, mine: boolean): void {
+  nuke(killer: string, mine: boolean, streak = 10): void {
     if (!prefs().killstreaks) return;
     this.say(
-      `TACTICAL NUKE! ${killer} — 10 IN A ROW`,
+      `TACTICAL NUKE! ${killer} — ${streak} IN A ROW`,
       mine ? 4 : 1,
       false,
       undefined,
