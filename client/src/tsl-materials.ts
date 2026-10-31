@@ -319,7 +319,8 @@ export function tslQuadFamily(kind, u) {
   );
   const vX = varying(vec4(0), "qX");
   const vW = varying(float(1), "qW");
-  const vFog = varying(float(0), "qFog");
+  // vFog is declared AFTER decalWorld (below): its decal form reads that
+  // expression, and a const-before-use here is a TDZ crash at material build.
 
   const sideOf = (ax, toC, fallback) => {
     const cr = cross(ax, toC);
@@ -340,7 +341,7 @@ export function tslQuadFamily(kind, u) {
    * ends in a branch the decal never takes. Standing alone also means the
    * depth-pull below is plain, unguarded plane maths.
    */
-  const decalPositionNode = Fn(() => {
+  const decalWorld = (() => {
     const c = positionLocal.xy;
     const age = U.uTime.sub(iP.w);
     const size = mix(iS.x, iS.y, age.div(iV.w.max(0.0001)));
@@ -368,11 +369,22 @@ export function tslQuadFamily(kind, u) {
     // so the decal clears the skin exactly as before — it just no longer moves
     // toward the camera.
     const lift = iX.z.add(iX.x).add(dc.mul(0.00045));
-    const w2 = iP.xyz
+    return iP.xyz
       .add(n.mul(lift))
       .add(t1.mul(r.x).add(t2.mul(r.y)).mul(size).mul(0.5));
-    return w2;
-  });
+  })();
+
+  // Decals carry their fog as an EXPRESSION: their position node is standalone,
+  // so the shared `vFog.assign()` further down never runs for them and the fog
+  // mix in tslDecalFrag would read a constant 0 (full contrast to the far plane,
+  // unlike the GLSL path). Declared here, after decalWorld.
+  const vFog =
+    kind === "decal"
+      ? varying(
+          tslSS(U.uFogNear, U.uFogFar, cameraViewMatrix.mul(vec4(decalWorld, 1)).z.mul(-1)),
+          "qFog",
+        )
+      : varying(float(0), "qFog");
 
   const positionNode = Fn(() => {
     const c = positionLocal.xy;
@@ -541,7 +553,7 @@ export function tslQuadFamily(kind, u) {
           blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
         }),
   });
-  (mat as unknown as { positionNode: unknown }).positionNode = (kind === "decal" ? decalPositionNode : positionNode)();
+  (mat as unknown as { positionNode: unknown }).positionNode = (kind === "decal" ? () => decalWorld : positionNode)();
   (mat as unknown as { colorNode: unknown }).colorNode = (frag as unknown as { rgb: unknown }).rgb;
   (mat as unknown as { opacityNode: unknown }).opacityNode = (frag as unknown as { a: unknown }).a;
   return { material: mat as unknown as THREE.Material };

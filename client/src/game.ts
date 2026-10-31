@@ -209,6 +209,8 @@ function pixelRatio(): number {
   if (softwareTier) return SOFTWARE_DPR;
   return Math.min(window.devicePixelRatio || 1, 2);
 }
+type AaPass = { setSize?(w: number, h: number): void; dispose?(): void };
+
 const SOFTWARE_DPR = 0.45;
 let softwareTier = false;
 
@@ -899,7 +901,15 @@ export class Game {
       // Lazy chunk, so the WebGL boot never loads it (only this branch
       // imports).
       const { createWebgpuPipeline } = await import("./webgpu-pipeline");
-      this.pipeline = await createWebgpuPipeline(this.renderer, this.world.scene, this.camera);
+      // Anti-aliasing on WebGPU: the geometry pass is single-sample (GTAO
+      // precondition), so MSAA choices resolve to SMAA — the best post filter
+      // available — instead of silently doing nothing.
+      const aaPref = prefs().aa;
+      const gpuAa = aaPref === "off" ? "off" : aaPref === "smaa" || aaPref.startsWith("msaa") ? "smaa" : "fxaa";
+      if (aaPref.startsWith("msaa")) {
+        console.info("[gpu] WebGPU runs SMAA for the requested MSAA level (single-sample pass is a GTAO precondition).");
+      }
+      this.pipeline = await createWebgpuPipeline(this.renderer, this.world.scene, this.camera, gpuAa);
       console.info("[gpu] WebGPU-Pfad: TSL-RenderPipeline aktiv (GTAO/Bloom/Grade/sRGB, siehe webgpu-pipeline.ts).");
       // Open nuance (no crash, wrong look): three knows NO node equivalent for
       // custom ShaderMaterial (StandardNodeLibrary maps built-ins only) — they
@@ -970,13 +980,21 @@ export class Game {
     this.composer.addPass(this.motionPass);
     this.grade = new ShaderPass(CINEMATIC);
     this.composer.addPass(this.grade);
-    // Software rendering uses one display-space AA pass instead of SMAA's
-    // three passes and lookup textures. Hardware keeps its MSAA pipeline.
-    // ?fxaa=0 drops the FXAA tail for bisection.
-    if (samples === 0 && !qaFxaaOff()) {
-      const { FXAAShader } = await import("three/addons/shaders/FXAAShader.js");
-      this.softwareAA = new ShaderPass(FXAAShader);
-      this.composer.addPass(this.softwareAA);
+    // ANTI-ALIASING, post-filter half. When the composer target carries no MSAA
+    // samples (software tier, or the player picked a post filter) exactly one
+    // fullscreen pass resolves edges: SMAA when chosen, FXAA otherwise.
+    // ?fxaa=0 still drops it for bisection.
+    const aaMode = prefs().aa;
+    if (samples === 0 && !qaFxaaOff() && aaMode !== "off") {
+      if (aaMode === "smaa") {
+        const { SMAAPass } = await import("three/addons/postprocessing/SMAAPass.js");
+        this.aaPass = new SMAAPass() as unknown as AaPass;
+        this.composer.addPass(this.aaPass as never);
+      } else {
+        const { FXAAShader } = await import("three/addons/shaders/FXAAShader.js");
+        this.softwareAA = new ShaderPass(FXAAShader);
+        this.composer.addPass(this.softwareAA);
+      }
     }
   }
 
@@ -1212,8 +1230,12 @@ export class Game {
     if (this.composer) {
       const q = prefs().quality;
       let samples = aaSamples(renderer);
-      if (q === "low") samples = Math.min(samples, 2);
-      else if (q === "cinematic" && samples === 4 && pixelRatio() <= 1.25 && this.maxSamples() >= 8) samples = 8;
+      // The preset only tunes the AUTOMATIC choice. An explicit MSAA level from
+      // GRAPHICS ▸ Anti-Aliasing is the player's decision and stands as chosen.
+      if (prefs().aa === "auto") {
+        if (q === "low") samples = Math.min(samples, 2);
+        else if (q === "cinematic" && samples === 4 && pixelRatio() <= 1.25 && this.maxSamples() >= 8) samples = 8;
+      }
       this.setSamples(samples);
     }
     // M4: real pixels for chroma/sharpness/DOF (uTexel), DPR-independent.
@@ -1222,6 +1244,8 @@ export class Game {
       this.grade.uniforms.uTexel.value.set(1 / Math.max(1, db.x), 1 / Math.max(1, db.y));
     }
     if (this.softwareAA) this.softwareAA.uniforms.resolution.value.set(1 / (w * pr), 1 / (h * pr));
+    // SMAAPass carries its own edge/weight/blend targets and sizes them itself.
+    this.aaPass?.setSize?.(Math.round(w * pr), Math.round(h * pr));
     // WebGPU path: pull the TSL chain up via the drawing-buffer size
     // (uTexel for chroma/sharpness/DOF; pass RTs scale by themselves).
     this.pipeline?.setSize(w, h, pr);
@@ -1277,6 +1301,12 @@ export class Game {
     // init() calls this here BEFORE setting `inited = true`.
     if (!this.grade) return;
     const p = prefs();
+    // Anti-Aliasing: MSAA level + the single post filter are rebuilt live on
+    // WebGL. (The WebGPU chain resolves its own filter at boot.)
+    if (p.aa !== this.aaApplied) {
+      this.aaApplied = p.aa;
+      void this.applyAaMode();
+    }
     const sw = softwareTier;
     // Review round 2: the adaptive cap only applies under ADAPTIVE scale. At
     // NATIVE it is moot — reset it, otherwise an old
@@ -1454,7 +1484,44 @@ export class Game {
   private quality = new RenderQuality(MAP.id === "ares" ? 4.2 : MAP.id === "nuketown" ? 7 : 12);
   private warmActor: BruiserActor | null = null;
   private preparedActors: BruiserActor[] = [];
+  /**
+   * Apply the Anti-Aliasing choice to the live WebGL chain: MSAA level on the
+   * composer targets plus exactly one post filter (FXAA or SMAA) when the
+   * targets carry no samples. The WebGPU chain picks its filter at boot (the
+   * pipeline relinks its output node), so there the setting needs a reload.
+   */
+  private async applyAaMode(): Promise<void> {
+    if (!this.composer) return;
+    const mode = prefs().aa;
+    if (this.softwareAA) {
+      this.composer.removePass(this.softwareAA);
+      this.softwareAA = null;
+    }
+    if (this.aaPass) {
+      this.composer.removePass(this.aaPass as never);
+      this.aaPass = null;
+    }
+    this.resize();
+    const samples = aaSamples(this.renderer as AnyRenderer);
+    if (samples !== 0 || qaFxaaOff() || mode === "off") return;
+    if (mode === "smaa") {
+      const { SMAAPass } = await import("three/addons/postprocessing/SMAAPass.js");
+      this.aaPass = new SMAAPass() as unknown as AaPass;
+      this.composer.addPass(this.aaPass as never);
+    } else {
+      const { FXAAShader } = await import("three/addons/shaders/FXAAShader.js");
+      this.softwareAA = new ShaderPass(FXAAShader);
+      this.composer.addPass(this.softwareAA);
+      const pr = this.renderer.getPixelRatio();
+      this.softwareAA.uniforms.resolution.value.set(1 / (innerWidth * pr), 1 / (innerHeight * pr));
+    }
+  }
+
   private softwareAA: ShaderPass | null = null;
+  /** Structured AA pass (SMAAPass) when the player picks SMAA on WebGL. */
+  private aaPass: AaPass | null = null;
+  /** Last applied Anti-Aliasing pref (live rebuild trigger). */
+  private aaApplied = "";
   /** AAA post chain (feature/aaa-graphics) — null until init() builds the chain. */
   private aoPass: ContactAO | null = null;
   private bloomPass: BloomPass | null = null;

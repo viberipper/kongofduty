@@ -35,6 +35,17 @@ export type MotionPref = "system" | "reduce" | "full";
 export type RendererPref = "auto" | "webgpu" | "webgl";
 /** Quality preset (graphics-presets.ts): starting point, freely adjustable afterwards. */
 export type QualityPreset = "low" | "medium" | "high" | "ultra" | "cinematic";
+/**
+ * Anti-aliasing mode.
+ * AUTO keeps the shipped behaviour: MSAA on the WebGL composer (4x at DPR<=1.25,
+ * else 2x) and FXAA where MSAA cannot run. MSAA levels are geometric AA (the
+ * cleanest edges, but they need multisampled targets); FXAA/SMAA are post
+ * filters (one fullscreen pass, work everywhere).
+ * On WebGPU the geometry path is single-sample by necessity (GTAO's centre tap
+ * cannot read a multisampled depth texture), so an MSAA choice there resolves to
+ * SMAA — the best post filter three ships — instead of silently doing nothing.
+ */
+export type AAMode = "auto" | "off" | "fxaa" | "smaa" | "msaa2" | "msaa4" | "msaa8";
 /** Shadow map resolution. HIGH = map-authored (no overwrite), MEDIUM = 2048. */
 export type ShadowQuality = "off" | "low" | "medium" | "high" | "ultra";
 /** Gamepad: response curve of the right stick (LOOK). */
@@ -94,6 +105,8 @@ export interface Prefs {
   renderer: RendererPref;
   /** Quality preset LOW→CINEMATIC. Sets the switches below; they stay individually adjustable. */
   quality: QualityPreset;
+  /** Anti-aliasing mode (AUTO = shipped: MSAA on WebGL, FXAA elsewhere). */
+  aa: AAMode;
   /** Selective HDR bloom (sun, muzzle flash, nuke). */
   bloom: boolean;
   /** Additive halo strength (0 = the pass is a no-op). */
@@ -173,6 +186,7 @@ export const DEFAULT_PREFS: Readonly<Prefs> = {
   colorMode: "default",
   renderer: "webgl",
   quality: "high",
+  aa: "auto",
   // M1: HIGH == the old look — everything new is default-off (migrated saves
   // look exactly as before). bloom-/aoStrength are only slider presets
   // for manual enabling.
@@ -256,6 +270,7 @@ export function sanitizePrefs(x: unknown): Prefs {
     colorMode: pick(o.colorMode, ["default", "protanopia", "deuteranopia", "tritanopia"] as const, d.colorMode),
     renderer: pick(o.renderer, ["auto", "webgpu", "webgl"] as const, d.renderer),
     quality: pick(o.quality, ["low", "medium", "high", "ultra", "cinematic"] as const, d.quality),
+    aa: pick(o.aa, ["auto", "off", "fxaa", "smaa", "msaa2", "msaa4", "msaa8"] as const, d.aa),
     bloom: bool(o.bloom, d.bloom),
     bloomStrength: clamp(o.bloomStrength, RANGES.bloomStrength[0], RANGES.bloomStrength[1], d.bloomStrength),
     ao: bool(o.ao, d.ao),

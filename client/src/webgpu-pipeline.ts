@@ -221,6 +221,7 @@ export class WebgpuPipeline {
     ao(depth: unknown, normal: unknown, camera: THREE.Camera): TslNode & { dispose?: () => void };
     afterImage(node: unknown, damp: unknown): TslNode & { dispose?: () => void };
     fxaa(node: unknown): TslNode;
+    smaa(node: unknown): TslNode;
   };
 
   private scenePass: PassApi | null = null;
@@ -250,6 +251,7 @@ export class WebgpuPipeline {
   private uWarmth!: TslUniform;
 
   private useFxaa: boolean;
+  private useSmaa: boolean;
   private aoForceOff = false;
   /** Structural key (ao/bloom/motion on-off) — rebuild only then. */
   private builtKey = "";
@@ -259,19 +261,19 @@ export class WebgpuPipeline {
     scene: THREE.Scene,
     camera: THREE.Camera,
     pipe: WebgpuPipeline["pipe"],
+    aaMode: "off" | "fxaa" | "smaa",
   ) {
     this.renderer = renderer;
     this.scene = scene;
     this.camera = camera;
     this.pipe = pipe;
-    // Hardware WebGPU had NO edge AA at all: antialias:false is a GTAO
-    // precondition and the pass RTs are single-sample (see the header), so the
-    // fullscreen quad presented stair-stepped edges while the WebGL path pays
-    // 4x/2x MSAA on the composer targets. The FXAA tail — sRGB input, one
-    // fullscreen pass — is the cheap hardware answer and now runs on both
-    // tiers. ?fxaa=0 drops it for bisection; the flag is read once here, so it
-    // needs a page reload to take effect.
-    this.useFxaa = !qaFxaaOff();
+    // EDGE AA. The WebGPU geometry pass is single-sample by necessity
+    // (antialias:false is a GTAO precondition — a multisampled depth texture has
+    // no textureGather overload), so edges are resolved by exactly one
+    // fullscreen filter at the end of the chain. The player picks which one in
+    // GRAPHICS ▸ Anti-Aliasing; ?fxaa=0 still forces it off for bisection.
+    this.useFxaa = !qaFxaaOff() && aaMode !== "smaa";
+    this.useSmaa = !qaFxaaOff() && aaMode === "smaa";
     this.aoForceOff = qaAoOff();
   }
 
@@ -284,8 +286,9 @@ export class WebgpuPipeline {
     renderer: WebgpuCanvasRenderer,
     scene: THREE.Scene,
     camera: THREE.Camera,
+    aaMode: "off" | "fxaa" | "smaa" = "fxaa",
   ): Promise<WebgpuPipeline> {
-    const [webgpu, tsl, bloomM, aoM, afterM, fxaaM] = await Promise.all([
+    const [webgpu, tsl, bloomM, aoM, afterM, fxaaM, smaaM] = await Promise.all([
       import("three/webgpu") as Promise<{
         RenderPipeline: new (renderer: unknown, outputNode?: unknown) => WebgpuPipeline["pipe"];
         NoToneMapping: unknown;
@@ -304,7 +307,7 @@ export class WebgpuPipeline {
     // node does the tone map + sRGB, so the pipeline must not apply a second
     // transform on top of it.
     pipe.outputColorTransform = false;
-    const self = new WebgpuPipeline(renderer, scene, camera, pipe);
+    const self = new WebgpuPipeline(renderer, scene, camera, pipe, aaMode);
     self.api = api;
     self.lib = webgpu as unknown as WebgpuPipeline["lib"];
     self.fx = {
@@ -312,7 +315,22 @@ export class WebgpuPipeline {
       ao: aoM.ao,
       afterImage: afterM.afterImage,
       fxaa: fxaaM.fxaa,
+      // Loaded on demand: SMAANode drags its own edge/weight machinery in, and
+      // a failing optional import must never take the whole post chain down.
+      smaa: null as unknown as WebgpuPipeline["fx"]["smaa"],
     };
+    if (self.useSmaa) {
+      try {
+        const smaaM = (await import("three/addons/tsl/display/SMAANode.js")) as unknown as {
+          smaa: WebgpuPipeline["fx"]["smaa"];
+        };
+        self.fx.smaa = smaaM.smaa;
+      } catch (e) {
+        console.warn(`[gpu] SMAA unavailable (${String(e instanceof Error ? e.message : e)}) — falling back to FXAA.`);
+        self.useSmaa = false;
+        self.useFxaa = !qaFxaaOff();
+      }
+    }
     self.buildUniforms();
     self.scenePass = api.pass(scene, camera);
     self.applyPrefs({
@@ -352,7 +370,12 @@ export class WebgpuPipeline {
     this.uTexelY = T.uniform(1 / 720);
     this.uAoStrength = T.uniform(0.7);
     this.uBloomStrength = T.uniform(0);
-    this.uDamp = T.uniform(0.7);
+    // Motion blur: the WebGL MotionBlurPass mixes at a fixed 0.25 (and clamps a
+    // 3x3 neighbourhood, so a moving edge cannot drag a hard smear). 0.7 here
+    // held the previous frame almost twice as long and smeared the whole scene.
+    // 0.2 matches the WebGL feel; AfterImageNode's max-hold reads a touch
+    // stronger than a plain mix, hence the hair below 0.25.
+    this.uDamp = T.uniform(0.2);
   }
 
   /**
@@ -594,7 +617,8 @@ export class WebgpuPipeline {
     } else {
       out = this.buildGrade(T.convertToTexture(color));
     }
-    if (this.useFxaa) out = this.fx.fxaa(out);
+    if (this.useSmaa) out = this.fx.smaa(out);
+    else if (this.useFxaa) out = this.fx.fxaa(out);
     this.pipe.outputNode = out;
     this.pipe.needsUpdate = true;
   }
@@ -667,6 +691,7 @@ export async function createWebgpuPipeline(
   renderer: WebgpuCanvasRenderer,
   scene: THREE.Scene,
   camera: THREE.Camera,
+  aaMode: "off" | "fxaa" | "smaa" = "fxaa",
 ): Promise<WebgpuPipeline> {
-  return WebgpuPipeline.create(renderer, scene, camera);
+  return WebgpuPipeline.create(renderer, scene, camera, aaMode);
 }
