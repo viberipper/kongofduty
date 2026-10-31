@@ -23,13 +23,13 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   10-kill reward's banner subtitle and voice line interpolated the `nuke`
   event's `streak` straight from the wire, so a hostile server or a replayed
   frame could spoof the callout text, print absurd counts, or pin the subtitle
-  for minutes with a huge value; the client now coerces it to a finite,
-  truncated 10–990 for both sinks (both already `textContent`, so this is
-  spoofing/HUD abuse, not injection). The snapshot's belt clamp also treats a
-  non-finite count as the base kit instead of letting `NaN` through
+  for minutes with a huge value; the client now coerces it to a finite
+  multiple of ten, 10–990, for both sinks (both already `textContent`, so this
+  is spoofing/HUD abuse, not injection). The snapshot's belt clamp also treats
+  a non-finite count as the base kit instead of letting `NaN` through
   (`Math.max(0, NaN)` is `NaN`, and a `NaN` belt reads as throwable on every
   `> 0` test), and the docs that still described the removed blast or the old
-  one-frag belt are corrected (`69989dd`).
+  one-frag belt are corrected (`69989dd`, snapping in `afd3135`).
 
 - `fix(streak): 10-kill reward grants the second frag instead of the 12 m blast` — the 10-kill streak no longer fires the 12 m blast at the victim's position; every 10 kills without dying tops the killer's belt back up by one frag instead (carries up to `NADE_CARRY_MAX` 2, at 10/20/30 …, for human and bot killers, on every map and in every mode — in round-based rooms that means ten kills in one life, effectively TDM/FFA/gun-game territory), the HUD now renders a pip per carried frag, and the banner plus announcer call stay; no protocol change (`nades` was already replicated) (e36b80e).
 
