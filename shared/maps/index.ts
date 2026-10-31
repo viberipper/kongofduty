@@ -92,6 +92,21 @@ const MAP_DATA_URL: Record<string, string> = {
 };
 const MAP_DATA: Record<string, unknown> = {};
 
+/**
+ * localStorage keys read by `readMapPref()` — declared HERE, above every call
+ * site, because the module-level preload resolves the map through them.
+ *
+ * They used to sit ~120 lines below the `await preloadMapData()`, inside its
+ * temporal dead zone: the read threw a `ReferenceError` that readMenuMap's
+ * private-mode `try` swallowed, so the preload quietly fell back to the default
+ * map while `activeMap()` — running later, with the constants initialised —
+ * picked the remembered card. A hard reload with Nuketown remembered then died
+ * with `map "nuketown" has no data loaded`.
+ */
+const LEGACY_LS_KEY = "shipment.map"; // Clear the active-map preference saved by older releases.
+/** The menu's remembered card (client/src/ui/menu.ts SEL_KEY) — the middle tier. */
+const MENU_LS_KEY = "shipment.menu";
+
 /** Has this map's generated data been loaded yet? (Shipment: always true.) */
 export function mapDataReady(id: string): boolean {
   return !MAP_DATA_URL[id] || MAP_DATA[id] !== undefined;
@@ -134,10 +149,11 @@ export async function preloadMapData(id?: string): Promise<void> {
 }
 
 /**
- * SELF-PRELOAD, AT MODULE EVALUATION. This top-level await is the mechanism.
+ * SELF-PRELOAD, AT MODULE EVALUATION — but at the FOOT of the module, and that
+ * position is load-bearing.
  *
  * There is no entry point early enough to do it from. `activeMap()` is called in
- * MODULE BODIES — shared/sim.ts:80 builds six singletons out of it — and those
+ * MODULE BODIES — shared/sim.ts:161 builds six singletons out of it — and those
  * run when the module graph is linked, long before `boot()` or any server code.
  * A preload in an entry file only covers the modules that entry imports LAZILY;
  * one static import anywhere else walks straight past it and throws.
@@ -153,11 +169,21 @@ export async function preloadMapData(id?: string): Promise<void> {
  * that imports this one runs a line, the data is in memory and `activeMap()` is
  * synchronous — which is what shared/sim.ts requires.
  *
+ * WHY THE BOTTOM AND NOT THE TOP: `preloadMapData()` resolves the map through
+ * `readMapPref()`, which reads `MENU_LS_KEY` — a `const` declared further down.
+ * With the await placed above it, that read hit the temporal dead zone, the
+ * `ReferenceError` was swallowed by readMenuMap's own `try` (it exists for
+ * private-mode storage), and the preload fell back to DEFAULT_MAP_ID. The page
+ * then continued, `activeMap()` resolved the map again — by now the constants
+ * WERE initialised, so it picked the remembered card, e.g. `nuketown` — and
+ * threw `map "nuketown" has no data loaded` on a hard reload with no `?map=`.
+ * Keeping the await below every declaration makes the module body
+ * order-independent; the keys are also declared above it for the same reason.
+ *
  * It costs a Shipment page load nothing: `preloadMapData` returns immediately
  * for a map whose geometry is code, so this is an already-resolved promise and
  * the `node:fs` / `fetch` branches are never reached.
  */
-await preloadMapData();
 
 function mapDataOrThrow(id: string): unknown {
   const raw = MAP_DATA[id];
@@ -206,10 +232,6 @@ export function withMapQuery(url: string, id: string, force = false): string {
     return url;
   }
 }
-
-const LEGACY_LS_KEY = "shipment.map"; // Clear the active-map preference saved by older releases.
-/** The menu's remembered card (client/src/ui/menu.ts SEL_KEY) — the middle tier. */
-const MENU_LS_KEY = "shipment.menu";
 
 function readMenuMap(): string | null {
   try {
@@ -317,3 +339,6 @@ export function setActiveMapForTests(id: string): MapDef {
   setActiveWorld(m.solids, m.floorY);
   return m;
 }
+
+/** The preload itself — see the block comment above for why it lives here. */
+await preloadMapData();
