@@ -49,6 +49,13 @@ import { captureBugReport } from "./bug-report";
 const MAP = activeMap();
 const MAP_SOLIDS = MAP.solids;
 /**
+ * SHADOW PENUMBRA CAP (both backends): r187 removed PCFSoft entirely, so WebGL
+ * and WebGPU run the same 5-tap Vogel-disk PCF kernel whose only width knob is
+ * shadowRadius in shadow texels — and widening it toward the old authored
+ * radii reads as speckle. Clamped to 1.6 texels; see clampShadowRadii.
+ */
+const SHADOW_RADIUS_MAX = 1.6;
+/**
  * `groundHeight` with the footprint tolerance taken OFF (shared/map.ts matches
  * with GH_TOL = 0.12 m so a 0.30 m body is caught by a point test). The sim
  * wants the tolerance — it is what stops a body falling through a tread seam.
@@ -858,20 +865,14 @@ export class Game {
         : import("./jungle-world").then(m => m.buildJungleWorld(this.renderer));
     const [loadedWorld, [rig, , effects]] = await Promise.all([world, assets]);
     this.world = loadedWorld;
-    // SHADOW PENUMBRA, BOTH BACKENDS. r187 removed PCFSoft entirely, so WebGL
-    // and WebGPU run the same PCF kernel now (a 5-tap Vogel-disk
-    // sampler2DShadow sample) — while every map's bias/radius pair was tuned
-    // against PCFSoft's much wider kernel (authored: ares 1.5, nuketown 2.0,
-    // jungle 3.1, dust2 from its env data). With PCF the same radius spreads
-    // the taps far enough to read as grain - a speckled, blotchy penumbra
-    // that also darkens contact areas. Tightening the kernel keeps the look
-    // the maps were authored for. Cheap and idempotent (Math.min), and the
-    // authored per-map values at their sources stay untouched.
-    this.world.scene.traverse((o) => {
-      const l = o as THREE.DirectionalLight;
-      if (!l.isDirectionalLight || !l.castShadow) return;
-      l.shadow.radius = Math.min(l.shadow.radius, 1.6);
-    });
+    // SHADOW PENUMBRA, BOTH BACKENDS — see clampShadowRadii: r187 removed
+    // PCFSoft entirely, so WebGL and WebGPU run the same 5-tap Vogel-disk PCF
+    // kernel (authored: ares 1.5, nuketown 2.0, jungle 3.1, dust2 3.1 from its
+    // env data — all tuned against PCFSoft's much wider kernel). Called here
+    // and from applyShadowQuality so late-added lights and a quality re-arm
+    // get clamped too; cheap and idempotent, and the authored per-map values
+    // at their sources stay untouched.
+    this.clampShadowRadii();
     // feel stream: Nuketown live events — clock tower = match clock, live POPULATION sign, the nuke at match end (client/src/nuketown-live.ts)
     if (MAP.id === "nuketown") await (await import("./nuketown-live")).attachNuketownLive(this);
     // November-December set dressing (client/src/xmas.ts) — ?xmas=1 / ?xmas=0 force it.
@@ -1430,7 +1431,26 @@ export class Game {
     // if the map authorises shadows (?classic stays shadowless).
     const want = size > 0 && this.mapShadowsOn;
     sun.castShadow = want;
+    // Late-added lights and a quality re-arm escape the init() clamp, so clamp
+    // again here: cheap, idempotent, and no shadow map source is touched.
+    this.clampShadowRadii();
     this.renderer.shadowMap.enabled = want;
+  }
+
+  /**
+   * Clamp every shadow-casting directional light's penumbra to
+   * SHADOW_RADIUS_MAX (runs at init() and after a quality re-arm). Total, not
+   * just a top bound: a NaN/negative radius (dust2's comes from its ENVV env
+   * data) would otherwise pass Math.min straight into the sampler.
+   */
+  private clampShadowRadii(): void {
+    if (!this.world) return;
+    this.world.scene.traverse((o) => {
+      const l = o as THREE.DirectionalLight;
+      if (!l.isDirectionalLight || !l.castShadow) return;
+      const r = Number(l.shadow.radius);
+      l.shadow.radius = Number.isFinite(r) ? Math.min(Math.max(r, 0), SHADOW_RADIUS_MAX) : SHADOW_RADIUS_MAX;
+    });
   }
 
   /**

@@ -221,7 +221,7 @@ export async function createRenderer(
       renderer.toneMapping = THREE.NoToneMapping;
       renderer.toneMappingExposure = 1.12;
       renderer.shadowMap.enabled = true;
-      // r185+: PCFSoft is removed on the WebGPU side — PCF is soft there too.
+      // r187: PCFSoft is removed on BOTH backends — PCF is the soft one now.
       renderer.shadowMap.type = THREE.PCFShadowMap;
       return { renderer, backend: "webgpu", note: `WebGPU active (${note})` };
     } catch (e) {

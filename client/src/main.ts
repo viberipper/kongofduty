@@ -428,11 +428,39 @@ function renameCallsign(): void {
 const nextPaint = (): Promise<void> => new Promise<void>((resolve) => {
   let done = false;
   const fin = (): void => { if (!done) { done = true; resolve(); } };
-  requestAnimationFrame(() => setTimeout(fin, 0));
+  // A non-browser harness has no rAF (a bare call is a ReferenceError there);
+  // the zero-delay timer is the same "one tick later" guarantee.
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => setTimeout(fin, 0));
+  else setTimeout(fin, 0);
   setTimeout(fin, 100);
 });
 
+/**
+ * DEPLOY RE-ENTRANCY GUARD: deploy() is async with an awaited painted frame
+ * behind it, so a double click / double pad-press / Enter x2 can interleave
+ * two runs — two createRenderer() on one canvas and two AudioContext builds
+ * racing each other (the inner game.init() "already inited" and Game.start()
+ * "booting||running" guards contain the worst case, but the renderer/audio
+ * race is still real). One module flag serialises it: a second deploy while
+ * one is in flight returns immediately, and the flag clears in a finally, so
+ * every exit path — early returns, the error cards, and thrown errors —
+ * re-arms the door.
+ */
+let deploying = false;
+
+/** The door. The bring-up itself is deployRun() below, unchanged. */
 async function deploy(online: boolean, phase: MatchPhase | null = null, spectate = false): Promise<void> {
+  if (deploying) return;
+  deploying = true;
+  try {
+    await deployRun(online, phase, spectate);
+  } finally {
+    deploying = false;
+  }
+}
+
+/** The bring-up: loading card, one painted frame, world, match. */
+async function deployRun(online: boolean, phase: MatchPhase | null = null, spectate = false): Promise<void> {
   state.online = online;
   showLoading(PAGE_MAP, state.mode, state.kind);
   show("menu", false);

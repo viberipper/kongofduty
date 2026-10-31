@@ -103,6 +103,8 @@ export async function buildJungleWorld(renderer: AnyRenderer): Promise<WorldApi>
   sun.shadow.camera.bottom = -28;
   sun.shadow.bias = -0.00022;
   sun.shadow.normalBias = 0.035;
+  // authored 3.1, effective 1.6 at runtime via Game.clampShadowRadii
+  // (r187's 5-tap PCF disk reads wider as grain).
   sun.shadow.radius = 3.1;
   scene.add(sun);
   scene.add(new THREE.AmbientLight(0xc8c4a8, 0.52));

@@ -92,8 +92,11 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   strips bidi/zero-width controls so a field cannot forge report lines
   (Pending commit — hash follows on commit.).
 
-- `fix(shaders): Nuketown plant clumps compile under three r187` — r187 made
-  the fragment `vColor` always a `vec4` (the `nt_plant_clump_fx`
+- `fix(shaders): Nuketown plant clumps compile under three r187` — the
+  `color_pars_fragment` chunk is still guarded by `USE_COLOR` /
+  `USE_COLOR_ALPHA`, but it declares a `vec4` whenever it exists, and the
+  r187 fragment prefix synthesises `USE_COLOR` from the instancing colour,
+  so the material in question gets a vec4 `vColor` (the `nt_plant_clump_fx`
   `onBeforeCompile` in `client/src/nuketown-foliage.ts` still fed it whole
   into `vec3` `mix`/multiply, so the program failed validation with `'mix' :
   no matching overloaded function found` and every draw logged
@@ -109,7 +112,8 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   backends (the WebGPU path already used `PCFShadowMap`); it now names `PCF`
   directly, which is what the old type silently fell back to (a 5-tap
   Vogel-disk `sampler2DShadow` sample with `radius = shadowRadius *
-  texelSize` per the vendored `shadowmap_pars_fragment`) — only now without
+  texelSize`, per the vendored chunk's PCF `getShadow` in
+  `shadowmap_pars_fragment`) — only now without
   the `PCFSoftShadowMap has been removed` warning (d62fcfe).
 
 - `fix(shadows): penumbra clamp on both backends` — the directional-light
@@ -137,6 +141,47 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   before `bootStage("AUDIO")` — the deferred-audio path is untouched
   (audio2 keeps its `onFirstGesture` fallback, pointer lock comes from
   separate canvas clicks, not `deploy`) (d62fcfe).
+
+- `fix(shadows): remove the dead Nuketown PCFSoft tent patch` — the
+  WORK-ORDERS L3 `installSoftShadows()` in `client/src/nuketown-sky.ts`
+  patched the `SHADOWMAP_TYPE_PCF_SOFT` branch into a 3x3 tent of bilinear
+  taps at 1.5-texel spacing (~14 cm penumbra), but r187 removed that branch
+  entirely (zero occurrences in the vendored `ShaderChunk`, and
+  `WebGLShadowMap` logs the type as removed), so its guard could never match
+  and the call silently no-opped since the upgrade. The function, its
+  `PCF_STEP` constant and the call are deleted, with a history note kept in
+  place — a dead-code removal with no visual delta. The replacement 5-tap
+  Vogel-disk PCF kernel cannot reproduce the old ~14 cm width without reading
+  as speckle, so the nuketown/dust2/shipment penumbrae run narrower than
+  authored (2.0 and 3.1 → 1.6) by deliberate clamp, not by this removal
+  (Pending commit — hash follows on commit.).
+
+- `fix(shadows): penumbra clamp is explicit, total and re-applied` — the
+  `shadow.radius <= 1.6` clamp in `game.ts` ran once at `init()` with a bare
+  `Math.min`, so lights added later escaped it and a `NaN`/negative radius
+  (dust2's comes from its `ENVV` env data) passed straight into the shadow
+  sampler. It is now `Game.clampShadowRadii()` behind a module-level
+  `SHADOW_RADIUS_MAX = 1.6`, clamping totally (`NaN` → the cap, negatives →
+  0), and it runs both at `init()` and in `applyShadowQuality()` so late
+  lights and a quality re-arm are clamped too — cheap, idempotent, no shadow
+  map source touched. Plainly: nuketown/dust2/shipment penumbrae get narrower
+  than authored (2.0 and 3.1 → 1.6) because the removed PCFSoft kernel cannot
+  be reproduced by the 5-tap replacement without speckle (Pending commit —
+  hash follows on commit.).
+
+- `fix(boot): deploy() re-entrancy guard plus a non-browser paint fallback` —
+  `deploy()` in `client/src/main.ts` had no in-flight guard, and the awaited
+  painted frame widened the window where a double click / double pad-press /
+  Enter x2 interleaves two runs (two `createRenderer()` on one canvas and two
+  AudioContext builds racing; the inner `game.init()` / `Game.start()` guards
+  contain the worst case but not that race). A module-level `deploying` flag
+  now serialises it — `deploy()` is a thin door that awaits the unchanged
+  bring-up (`deployRun()`) in a `try`/`finally`, so a second deploy while one
+  is in flight returns immediately and every exit path (early returns, error
+  cards, throws) re-arms the door. `nextPaint()`
+  also guards its `requestAnimationFrame` call with a `typeof` check (falling
+  back to a zero-delay timer) so a non-browser harness no longer throws a
+  `ReferenceError` (Pending commit — hash follows on commit.).
 
 ### Added
 

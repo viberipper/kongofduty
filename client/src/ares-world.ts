@@ -544,7 +544,7 @@ export async function buildAresWorld(renderer: AnyRenderer): Promise<WorldApi> {
   sc.left = -48; sc.right = 48; sc.top = 44; sc.bottom = -44; sc.near = 20; sc.far = 160;
   sun.shadow.bias = -0.0002;
   sun.shadow.normalBias = 0.03;
-  sun.shadow.radius = 1.5;
+  sun.shadow.radius = 1.5; // below Game.clampShadowRadii's 1.6 cap, so it runs as authored (r187 5-tap disk)
   scene.add(sun, sun.target);
   // Mars bounce: a broad warm fill from the planet's direction, no shadows.
   const marsFill = new THREE.DirectionalLight(0xd9ab8f, 0.12);

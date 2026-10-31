@@ -191,6 +191,8 @@ const ENVV = {
   hemi: { sky: 0xe2d9c2, ground: 0xc09a5e, intensity: 0.34 },
   bounce: { hex: 0xe8d3a4, intensity: 0.26, pos: [-70, 34, 62] as const },
   ambient: { hex: 0xc4b490, intensity: 0.15 },
+  // radius: authored 3.1, effective 1.6 at runtime via Game.clampShadowRadii
+  // (r187's 5-tap PCF disk reads wider as grain).
   shadow: { size: 4096, half: 38, near: 40, far: 340, bias: -0.00022, normalBias: 0.06, radius: 3.1 },
   /**
    * spec-art §8, remaining flaw 1. The two roofed axes (T tunnels -> B, and the

@@ -343,43 +343,17 @@ function installHeightFog(sunDir: THREE.Vector3): void {
 #endif`;
 }
 
-// ------------------------------------------------------------------ soft sun shadows
-/**
- * WORK-ORDERS L3 (fence "stipple"): three's PCFSoft is a 3x3 bilinear kernel,
- * a ~3-4 cm penumbra on Nuketown's 2.8 cm shadow texels, which the wood grain
- * turns into a speckled edge. A hazy desert sun casts a wider, soft edge:
- * here the 2D PCF_SOFT branch becomes a 3x3 TENT of bilinear compare taps at
- * 1.5-texel spacing (~5 texels, ~14 cm). Fixed taps (no rotation, no time):
- * the same input always gives the same edge. Nuketown's page only.
- */
-const PCF_STEP = 1.5;
-function installSoftShadows(): void {
-  const C = THREE.ShaderChunk as unknown as Record<string, string> & { __ntSoftShadow?: boolean };
-  if (C.__ntSoftShadow) return;
-  const src = C.shadowmap_pars_fragment!;
-  const a = src.indexOf("#elif defined( SHADOWMAP_TYPE_PCF_SOFT )");
-  const b = a < 0 ? -1 : src.indexOf("#elif defined( SHADOWMAP_TYPE_VSM )", a);
-  if (a < 0 || b < 0) return; // three changed: keep its kernel rather than guess
-  C.__ntSoftShadow = true;
-  C.shadowmap_pars_fragment = src.slice(0, a) + `#elif defined( SHADOWMAP_TYPE_PCF_SOFT )
-			vec2 texelSize = vec2( 1.0 ) / shadowMapSize;
-			shadow = 0.0;
-			for ( int j = -1; j <= 1; j ++ ) {
-				for ( int i = -1; i <= 1; i ++ ) {
-					vec2 uv = shadowCoord.xy + vec2( float( i ), float( j ) ) * texelSize * ${PCF_STEP.toFixed(2)};
-					vec2 f = fract( uv * shadowMapSize + 0.5 );
-					uv -= f * texelSize;
-					float s00 = texture2DCompare( shadowMap, uv, shadowCoord.z );
-					float s10 = texture2DCompare( shadowMap, uv + vec2( texelSize.x, 0.0 ), shadowCoord.z );
-					float s01 = texture2DCompare( shadowMap, uv + vec2( 0.0, texelSize.y ), shadowCoord.z );
-					float s11 = texture2DCompare( shadowMap, uv + texelSize, shadowCoord.z );
-					float w = ( i == 0 ? 2.0 : 1.0 ) * ( j == 0 ? 2.0 : 1.0 );
-					shadow += w * mix( mix( s00, s10, f.x ), mix( s01, s11, f.x ), f.y );
-				}
-			}
-			shadow *= ( 1.0 / 16.0 );
-		` + src.slice(b);
-}
+// ------------------------------------------------------------------ soft sun shadows (removed tent, history kept)
+// WORK-ORDERS L3 once patched the PCF_SOFT branch here into a 3x3 tent of
+// bilinear compare taps at 1.5-texel spacing (~5 texels, ~14 cm) for a hazy
+// desert penumbra. r187 removed that SHADOWMAP_TYPE_PCF_SOFT branch entirely
+// (zero occurrences in the vendored ShaderChunk; WebGLShadowMap logs the type
+// as removed), so the patch's guard could never match again and the installer
+// silently no-opped — this is a deliberate removal of dead code, not a look
+// change. Its replacement PCF kernel is a 5-tap Vogel-disk sample whose only
+// width knob is shadowRadius (in shadow texels); widening that toward ~14 cm
+// reads as speckle, which is why the penumbra is now a clamped ~1.6-texel disk
+// (see Game.clampShadowRadii's SHADOW_RADIUS_MAX).
 
 // ------------------------------------------------------------------ lightmaps
 /** One role object's bake: AO + GI on UV1 (lightmaps.json, nt_bake.py). */
@@ -521,12 +495,11 @@ export async function buildSkyRig(scene: THREE.Scene, renderer: AnyRenderer, sof
   sun.shadow.mapSize.set(4096, 4096);
   const sc = sun.shadow.camera;
   sc.left = -58; sc.right = 58; sc.top = 40; sc.bottom = -40; sc.near = 40; sc.far = 230;
-  // the wider tent kernel reaches ~2 texels further: a touch more normal bias
-  // (1.8 texels, inside ZERO-FLICKER's 2-3 texel peter-panning limit)
-  installSoftShadows();
+  // r187's 5-tap Vogel-disk PCF kernel: radius is in shadow texels and the
+  // runtime clamps it to 1.6 via Game.clampShadowRadii (wider reads as grain).
   sun.shadow.bias = -0.00025;
   sun.shadow.normalBias = 0.05;
-  sun.shadow.radius = 2;
+  sun.shadow.radius = 2; // authored 2.0, effective 1.6 after the runtime clamp (see above)
   scene.add(sun, sun.target);
   // sky fill: pale cyan above, warm lawn/dust bounce below. Hardware: the env
   // (and the GI bake, where it exists) IS the fill, the hemisphere only keeps
