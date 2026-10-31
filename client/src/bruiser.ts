@@ -618,6 +618,9 @@ function applyAimStatic(bones: Record<string, THREE.Object3D>, bind: Record<stri
 
 const LEAN_EULER = new THREE.Euler();
 const LEAN_TMP_Q = new THREE.Quaternion();
+/** Deduped bone names of the lean tables, built once (the tables are static). */
+const LEAN_NAMES_RIGHT: readonly string[] = [...new Set([...Object.keys(LEAN_RIGHT), ...Object.keys(LEAN_RIGHT_CROUCH)])];
+const LEAN_NAMES_LEFT: readonly string[] = [...new Set([...Object.keys(LEAN_LEFT), ...Object.keys(LEAN_LEFT_CROUCH)])];
 
 /**
  * Layer the authored corner-lean pose onto the pose the mixer just wrote.
@@ -641,7 +644,8 @@ function applyLeanPose(bones: Record<string, THREE.Object3D>, w: number, crouch:
   const c = THREE.MathUtils.clamp(crouch, 0, 1);
   const stand: Record<string, LeanBone> = w > 0 ? LEAN_RIGHT : LEAN_LEFT;
   const crouched: Record<string, LeanBone> = w > 0 ? LEAN_RIGHT_CROUCH : LEAN_LEFT_CROUCH;
-  for (const name of new Set([...Object.keys(stand), ...Object.keys(crouched)])) {
+  const names = w > 0 ? LEAN_NAMES_RIGHT : LEAN_NAMES_LEFT;
+  for (const name of names) {
     const a = stand[name];
     const b = crouched[name];
     const bObj = bones[name];

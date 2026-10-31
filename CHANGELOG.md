@@ -89,6 +89,14 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   situational; same view-only 0.30 m eye shift with no damage, accuracy,
   or hitbox bonus (Pending commit — hash follows on commit.).
 
+- `feat(post): FXAA tail on hardware WebGPU` — the WebGPU path renders its
+  scene pass into single-sample pass targets with `antialias:false` (a GTAO
+  precondition: the centre tap needs a single-sample depth texture), so edges
+  reached the screen stair-stepped while the WebGL path pays 4x/2x MSAA on the
+  composer targets; the FXAA tail the software tier already ran now runs on
+  hardware too, after the grade (`?fxaa=0` drops it for bisection) (Pending
+  commit — hash follows on commit.).
+
 ### Fixed
 
 - `fix(lean): shots follow the lean eye` — shots use the same 0.30 m eye
@@ -108,6 +116,18 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   hold aborts correctly on fleeing, repositioning, swapping, sliding,
   reloading, low HP, or when a squadmate already holds that target (Pending commit
   — hash follows on commit.).
+- `perf(fx): no instanced uploads for effects that draw nothing` — the
+  BoomFx flash/ring/frags/puffs/scorch pools flagged ten instance buffers
+  for upload every frame even with all four counts at 0, the ThrowMarker aim
+  marker uploaded while every dot sat behind the camera, and the NadeFx
+  ribbon sampled its trail ring, wrote ribbons and flagged rPos/rAlpha
+  uploads for an invisible mesh; each family now uploads only while it draws
+  (the frag instances always draw)
+  (Pending commit — hash follows on commit.).
+- `perf(lean): no per-actor Set allocation in the lean pose` — the lean bone
+  name list was rebuilt from two key spreads for every actor on every leaning
+  frame; it is derived once per lean direction from the static pose tables now
+  (Pending commit — hash follows on commit.).
 
 ## 2026-10-30
 

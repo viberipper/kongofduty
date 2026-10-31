@@ -422,15 +422,17 @@ export class NadeFx {
     const n = this.live.length;
     this.mesh.count = n;
     if (!n) {
-      this.rPos.needsUpdate = true;
+      // Nothing draws: the frag mesh has count 0 and the ribbon is hidden, so
+      // these buffers would be transferred for meshes that never render.
       this.ribbon.visible = false;
       return;
     }
-    // weapons stream: no golden wake behind a CoD frag — the danger indicator is the HUD's job
+    // weapons stream: no golden wake behind a CoD frag — the danger indicator is the HUD's job.
+    // Read the flag before forcing it down: whoever shows the ribbon (nothing does
+    // today) still gets the trail path below instead of a silently dead one.
+    const ribbonOn = this.ribbon.visible;
     this.ribbon.visible = false;
-    camera.getWorldPosition(this.cam);
-    const pos = this.rPos.array as Float32Array;
-    const alp = this.rAlpha.array as Float32Array;
+    if (ribbonOn) camera.getWorldPosition(this.cam);
     for (let i = 0; i < n; i++) {
       const v = this.live[i]!;
       v.age += dt;
@@ -500,28 +502,36 @@ export class NadeFx {
       this.m.compose(this.v, this.q, this.scl.setScalar(sc));
       this.mesh.setMatrixAt(i, this.m);
 
-      // --- trail history, sampled on a fixed clock so speed does not change it
-      v.sample += dt;
-      const step = TRAIL_TIME / TRAIL_N;
-      if (v.sample >= step || v.trailN === 0) {
-        v.sample = 0;
-        const h = v.trailHead * 3;
-        v.trail[h] = this.v.x;
-        v.trail[h + 1] = this.v.y;
-        v.trail[h + 2] = this.v.z;
-        v.trailHead = (v.trailHead + 1) % TRAIL_N;
-        if (v.trailN < TRAIL_N) v.trailN++;
+      // --- trail history, sampled on a fixed clock so speed does not change it.
+      // Ribbon-only: skipped while the ribbon stays hidden (see above).
+      if (ribbonOn) {
+        const pos = this.rPos.array as Float32Array;
+        const alp = this.rAlpha.array as Float32Array;
+        v.sample += dt;
+        const step = TRAIL_TIME / TRAIL_N;
+        if (v.sample >= step || v.trailN === 0) {
+          v.sample = 0;
+          const h = v.trailHead * 3;
+          v.trail[h] = this.v.x;
+          v.trail[h + 1] = this.v.y;
+          v.trail[h + 2] = this.v.z;
+          v.trailHead = (v.trailHead + 1) % TRAIL_N;
+          if (v.trailN < TRAIL_N) v.trailN++;
+        }
+        this.writeRibbon(i, v, pos, alp);
       }
-      this.writeRibbon(i, v, pos, alp);
     }
     // Collapse every unused slot so stale ribbons cannot linger.
-    for (let s = n; s < NADE_SLOTS; s++) {
-      const base = s * TRAIL_N * 2;
-      for (let k = 0; k < TRAIL_N * 2; k++) alp[base + k] = 0;
+    if (ribbonOn) {
+      const alp = this.rAlpha.array as Float32Array;
+      for (let s = n; s < NADE_SLOTS; s++) {
+        const base = s * TRAIL_N * 2;
+        for (let k = 0; k < TRAIL_N * 2; k++) alp[base + k] = 0;
+      }
+      this.rPos.needsUpdate = true;
+      this.rAlpha.needsUpdate = true;
     }
     this.mesh.instanceMatrix.needsUpdate = true;
-    this.rPos.needsUpdate = true;
-    this.rAlpha.needsUpdate = true;
   }
 
   /**
@@ -924,16 +934,27 @@ export class BoomFx {
     }
     this.scorch.count = sn;
 
-    this.flash.instanceMatrix.needsUpdate = true;
-    this.ring.instanceMatrix.needsUpdate = true;
-    this.frags.instanceMatrix.needsUpdate = true;
-    this.frags.instanceColor!.needsUpdate = true;
-    this.puffs.instanceMatrix.needsUpdate = true;
-    this.scorch.instanceMatrix.needsUpdate = true;
-    this.flashA.needsUpdate = true;
-    this.ringA.needsUpdate = true;
-    this.puffA.needsUpdate = true;
-    this.scorchA.needsUpdate = true;
+    // Upload only the families that actually draw this frame. An idle BoomFx
+    // (all four counts 0) used to flag ten buffers every frame, i.e. ten
+    // driver uploads for nothing between fights.
+    if (n > 0) {
+      this.flash.instanceMatrix.needsUpdate = true;
+      this.ring.instanceMatrix.needsUpdate = true;
+      this.flashA.needsUpdate = true;
+      this.ringA.needsUpdate = true;
+    }
+    if (fn > 0) {
+      this.frags.instanceMatrix.needsUpdate = true;
+      this.frags.instanceColor!.needsUpdate = true;
+    }
+    if (pn > 0) {
+      this.puffs.instanceMatrix.needsUpdate = true;
+      this.puffA.needsUpdate = true;
+    }
+    if (sn > 0) {
+      this.scorch.instanceMatrix.needsUpdate = true;
+      this.scorchA.needsUpdate = true;
+    }
   }
 }
 
@@ -1182,8 +1203,12 @@ export class ThrowMarker {
       }
     }
     this.dots.count = k;
-    this.dots.instanceMatrix.needsUpdate = true;
-    this.fade.needsUpdate = true;
+    // Only upload the marker when something is actually drawn (the marker is
+    // repainted on every aim update, often with every dot behind the camera).
+    if (k > 0) {
+      this.dots.instanceMatrix.needsUpdate = true;
+      this.fade.needsUpdate = true;
+    }
     (this.ring.material as THREE.MeshBasicMaterial).opacity = 0.55 * this.show;
     (this.ringShade.material as THREE.MeshBasicMaterial).opacity = 0.18 * this.show;
   }

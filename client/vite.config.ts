@@ -22,8 +22,9 @@ export default defineConfig({
     alias: [
       // Order matters: addons prefix before the exact three match.
       { find: "three/addons/", replacement: path.resolve(HERE, "vendor/three/examples/jsm/") + "/" },
-      // WebGPU renderer + TSL (r186: build/three.webgpu.js, build/three.tsl.js).
-      // three/tsl.js imports bare "three/webgpu", so both need aliases.
+      // WebGPU renderer + TSL (r187: build/three.webgpu.js, build/three.tsl.js).
+      // Since r187 three.tsl.js holds the TSL runtime (importing ./three.core.js)
+      // and three.webgpu.js re-exports it; both specifiers still need aliases.
       { find: /^three\/webgpu$/, replacement: path.resolve(HERE, "vendor/three/build/three.webgpu.js") },
       { find: /^three\/tsl$/, replacement: path.resolve(HERE, "vendor/three/build/three.tsl.js") },
       { find: /^three$/, replacement: path.resolve(HERE, "vendor/three/build/three.module.js") },

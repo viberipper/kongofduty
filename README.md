@@ -6,7 +6,7 @@ Self-hostable version of the browser game at https://cnvs.dev/kong/ — playable
 
 ## Enhancements over the original
 
-- **Better graphics (AAA pass):** post chain `RenderPass` → `ContactAO` → `Bloom` → `CINEMATIC` grade (tone map, vignette, chromatic aberration, film grain, color grade, sharpen, DOF-lite) → `FXAA`, with quality presets LOW–CINEMATIC plus individual switches in SETTINGS → GRAPHICS.
+- **Better graphics (AAA pass):** post chain `RenderPass` → `ContactAO` → `Bloom` → `CINEMATIC` grade (tone map, vignette, chromatic aberration, film grain, color grade, sharpen, DOF-lite) → `FXAA` (WebGPU both tiers; WebGL only where the composer target has no MSAA samples — hardware WebGL antialiases with MSAA instead), with quality presets LOW–CINEMATIC plus individual switches in SETTINGS → GRAPHICS.
 - **Controller / gamepad support:** standard Xbox/PlayStation mapping with sticks, rumble, and aim assist; layouts DEFAULT / TACTICAL / SOUTHPAW, sensitivity / deadzone / vibration options, button table, and menu navigation in SETTINGS → CONTROLS.
 - **Many bug fixes**, e.g. around ADS, HUD, and gameplay details.
 - **Lobby settings:** private-match lobby has a SETTINGS button (host, guests, spectators) that opens the settings modal over the lobby.
@@ -110,7 +110,7 @@ The image is server-only: hub + map workers (container-internal `KONG_PORT+101..
 client/           Client package (own package.json: install/dev/build/preview)
 client/src/       Client TypeScript source (Vite build)
 client/static/    Raw game assets (models, textures, audio, maps — copied verbatim into dist by Vite)
-client/vendor/    three.js r186 + used addons + TSL nodes (local, see VERSION.txt)
+client/vendor/    three.js r187 + used addons + TSL nodes (local, see VERSION.txt)
 client/dist/      Built client (build artifact, git-ignored)
 shared/           Original shared engine/protocol sources (client+server)
 server/           Server package (own package.json: install/build/start/test)

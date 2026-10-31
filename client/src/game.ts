@@ -161,7 +161,7 @@ import { DepthPrecision } from "./depth-precision";
 import { COUNTDOWN_MS, inputLocked, isStaleMatchTick, type MatchPhase } from "@shared/matchphase";
 // AAA graphics (feature/aaa-graphics): fused cinematic final pass, map-agnostic
 // contact AO, selective bloom, opt-in motion blur, quality presets, GPU-backend
-// detection (WebGPU-first via the vendored three r186 WebGPURenderer — see gpu-backend).
+// detection (WebGPU-first via the vendored three r187 WebGPURenderer — see gpu-backend).
 import { CINEMATIC } from "./cinematic";
 import { ContactAO } from "./ssao";
 import { BloomPass } from "./bloom";
@@ -221,13 +221,13 @@ let softwareTier = false;
  *   -> CINEMATIC (cinematic.ts: the old GRADE's tone map + sRGB encode
  *      VERBATIM, fused with vignette, chromatic aberration, film grain,
  *      color grade, CAS-lite sharpen and DOF-lite)
- *   -> [FXAA (software tier only, display-referred, where its edge detector
- *      works as designed)].
+ *   -> [FXAA (software tier only: the tier where the composer target carries
+ *      no MSAA samples, see aaSamples)].
  *
  * WEBGPU (webgpu-pipeline.ts) mirrors exactly this order in TSL:
  *   pass → GTAO → Bloom → [Afterimage] → CINEMATIC grade (Fn node, 1:1 from
  *   cinematic.ts — tonemapping+sRGB included, NO RenderOutput around it) →
- *   [FXAA (software tier only)]. See there for the deliberate nuances
+ *   [FXAA (both tiers)]. See there for the deliberate nuances
  *   (height fog, bloom knee, max-hold, single-sample scene pass) and the
  *   still-open custom ShaderMaterial ports (weapon/nade/nuke FX, Ares
  *   core, Nuketown sky — falling back to empty NodeMaterial).
@@ -242,6 +242,15 @@ let softwareTier = false;
  */
 const EMPTY: unknown[] = [];
 const EMPTY_NADES: NadeSnap[] = [];
+
+/** QA killswitch (?fxaa=0): drop the FXAA tail (bisection edges vs. grade). */
+function qaFxaaOff(): boolean {
+  try {
+    return new URLSearchParams(location.search).get("fxaa") === "0";
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Share of each shot's recoil that goes into the SPRINGBACK channel (recP/recY)
@@ -876,7 +885,7 @@ export class Game {
       // → [FXAA]. Lazy chunk, so the WebGL boot never loads the 2.3 MB (only
       // this branch imports).
       const { createWebgpuPipeline } = await import("./webgpu-pipeline");
-      this.pipeline = await createWebgpuPipeline(this.renderer, this.world.scene, this.camera, { software: softwareTier });
+      this.pipeline = await createWebgpuPipeline(this.renderer, this.world.scene, this.camera);
       console.info("[gpu] WebGPU-Pfad: TSL-RenderPipeline aktiv (GTAO/Bloom/Grade/sRGB, siehe webgpu-pipeline.ts).");
       // Open nuance (no crash, wrong look): three knows NO node equivalent for
       // custom ShaderMaterial (StandardNodeLibrary maps built-ins only) — they
@@ -949,7 +958,8 @@ export class Game {
     this.composer.addPass(this.grade);
     // Software rendering uses one display-space AA pass instead of SMAA's
     // three passes and lookup textures. Hardware keeps its MSAA pipeline.
-    if (samples === 0) {
+    // ?fxaa=0 drops the FXAA tail for bisection.
+    if (samples === 0 && !qaFxaaOff()) {
       const { FXAAShader } = await import("three/addons/shaders/FXAAShader.js");
       this.softwareAA = new ShaderPass(FXAAShader);
       this.composer.addPass(this.softwareAA);

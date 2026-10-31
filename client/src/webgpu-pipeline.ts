@@ -8,7 +8,7 @@
  *   [afterimage (opt-in)] → CINEMATIC grade as a custom Fn node (maths 1:1
  *   from cinematic.ts, tonemapping+sRGB included, NO RenderOutput around it —
  *   a RenderOutputNode would convert working→sRGB a second time) →
- *   [FXAA (software tier only, needs sRGB input)].
+ *   [FXAA (both tiers, needs sRGB input)].
  *
  * BUNDLE DISCIPLINE: this file is loaded ONLY via dynamic import() from game.ts
  * (init()'s WebGPU branch). Every three/webgpu, three/tsl and
@@ -50,7 +50,10 @@
  *    bright pixels via max-hold (damp 0.7 ≈ 3–4 frames). Opt-in, default OFF.
  *  - MSAA: the scene pass renders single-sample (PassNode RTs carry no
  *    samples); renderer antialias only applies on the default framebuffer.
- *    Hardware edge AA on WebGPU would need samples on the pass RTs.
+ *    True MSAA would need samples on the pass RTs — which the GTAO centre tap
+ *    (textureGather on a multisampled depth texture) does not support, see
+ *    gpu-backend.ts. Edges are therefore resolved by the FXAA tail after the
+ *    grade, on the software AND the hardware tier (?fxaa=0 drops it).
  *    8x CINEMATIC stays WebGL-only (see game.ts/resize).
  *  - AO resolution: GTAO runs full-res (resolutionScale 1), the WebGL
  *    ContactAO half-res with bilateral denoise blur — a different
@@ -79,11 +82,6 @@ export interface WebgpuPrefsSnapshot {
   /** Effective value (map basis × slider), as game.ts also hands to the grade. */
   exposure: number;
   hurt?: number;
-}
-
-export interface WebgpuPipelineOpts {
-  /** FXAA at the chain end (sRGB input) — true only in the software tier. */
-  software: boolean;
 }
 
 /**
@@ -190,6 +188,15 @@ function qaBloomOff(): boolean {
   }
 }
 
+/** QA killswitch (?fxaa=0): drop the FXAA tail (bisection edges vs. grade). */
+function qaFxaaOff(): boolean {
+  try {
+    return new URLSearchParams(location.search).get("fxaa") === "0";
+  } catch {
+    return false;
+  }
+}
+
 export class WebgpuPipeline {
   private renderer: WebgpuCanvasRenderer;
   private scene: THREE.Scene;
@@ -248,13 +255,19 @@ export class WebgpuPipeline {
     scene: THREE.Scene,
     camera: THREE.Camera,
     pipe: WebgpuPipeline["pipe"],
-    opts: WebgpuPipelineOpts,
   ) {
     this.renderer = renderer;
     this.scene = scene;
     this.camera = camera;
     this.pipe = pipe;
-    this.useFxaa = opts.software;
+    // Hardware WebGPU had NO edge AA at all: antialias:false is a GTAO
+    // precondition and the pass RTs are single-sample (see the header), so the
+    // fullscreen quad presented stair-stepped edges while the WebGL path pays
+    // 4x/2x MSAA on the composer targets. The FXAA tail — sRGB input, one
+    // fullscreen pass — is the cheap hardware answer and now runs on both
+    // tiers. ?fxaa=0 drops it for bisection; the flag is read once here, so it
+    // needs a page reload to take effect.
+    this.useFxaa = !qaFxaaOff();
     this.aoForceOff = qaAoOff();
   }
 
@@ -267,7 +280,6 @@ export class WebgpuPipeline {
     renderer: WebgpuCanvasRenderer,
     scene: THREE.Scene,
     camera: THREE.Camera,
-    opts: WebgpuPipelineOpts,
   ): Promise<WebgpuPipeline> {
     const [webgpu, tsl, bloomM, aoM, afterM, fxaaM] = await Promise.all([
       import("three/webgpu") as Promise<{
@@ -286,7 +298,7 @@ export class WebgpuPipeline {
     // Manual output control (see file header): the grade maps itself,
     // RenderOutput only contributes the sRGB conversion.
     pipe.outputColorTransform = false;
-    const self = new WebgpuPipeline(renderer, scene, camera, pipe, opts);
+    const self = new WebgpuPipeline(renderer, scene, camera, pipe);
     self.api = api;
     self.lib = webgpu as unknown as WebgpuPipeline["lib"];
     self.fx = {
@@ -666,7 +678,6 @@ export async function createWebgpuPipeline(
   renderer: WebgpuCanvasRenderer,
   scene: THREE.Scene,
   camera: THREE.Camera,
-  opts: WebgpuPipelineOpts,
 ): Promise<WebgpuPipeline> {
-  return WebgpuPipeline.create(renderer, scene, camera, opts);
+  return WebgpuPipeline.create(renderer, scene, camera);
 }

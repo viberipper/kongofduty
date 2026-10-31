@@ -92,10 +92,10 @@ export function isSoftwareGL(renderer: AnyRenderer): boolean {
  * half the size, so 2x holds the fill budget on retina.
  *
  * 0 here means "no MULTISAMPLING", NOT "no anti-aliasing": Game.init() adds an
- * SMAA pass after the grade whenever this returns 0, because a software client
- * (and every headless qa/ contact sheet, which is judged by eye) must still get
- * smooth edges. Never treat this returning 0 as permission to ship a raw
- * staircase.
+ * FXAA pass (ShaderPass(FXAAShader)) after the grade whenever this returns 0
+ * (unless ?fxaa=0 drops it for bisection), because a software client (and every
+ * headless qa/ contact sheet, which is judged by eye) must still get smooth
+ * edges. Never treat this returning 0 as permission to ship a raw staircase.
  */
 export function aaSamples(renderer: AnyRenderer): number {
   // WebGPU path: TSL pipeline (no composer target) — the scene runs through
