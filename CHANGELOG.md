@@ -102,7 +102,7 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   "simplified" back — audited every other `vColor` use in `client/src`
   (foliage flowers, `nuketown-specs.ts` ground/decal tints) and all of them
   already swizzle `.r/.g/.b/.rgb`, so no other site needed a change
-  (Pending commit — hash follows on commit.).
+  (d62fcfe).
 
 - `fix(shadows): PCFSoft gone on the WebGL2 path too` — `gpu-backend.ts`
   still set `THREE.PCFSoftShadowMap` on WebGL2, which r187 removed for both
@@ -110,8 +110,7 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   directly, which is what the old type silently fell back to (a 5-tap
   Vogel-disk `sampler2DShadow` sample with `radius = shadowRadius *
   texelSize` per the vendored `shadowmap_pars_fragment`) — only now without
-  the `PCFSoftShadowMap has been removed` warning (Pending commit — hash
-  follows on commit.).
+  the `PCFSoftShadowMap has been removed` warning (d62fcfe).
 
 - `fix(shadows): penumbra clamp on both backends` — the directional-light
   `shadow.radius <= 1.6` clamp in `game.ts` only ran on WebGPU, but both
@@ -119,8 +118,7 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   map's radius was tuned against the old wider kernel (ares 1.5, nuketown
   2.0, jungle 3.1, dust2 from its env data); the clamp now applies
   unconditionally (still cheap and idempotent via `Math.min`), and no map's
-  authored radius was changed at its source (Pending commit — hash follows
-  on commit.).
+  authored radius was changed at its source (d62fcfe).
 
 - `fix(boot): no more toNonIndexed warnings on Nuketown` — `sageGeometry`
   and `boulderGeometry` in `client/src/nuketown-backdrop.ts` called
@@ -128,7 +126,7 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   (~32 warnings per boot); all three sites now guard with `geo.index ?
   geo.toNonIndexed() : geo` like the rest of the repo, passing the freshly
   created original through `paint()` safely — the indexed `CylinderGeometry`
-  stems still convert (Pending commit — hash follows on commit.).
+  stems still convert (d62fcfe).
 
 - `fix(boot): paint one frame before the bring-up` — `deploy()` in
   `client/src/main.ts` ran the whole audio-rig plus renderer construction
@@ -138,8 +136,7 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   timer fallback so a hidden tab never stalls boot) after the card is up and
   before `bootStage("AUDIO")` — the deferred-audio path is untouched
   (audio2 keeps its `onFirstGesture` fallback, pointer lock comes from
-  separate canvas clicks, not `deploy`) (Pending commit — hash follows on
-  commit.).
+  separate canvas clicks, not `deploy`) (d62fcfe).
 
 ### Added
 
