@@ -225,8 +225,8 @@ let softwareTier = false;
  *      no MSAA samples, see aaSamples)].
  *
  * WEBGPU (webgpu-pipeline.ts) mirrors exactly this order in TSL:
- *   pass → GTAO → Bloom → [Afterimage] → CINEMATIC grade (Fn node, 1:1 from
- *   cinematic.ts — tonemapping+sRGB included, NO RenderOutput around it) →
+ *   pass → GTAO → Bloom → [Afterimage] → CINEMATIC extras (linear HDR, 1:1
+ *   from cinematic.ts) → renderOutput(ACES+sRGB) →
  *   [FXAA (both tiers)]. See there for the deliberate nuances
  *   (height fog, bloom knee, max-hold, single-sample scene pass) and the
  *   still-open custom ShaderMaterial ports (weapon/nade/nuke FX, Ares

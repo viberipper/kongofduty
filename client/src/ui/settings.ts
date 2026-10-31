@@ -708,8 +708,15 @@ function buildRow(row: Exclude<Row, { group: string }>, describe: (t: string, d:
         if (row.key === "renderer" && changed) {
           uiSfx("select");
           // Fail closed: only reload when we positively know no match is live.
-          // An unknown state keeps the match and asks for a manual reload.
-          if (deps?.inMatch?.() === false) {
+          // An unknown state (deps gone, probe throwing) keeps the match and
+          // asks for a manual reload.
+          let live = true;
+          try {
+            live = deps?.inMatch?.() !== false;
+          } catch {
+            live = true;
+          }
+          if (!live) {
             location.reload();
           } else {
             if (!note) {
