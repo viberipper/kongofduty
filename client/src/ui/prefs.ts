@@ -24,13 +24,17 @@ export type MotionPref = "system" | "reduce" | "full";
  * GPU backend wish, resolved by gpu-backend.ts (a refused WebGPU device falls
  * back to WebGL2 with a console warning — never a black canvas).
  *
- * AUTO prefers WebGPU where the browser offers it, WEBGPU forces that path,
- * WEBGL2 stays on the old one. Opt-in and NOT the default: the WebGPU path is
- * still missing the TSL ports for the custom FX ShaderMaterials (tracers,
- * muzzle, smoke, decals, nuke, Ares core, Nuketown sky fall back to an empty
- * node material — see webgpu-pipeline.ts), so next to WebGL2 it looks
- * unfinished. Takes effect on the next page load: a canvas binds one context
- * type, so the renderer cannot be swapped live.
+ * SHIPPING STATE: WebGL2 only. The WebGPU path is fully kept in the tree
+ * (gpu-backend, webgpu-pipeline, tsl-materials and the TSL ports of the Ares
+ * shaders, the astronaut suit and the weapon FX), but it is not selectable: the
+ * pref is pinned to "webgl" by sanitizePrefs below and the GRAPHICS tab has no
+ * renderer row. `?renderer=webgpu` still forces it for development and QA (the
+ * query is read at boot, never persisted), which is how the port keeps being
+ * verified while it is out of the UI.
+ *
+ * The WebGPU path still misses node equivalents for several world shaders
+ * (Nuketown sky, the onBeforeCompile patches), so a player must not land on it
+ * by accident.
  */
 export type RendererPref = "auto" | "webgpu" | "webgl";
 /** Quality preset (graphics-presets.ts): starting point, freely adjustable afterwards. */
@@ -268,7 +272,11 @@ export function sanitizePrefs(x: unknown): Prefs {
     hudScale: clamp(o.hudScale, RANGES.hudScale[0], RANGES.hudScale[1], d.hudScale),
     motion: pick(o.motion, ["system", "reduce", "full"] as const, d.motion),
     colorMode: pick(o.colorMode, ["default", "protanopia", "deuteranopia", "tritanopia"] as const, d.colorMode),
-    renderer: pick(o.renderer, ["auto", "webgpu", "webgl"] as const, d.renderer),
+    // PINNED: WebGL2 only for players (see the RendererPref comment). The WebGPU
+    // path is developed behind ?renderer=webgpu; a stored or hand-edited
+    // "webgpu"/"auto" sanitises back to "webgl" so nobody boots into a backend
+    // that still has world-shader gaps.
+    renderer: "webgl",
     quality: pick(o.quality, ["low", "medium", "high", "ultra", "cinematic"] as const, d.quality),
     aa: pick(o.aa, ["auto", "off", "fxaa", "smaa", "msaa2", "msaa4", "msaa8"] as const, d.aa),
     bloom: bool(o.bloom, d.bloom),

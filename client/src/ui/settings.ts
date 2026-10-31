@@ -23,8 +23,6 @@ export interface SettingsDeps {
   /** Persist + load a sound pack; resolves with a status line for the note. */
   setPack: (key: string) => Promise<string>;
   packNote: () => string;
-  /** Live match in progress — a renderer switch must not reload it away. */
-  inMatch: () => boolean;
 }
 
 type Tab = "gameplay" | "audio" | "graphics" | "controls";
@@ -228,17 +226,6 @@ const ROWS: Record<Exclude<Tab, "controls">, Row[]> = {
       opts: [
         { v: "auto", label: "ADAPTIVE" },
         { v: "native", label: "NATIVE" },
-      ],
-    },
-    {
-      key: "renderer",
-      label: "Renderer",
-      desc: "Which graphics backend the game boots on. AUTO prefers WebGPU where the browser has it and otherwise stays on WebGL2; WEBGPU forces it (a refused device still falls back, with a console warning); WEBGL2 is the mature path. The WebGPU path is still missing the node-material ports for some weapon and explosion effects, so expect gaps there. Needs a reload: a canvas binds one context type.",
-      kind: "seg",
-      opts: [
-        { v: "auto", label: "AUTO" },
-        { v: "webgpu", label: "WEBGPU" },
-        { v: "webgl", label: "WEBGL2" },
       ],
     },
     {
@@ -639,8 +626,7 @@ function render(): void {
   if (keepScroll) rows.scrollTop = keepScroll;
 }
 
-/** Description for a row (the backend-finding suffix is gone: the Renderer row
- *  is a plain pref again). */
+/** Description for a row. */
 function descOf(row: Exclude<Row, { group: string }>): string {
   return row.desc;
 }
@@ -711,39 +697,16 @@ function buildRow(row: Exclude<Row, { group: string }>, describe: (t: string, d:
           return;
         }
         const changed = o.v !== (prefs()[row.key as keyof Prefs] as unknown);
+        void changed;
         setPrefs({ [row.key]: o.v } as Partial<Prefs>);
         seg.querySelectorAll("button").forEach((n) => {
           const on = n === b;
           n.classList.toggle("is-on", on);
           n.setAttribute("aria-checked", String(on));
         });
-        // The backend is picked in init() and a canvas binds one context type,
-        // so a switch only lands on a fresh page: reload from the menu right
-        // away, but never pull the rug out of a live match.
-        if (row.key === "renderer" && changed) {
-          uiSfx("select");
-          // Fail closed: only reload when we positively know no match is live.
-          // An unknown state (deps gone, probe throwing) keeps the match and
-          // asks for a manual reload.
-          let live = true;
-          try {
-            live = deps?.inMatch?.() !== false;
-          } catch {
-            live = true;
-          }
-          if (!live) {
-            location.reload();
-          } else {
-            if (!note) {
-              note = h("small", "set-note");
-              note.style.fontSize = "var(--fs-micro)";
-              note.style.color = "var(--c-text-3)";
-              el.append(note);
-            }
-            note.textContent = "APPLIES AFTER THE NEXT LOAD";
-          }
-          return;
-        }
+        // NOTE: there is no renderer row any more — the backend is pinned to
+        // WebGL2 for players and only reachable for development through
+        // ?renderer=webgpu at boot (see RendererPref in prefs.ts).
         // gamepad stream: the button table below depends on the layout.
         if (row.key === "padLayout") {
           uiSfx("select");

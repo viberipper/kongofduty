@@ -106,9 +106,21 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   banners "applies after the next load" mid-match, because a canvas binds one
   context type and the renderer is chosen in `init()` (Pending commit — hash
   follows on commit.).
+  **Withdrawn again for players**: see `fix(settings): WebGPU off the GRAPHICS
+  tab` below — the row is gone, the pref is pinned, the code stays behind
+  `?renderer=webgpu`.
 
 ### Fixed
 
+- `fix(settings): WebGPU off the GRAPHICS tab` — the renderer row is gone and
+  the pref sanitises back to `webgl`, so a player cannot land on the WebGPU
+  backend (nor can a stale or hand-edited save bring it back). Nothing is
+  deleted: `gpu-backend.ts`, `webgpu-pipeline.ts`, `tsl-materials.ts` and the
+  TSL ports of the Ares shaders, the astronaut suit and the weapon FX all stay,
+  and `?renderer=webgpu|auto` still forces the backend for development and QA
+  without ever being persisted. The remaining world-shader gaps (Nuketown sky,
+  the `onBeforeCompile` patches) are why it is out of the menu again (Pending
+  commit - hash follows on commit.).
 - `fix(lean): shots follow the lean eye` — shots use the same 0.30 m eye
   offset as the camera with a parallel ray, clamped at walls, and the
   preview matches the server (Pending commit — hash follows on commit.).

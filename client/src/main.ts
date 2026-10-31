@@ -120,7 +120,6 @@ const settingsDeps: SettingsDeps = {
     return packNote();
   },
   packNote: () => packNote(),
-  inMatch,
 };
 
 function packNote(): string {
