@@ -359,7 +359,14 @@ export function tslQuadFamily(kind, u) {
       .add(t1.mul(r.x).add(t2.mul(r.y)).mul(size).mul(0.5));
     const tv = w2.sub(cameraPosition);
     const tl = tv.length();
-    return cameraPosition.add(tv.mul(max(float(0.05), float(1).sub(iX.x.add(dc.mul(0.002))).div(max(tl, 0.001)))));
+    // DEPTH PULL, TIGHTLY CLAMPED. The record carries a 5 cm pull (iX.x) plus
+    // 2 mm per metre to beat a visual skin that sits proud of its collider. At
+    // range that is 5-15 cm of travel TOWARD the camera, which pushes a splat on
+    // the far side of a thin wall through to the near side — the "decals show
+    // through objects" report. 25 mm total is enough for the collider/skin gap
+    // and cannot cross a wall.
+    const pull = min(iX.x, 0.02).add(dc.mul(0.0002));
+    return cameraPosition.add(tv.mul(max(float(0.05), float(1).sub(pull).div(max(tl, 0.001)))));
   });
 
   const positionNode = Fn(() => {
