@@ -4032,12 +4032,13 @@ export class Game {
         const kn = this.players.get(e.src)?.name ?? "UNKNOWN";
         const mine = e.src === this.you;
         // The streak rides the wire untrusted (a hostile/replayed frame can put
-        // anything in it) and lands in a subtitle AND a spoken line: coerce it
-        // to the only values this callout can honestly mean — a multiple of ten
-        // between 10 and 990 — so it can neither spoof text nor pin the
-        // subtitle with a huge number.
+        // anything in it) and lands in a subtitle AND a spoken line: snap it to
+        // the only shape this callout can honestly take — a multiple of ten
+        // between 10 and 990 — so a forged value can neither spoof text nor pin
+        // the subtitle with a huge number, and can never print a streak the sim
+        // could not have produced (it fires on `streak % 10 === 0` only).
         const raw = Number(e.streak);
-        const streak = Number.isFinite(raw) ? Math.min(990, Math.max(10, Math.trunc(raw))) : 10;
+        const streak = Number.isFinite(raw) ? Math.min(990, Math.max(10, Math.round(raw / 10) * 10)) : 10;
         this.banner(mine ? "TACTICAL NUKE — YOURS" : `TACTICAL NUKE — ${kn}`, 3, `${streak} KILLS WITHOUT DYING · EXTRA FRAG`);
         this.announcer.nuke(kn, mine, streak);
       }
