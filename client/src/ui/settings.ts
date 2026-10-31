@@ -23,8 +23,8 @@ export interface SettingsDeps {
   /** Persist + load a sound pack; resolves with a status line for the note. */
   setPack: (key: string) => Promise<string>;
   packNote: () => string;
-  /** Live match in progress — a renderer switch waits for the next load then. */
-  inMatch?: () => boolean;
+  /** Live match in progress — a renderer switch must not reload it away. */
+  inMatch: () => boolean;
 }
 
 type Tab = "gameplay" | "audio" | "graphics" | "controls";
@@ -624,7 +624,8 @@ function render(): void {
   if (keepScroll) rows.scrollTop = keepScroll;
 }
 
-/** Backend finding dropped (WebGPU retired, WebGL2 only) — plain desc. */
+/** Description for a row (the backend-finding suffix is gone: the Renderer row
+ *  is a plain pref again). */
 function descOf(row: Exclude<Row, { group: string }>): string {
   return row.desc;
 }
@@ -706,7 +707,7 @@ function buildRow(row: Exclude<Row, { group: string }>, describe: (t: string, d:
         // away, but never pull the rug out of a live match.
         if (row.key === "renderer" && changed) {
           uiSfx("select");
-          if (deps?.inMatch?.()) {
+          if (deps?.inMatch()) {
             if (!note) {
               note = h("small", "set-note");
               note.style.fontSize = "var(--fs-micro)";

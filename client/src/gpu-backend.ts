@@ -210,9 +210,9 @@ export async function createRenderer(
       // the backend's native reversed float depth = depth-precision replacement;
       // the split viewmodel pass (WebGL workaround for 24-bit Z without
       // EXT_clip_control) is obsolete on WebGPU.
-      // NoToneMapping: the CINEMATIC grade node maps itself (ACES+sRGB, 1:1
-      // from cinematic.ts); RenderOutput only contributes sRGB — no double
-      // tonemapping (see webgpu-pipeline.ts).
+      // NoToneMapping here: the TSL chain ends in its own renderOutput node,
+      // which applies ACES-Filmic + sRGB exactly once. Leaving the renderer on
+      // a tone map as well would map twice.
       const reversed = await wantReversedDepth();
       if (!reversed) console.info("[gpu] WebGPU without reversed depth (software adapter or ?reversed=0) — standard depth.");
       const renderer = new WebGPURenderer({ canvas, antialias: false, reversedDepthBuffer: reversed, powerPreference: "high-performance" });

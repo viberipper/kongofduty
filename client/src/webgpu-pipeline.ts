@@ -69,6 +69,8 @@ import * as THREE from "three";
  *  WebGPURenderer is not a THREE.WebGLRenderer, see gpu-backend.ts). */
 export interface WebgpuCanvasRenderer {
   getDrawingBufferSize(target: THREE.Vector2): THREE.Vector2;
+  /** Read so the grade can cancel it: renderOutput applies it again. */
+  toneMappingExposure: number;
 }
 /** Live switches of the pipeline — one snapshot per setGraphicsOptions(). */
 export interface WebgpuPrefsSnapshot {
@@ -123,12 +125,10 @@ interface TslApi {
   float(v: number): TslNode;
   If(cond: unknown, then: () => void): unknown;
   and(a: unknown, b: unknown): unknown;
-  or(a: unknown, b: unknown): unknown;
   dot(a: unknown, b: unknown): TslNode;
   mix(a: unknown, b: unknown, t: unknown): TslNode;
   min(a: unknown, b: unknown): TslNode;
   max(a: unknown, b: unknown): TslNode;
-  pow(a: unknown, b: unknown): TslNode;
   fract(v: unknown): TslNode;
   sin(v: unknown): TslNode;
   smoothstep(e0: number, e1: number, x: unknown): TslNode;
@@ -300,8 +300,9 @@ export class WebgpuPipeline {
     ]);
     const api = tsl as unknown as TslApi;
     const pipe = new webgpu.RenderPipeline(renderer as unknown, undefined);
-    // Manual output control (see file header): the grade maps itself,
-    // RenderOutput only contributes the sRGB conversion.
+    // Manual output control (see file header): the chain's own renderOutput
+    // node does the tone map + sRGB, so the pipeline must not apply a second
+    // transform on top of it.
     pipe.outputColorTransform = false;
     const self = new WebgpuPipeline(renderer, scene, camera, pipe);
     self.api = api;
@@ -451,15 +452,28 @@ export class WebgpuPipeline {
       col.assign(col.add(T.vec3(gr, gr, gr)));
 
       // --- TONE MAP + ENCODE: three's own ACES-Filmic and sRGB transform.
-      // What used to stand here was a 1:1 TSL port of cinematic.ts' RRT/ODT
+      // What used to stand here was a TSL port of cinematic.ts' RRT/ODT
       // matrices + hand-rolled sRGB knee + the mid-band depth S-curve. That
       // doubled the surface exposed to TSL changes, and on r187 it rendered
       // every lit surface blown out (walls pure white) while the same scene
       // without the grade was correct. renderOutput() is the upstream-tested
       // path: exposure, ACES and the sRGB knee in one node.
-      // Exposure: the map basis x slider still works, pre-divided by the
-      // renderer's own 1.12 so the two do not multiply twice.
-      const exposed = col.mul(uExposure.div(1.12));
+      //
+      // Look delta vs the WebGL pass, on purpose: no mid-band depth S-curve
+      // (cinematic.ts:100-106) and three's ACES fit instead of RRT/ODT. Both
+      // are signed-look only on WebGL; reaching for them again means porting
+      // them into a node, which is what just broke.
+      //
+      // Exposure: map basis x slider still works. renderOutput applies the
+      // RENDERER's toneMappingExposure, so the grade cancels exactly that
+      // value — no literal to keep in sync with gpu-backend.ts.
+      const exDiv = this.renderer.toneMappingExposure || 1;
+      // Safety net before the tone map: cinematic.ts range-guards and clamps
+      // to 64 because RRTAndODTFit's quadratic overflows past ~250 (and three's
+      // fit has no guard at all). Cheap, and it keeps a NaN from a future HDR
+      // spike out of the encode.
+      const safe = T.min(T.max(col, T.vec3(0, 0, 0)), T.vec3(64, 64, 64));
+      const exposed = safe.mul(uExposure.div(exDiv));
       return T.renderOutput(T.vec4(exposed, 1), this.lib.ACESFilmicToneMapping, this.lib.SRGBColorSpace);
     });
     return grade() as TslNode;
@@ -557,13 +571,14 @@ export class WebgpuPipeline {
       this.afterNode = null;
     }
 
-    // Grade (does tonemapping+sRGB itself — 1:1 from cinematic.ts, like the
-    // WebGL grade pass, which also writes its sRGB directly) → [FXAA].
-    // IMPORTANT: NO renderOutput() around the grade — RenderOutputNode would
-    // convert working→sRGB AGAIN (double encoding = washed out/bright,
-    // measured). The grade is display-ready; FXAA gets sRGB input, as
-    // it needs it. Only the ?nograde debug path uses renderOutput (there
-    // it is the only sRGB conversion).
+    // Grade (extras in linear HDR, then one renderOutput with ACES-Filmic and
+    // the sRGB encode — see the file header; the tone map is three's, not a
+    // hand port) → [FXAA].
+    // Exactly ONE encoder in the chain: outputColorTransform is off (create()),
+    // so neither the pipeline nor the backend converts on top of this node.
+    // FXAA gets display-referred sRGB input, which is what its edge detector
+    // is built for. Only the ?nograde debug path encodes instead of the grade
+    // (there it is the only sRGB conversion).
     // convertToTexture: the grade taps its predecessor at 9+ places — an
     // operator result (mul/add) is not a texture and cannot be sampled with
     // free UVs, so the chain is materialised once here
