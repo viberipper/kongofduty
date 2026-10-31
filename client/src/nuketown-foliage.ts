@@ -1329,9 +1329,10 @@ function clumpInstances(plants: Plant[], map: THREE.Texture, cutoutAA: boolean, 
         "#include <color_fragment>",
         `#if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )
           // blossoms (bright, near-neutral texels) take the instance colour; leaves keep the atlas green
+          // r187 note: vColor is a vec4 in the fragment shader now, so swizzle .rgb (mix/vec3 math rejects a vec4)
           float ntMx = max( diffuseColor.r, max( diffuseColor.g, diffuseColor.b ) ), ntMn = min( diffuseColor.r, min( diffuseColor.g, diffuseColor.b ) );
           float ntPet = vNtTint * smoothstep( 0.45, 0.7, ntMx ) * ( 1.0 - smoothstep( 0.08, 0.2, ntMx - ntMn ) );
-          diffuseColor.rgb = mix( diffuseColor.rgb * mix( vec3( 1.0 ), vColor, 1.0 - vNtTint ), diffuseColor.rgb * vColor * 1.15, ntPet );
+          diffuseColor.rgb = mix( diffuseColor.rgb * mix( vec3( 1.0 ), vColor.rgb, 1.0 - vNtTint ), diffuseColor.rgb * vColor.rgb * 1.15, ntPet );
         #endif
         // root-to-tip AO: the base of a clump sits in its own shade
         diffuseColor.rgb *= mix( 0.45, 1.0, smoothstep( 0.0, 0.45, vNtH ) );`,

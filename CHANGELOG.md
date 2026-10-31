@@ -92,6 +92,55 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
   strips bidi/zero-width controls so a field cannot forge report lines
   (Pending commit — hash follows on commit.).
 
+- `fix(shaders): Nuketown plant clumps compile under three r187` — r187 made
+  the fragment `vColor` always a `vec4` (the `nt_plant_clump_fx`
+  `onBeforeCompile` in `client/src/nuketown-foliage.ts` still fed it whole
+  into `vec3` `mix`/multiply, so the program failed validation with `'mix' :
+  no matching overloaded function found` and every draw logged
+  `useProgram: program not valid`); the line now swizzles `vColor.rgb`,
+  which is valid for both `vec3` and `vec4`, with a comment so it is not
+  "simplified" back — audited every other `vColor` use in `client/src`
+  (foliage flowers, `nuketown-specs.ts` ground/decal tints) and all of them
+  already swizzle `.r/.g/.b/.rgb`, so no other site needed a change
+  (Pending commit — hash follows on commit.).
+
+- `fix(shadows): PCFSoft gone on the WebGL2 path too` — `gpu-backend.ts`
+  still set `THREE.PCFSoftShadowMap` on WebGL2, which r187 removed for both
+  backends (the WebGPU path already used `PCFShadowMap`); it now names `PCF`
+  directly, which is what the old type silently fell back to (a 5-tap
+  Vogel-disk `sampler2DShadow` sample with `radius = shadowRadius *
+  texelSize` per the vendored `shadowmap_pars_fragment`) — only now without
+  the `PCFSoftShadowMap has been removed` warning (Pending commit — hash
+  follows on commit.).
+
+- `fix(shadows): penumbra clamp on both backends` — the directional-light
+  `shadow.radius <= 1.6` clamp in `game.ts` only ran on WebGPU, but both
+  backends run the same PCF kernel since r187 removed PCFSoft, while every
+  map's radius was tuned against the old wider kernel (ares 1.5, nuketown
+  2.0, jungle 3.1, dust2 from its env data); the clamp now applies
+  unconditionally (still cheap and idempotent via `Math.min`), and no map's
+  authored radius was changed at its source (Pending commit — hash follows
+  on commit.).
+
+- `fix(boot): no more toNonIndexed warnings on Nuketown` — `sageGeometry`
+  and `boulderGeometry` in `client/src/nuketown-backdrop.ts` called
+  `toNonIndexed()` on `IcosahedronGeometry`, which is already non-indexed
+  (~32 warnings per boot); all three sites now guard with `geo.index ?
+  geo.toNonIndexed() : geo` like the rest of the repo, passing the freshly
+  created original through `paint()` safely — the indexed `CylinderGeometry`
+  stems still convert (Pending commit — hash follows on commit.).
+
+- `fix(boot): paint one frame before the bring-up` — `deploy()` in
+  `client/src/main.ts` ran the whole audio-rig plus renderer construction
+  synchronously inside the PLAY / QUICK PLAY click task (~0.7 s), so the
+  loading card never painted and Chrome flagged `'click' handler took
+  696ms`; it now awaits one painted frame (`nextPaint`: rAF first, a 100 ms
+  timer fallback so a hidden tab never stalls boot) after the card is up and
+  before `bootStage("AUDIO")` — the deferred-audio path is untouched
+  (audio2 keeps its `onFirstGesture` fallback, pointer lock comes from
+  separate canvas clicks, not `deploy`) (Pending commit — hash follows on
+  commit.).
+
 ### Added
 
 - `feat(bots): tactical corner lean` — bots lean around cover with Q/E

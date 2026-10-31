@@ -858,19 +858,20 @@ export class Game {
         : import("./jungle-world").then(m => m.buildJungleWorld(this.renderer));
     const [loadedWorld, [rig, , effects]] = await Promise.all([world, assets]);
     this.world = loadedWorld;
-    // WEBGPU SHADOW TUNING. The renderer only has PCF here (PCFSoft was removed
-    // upstream: "PCF is soft too"), while every map's bias/radius pair was tuned
-    // against PCFSoft's much wider kernel. With PCF the same radius spreads the
-    // taps far enough to read as grain - a speckled, blotchy penumbra that also
-    // darkens contact areas. Tightening the kernel on this backend keeps the
-    // WebGL look untouched.
-    if (this.backend === "webgpu") {
-      this.world.scene.traverse((o) => {
-        const l = o as THREE.DirectionalLight;
-        if (!l.isDirectionalLight || !l.castShadow) return;
-        l.shadow.radius = Math.min(l.shadow.radius, 1.6);
-      });
-    }
+    // SHADOW PENUMBRA, BOTH BACKENDS. r187 removed PCFSoft entirely, so WebGL
+    // and WebGPU run the same PCF kernel now (a 5-tap Vogel-disk
+    // sampler2DShadow sample) — while every map's bias/radius pair was tuned
+    // against PCFSoft's much wider kernel (authored: ares 1.5, nuketown 2.0,
+    // jungle 3.1, dust2 from its env data). With PCF the same radius spreads
+    // the taps far enough to read as grain - a speckled, blotchy penumbra
+    // that also darkens contact areas. Tightening the kernel keeps the look
+    // the maps were authored for. Cheap and idempotent (Math.min), and the
+    // authored per-map values at their sources stay untouched.
+    this.world.scene.traverse((o) => {
+      const l = o as THREE.DirectionalLight;
+      if (!l.isDirectionalLight || !l.castShadow) return;
+      l.shadow.radius = Math.min(l.shadow.radius, 1.6);
+    });
     // feel stream: Nuketown live events — clock tower = match clock, live POPULATION sign, the nuke at match end (client/src/nuketown-live.ts)
     if (MAP.id === "nuketown") await (await import("./nuketown-live")).attachNuketownLive(this);
     // November-December set dressing (client/src/xmas.ts) — ?xmas=1 / ?xmas=0 force it.

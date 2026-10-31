@@ -238,7 +238,11 @@ export async function createRenderer(
   renderer.toneMappingExposure = 1.12;
   // Hardware default; game.init() switches off per software tier if needed.
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // r187 removed PCFSoft for BOTH backends — PCF is the soft one now (a 5-tap
+  // Vogel-disk sampler2DShadow sample with radius = shadowRadius * texelSize,
+  // per the vendored shadowmap_pars_fragment). The old PCFSoft type only fell
+  // back to exactly this, with a console warning; name PCF directly.
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   return { renderer, backend: "webgl", note: `WebGL2 active (${note})` };
 }
 

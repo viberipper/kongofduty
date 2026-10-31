@@ -415,6 +415,23 @@ function renameCallsign(): void {
 
 // ---------------------------------------------------------------- deploy
 
+/**
+ * ONE PAINTED FRAME between the loading card and the bring-up.
+ * The audio rig builds its whole Web Audio graph synchronously (~0.7 s
+ * measured), and the renderer is created right behind it; running both in
+ * the click task froze the menu with the card still unpainted, which is
+ * what Chrome reported as "'click' handler took 696ms". A frame here means
+ * the card is on screen before that work starts. rAF first (the compositor
+ * really has painted), a 100 ms timer as the fallback for a hidden/occluded
+ * tab where rAF never fires — boot must not depend on being visible.
+ */
+const nextPaint = (): Promise<void> => new Promise<void>((resolve) => {
+  let done = false;
+  const fin = (): void => { if (!done) { done = true; resolve(); } };
+  requestAnimationFrame(() => setTimeout(fin, 0));
+  setTimeout(fin, 100);
+});
+
 async function deploy(online: boolean, phase: MatchPhase | null = null, spectate = false): Promise<void> {
   state.online = online;
   showLoading(PAGE_MAP, state.mode, state.kind);
@@ -428,6 +445,8 @@ async function deploy(online: boolean, phase: MatchPhase | null = null, spectate
   if (phase === "pregame") selectMenuMusic(PAGE_MAP);
   else stopMenuMusic();
   try {
+    // Let the loading card paint before the synchronous bring-up behind it.
+    await nextPaint();
     bootStage("AUDIO");
     await Promise.all([game.init(), game.audio.boot()]);
     game.audio.setMix?.(prefs().effects, prefs().ui, prefs().ambience);

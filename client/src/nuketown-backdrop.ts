@@ -347,7 +347,7 @@ function sageGeometry(seed: number, lumps: number): THREE.BufferGeometry {
     stem.translate(0, 0.21, 0);
     stem.rotateZ(Math.cos(a) * 0.55);
     stem.rotateX(Math.sin(a) * 0.55);
-    parts.push(paint(stem.toNonIndexed(), stemC, 0.25));
+    parts.push(paint(stem.index ? stem.toNonIndexed() : stem, stemC, 0.25));
   }
   for (let k = 0; k < lumps; k++) {
     const r = 0.2 + 0.14 * rnd(k, seed);
@@ -361,7 +361,7 @@ function sageGeometry(seed: number, lumps: number): THREE.BufferGeometry {
     const rad = k === 0 ? 0.05 : 0.2 + 0.24 * rnd(k, seed + 2);
     lump.translate(Math.cos(ang) * rad, 0.3 + 0.32 * rnd(k, seed + 3) + (k === 0 ? 0.14 : 0) - rad * 0.25, Math.sin(ang) * rad);
     const c = leafC.clone().multiplyScalar(0.84 + 0.28 * rnd(k, seed + 4));
-    parts.push(paint(lump.toNonIndexed(), c, 0.45));
+    parts.push(paint(lump.index ? lump.toNonIndexed() : lump, c, 0.45));
   }
   const n = parts.reduce((s, g) => s + g.attributes.position!.count, 0);
   const pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
@@ -387,7 +387,7 @@ function boulderGeometry(seed: number): THREE.BufferGeometry {
     v.multiplyScalar(0.7 + 0.45 * vnoise(v.x * 1.9 + seed, v.z * 1.9 + v.y * 1.3 - seed));
     p.setXYZ(i, v.x, v.y * 0.62 + 0.3, v.z);
   }
-  const g2 = geo.toNonIndexed();
+  const g2 = geo.index ? geo.toNonIndexed() : geo;
   const q = g2.attributes.position!;
   const cols: number[] = [];
   for (let i = 0; i < q.count; i++) {
