@@ -19,6 +19,21 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ### Fixed
 
+- `fix(maps): hard reload crashes on a remembered JSON map` — selecting
+  Nuketown (or dust2) in the menu and hard-reloading at a bare URL died with
+  `map "nuketown" has no data loaded` before the menu appeared. The module-level
+  preload in `shared/maps/index.ts` resolved the map through
+  `readMapPref()` → `readMenuMap()` → `MENU_LS_KEY`, but both localStorage keys
+  were declared ~120 lines *below* the `await`: the first, preloading
+  resolution read them inside their temporal dead zone, the `ReferenceError`
+  was swallowed by the private-mode `try`, and the preload fell back to the
+  default (code-only) map. `activeMap()` then resolved the map a second time —
+  constants initialised by now — picked up the remembered card and found no
+  data for it. The preload now sits at the foot of the module and the keys are
+  declared above it, so the module body is order-independent; verified A/B on
+  the built client at a URL without `?map=` (pre-fix throws, post-fix boots
+  Nuketown and dust2 with an empty console) (`fb087ae`).
+
 - `fix(lobby): keep showing the last ping while a seat re-measures` — a seat's
   ping resets to 0 whenever the server builds a new seat for that player
   (reconnect, host move to the other team or the bench, promotion), so the
