@@ -290,10 +290,33 @@ export function tslQuadFamily(kind, u) {
   const iM = attribute("iM", "vec4");
   const iX = attribute("iX", "vec4");
 
-  const vUv = varying(vec2(0), "qUv");
-  const vN = varying(vec2(0), "qN");
-  const vC = varying(vec4(0), "qC");
-  const vA = varying(vec3(0), "qA");
+  // VARYINGS AS EXPRESSIONS. r187 no longer lets a Fn used as positionNode
+  // carry varying writes into the fragment stage ("build before() nodes only in
+  // the setup stage"), so the old `.assign()` pattern left every varying at its
+  // initial value: the decal frag saw a constant uv, its `r > 1` discard then
+  // swallowed the whole quad (invisible, or black where the blend still wrote),
+  // and smoke sampled a single texel (the white squares). Everything the
+  // fragment NEEDS is therefore an expression TSL emits itself.
+  const c0 = positionLocal.xy;
+  const modeV = iM.y;
+  const ang0 = iM.z.add(iM.w.mul(U.uTime.sub(iP.w)));
+  const ca0 = cos(ang0);
+  const sa0 = sin(ang0);
+  const rot0 = vec2(c0.x.mul(ca0).sub(c0.y.mul(sa0)), c0.x.mul(sa0).add(c0.y.mul(ca0)));
+  /** BILL (0) and PLANE (>= 5) use the raw corner, the strip modes the remap. */
+  const useCorner = modeV.lessThan(0.5).or(modeV.greaterThanEqual(4.5));
+
+  const vUv = varying(useCorner.select(c0, vec2(c0.x.mul(0.5).add(0.5), c0.y)), "qUv");
+  const vN = varying(useCorner.select(rot0, c0), "qN");
+  const vC = varying(iC, "qC");
+  const vA = varying(
+    vec3(
+      U.uTime.sub(iP.w).div(iV.w.max(0.0001)),
+      tslHash11(iP.w.mul(7.31).add(iP.x.mul(12.9898).add(iM.x.mul(1.618)))),
+      iM.x,
+    ),
+    "qA",
+  );
   const vX = varying(vec4(0), "qX");
   const vW = varying(float(1), "qW");
   const vFog = varying(float(0), "qFog");
@@ -331,8 +354,6 @@ export function tslQuadFamily(kind, u) {
     });
     vW.assign(alive);
     vX.assign(vec4(0, 0, iX.z, 0));
-    vC.assign(iC);
-    vA.assign(vec3(k, tslHash11(iP.w.mul(7.31).add(iP.x.mul(12.9898).add(iM.x.mul(1.618)))), iM.x));
     If(mode.lessThan(1.5), () => {
       const drag = iS.z;
       const e = exp(drag.mul(age).mul(-1));
@@ -349,8 +370,6 @@ export function tslQuadFamily(kind, u) {
         const sa = sin(a);
         const r = vec2(c.x.mul(ca).sub(c.y.mul(sa)), c.x.mul(sa).add(c.y.mul(ca)));
         wp.assign(p2.add(camR.mul(r.x).add(camU.mul(r.y)).mul(size).mul(0.5)));
-        vUv.assign(c);
-        vN.assign(r);
       }).Else(() => {
         const vel = iV.xyz.mul(e);
         const vely = vel.y.sub(iS.w.mul(age));
@@ -367,8 +386,6 @@ export function tslQuadFamily(kind, u) {
         });
         const len = wdt.add(sp.mul(iX.x));
         wp.assign(p2.add(axn.mul(c.x.mul(0.5).sub(0.5)).mul(len)).add(sd.mul(c.y).mul(wdt).mul(0.5)));
-        vUv.assign(vec2(c.x.mul(0.5).add(0.5), c.y));
-        vN.assign(c);
         vX.assign(vec4(len.div(wdt), wdt, iX.z, toC.length()));
       });
     })
@@ -378,8 +395,6 @@ export function tslQuadFamily(kind, u) {
         const sdisc = sideOf(ax, toC, camR);
         const w = size.mul(iX.y);
         wp.assign(iP.xyz.add(ax.mul(c.x.mul(0.5).add(0.5)).mul(size)).add(sdisc.mul(c.y).mul(w).mul(0.5)));
-        vUv.assign(vec2(c.x.mul(0.5).add(0.5), c.y));
-        vN.assign(c);
       })
       .ElseIf(mode.lessThan(4.5), () => {
         const dir0 = iV.xyz;
@@ -404,8 +419,6 @@ export function tslQuadFamily(kind, u) {
           w.assign(wmin2);
         });
         wp.assign(mid.add(sdisc.mul(c.y).mul(w).mul(0.5)));
-        vUv.assign(vec2(c.x.mul(0.5).add(0.5), c.y));
-        vN.assign(c);
         vX.assign(vec4(h.sub(t), w, iX.z, dc));
       })
       .Else(() => {
@@ -427,8 +440,6 @@ export function tslQuadFamily(kind, u) {
         const tv = w2.sub(cameraPosition);
         const tl = tv.length();
         wp.assign(cameraPosition.add(tv.mul(max(float(0.05), float(1).sub(iX.x.add(dc.mul(0.002))).div(max(tl, 0.001))))));
-        vUv.assign(c);
-        vN.assign(r);
         vX.assign(vec4(n, 0));
       });
     If(mode.lessThan(1.5), () => {
@@ -443,7 +454,6 @@ export function tslQuadFamily(kind, u) {
     If(alive.lessThan(0.5), () => {
       wp.assign(iP.xyz);
       vW.assign(float(0));
-      vA.assign(vec3(0, 0, iM.x));
     });
     return wp;
   });
@@ -465,7 +475,12 @@ export function tslQuadFamily(kind, u) {
     blendEquation: THREE.AddEquation,
     ...(kind === "decal"
       ? {
-          blendSrc: THREE.DstColorFactor,
+          // MODULATE: dst * src, one pass. The GLSL path uses DstColor/SrcColor
+          // (dst*src + src*dst); the WebGPU backend drops a draw that carries
+          // DstColor as a blend factor (no error, the mesh simply never
+          // appears), so the equivalent Zero/SrcColor pair is used here and the
+          // fragment emits the multiplier itself (tslDecalFrag).
+          blendSrc: THREE.ZeroFactor,
           blendDst: THREE.SrcColorFactor,
           blendSrcAlpha: THREE.ZeroFactor,
           blendDstAlpha: THREE.OneFactor,
@@ -762,6 +777,10 @@ function tslDecalFrag(V) {
     m.assign(m.greaterThanEqual(0).select(m, vec3(1)));
     m.assign(m.lessThanEqual(4).select(m, vec3(1)));
     m.sub(1).length().lessThan(0.006).discard();
-    return vec4(m.mul(0.5), 1);
+    // MODULATE 1x: the material blends Zero/SrcColor (dst * src), so the
+    // multiplier IS the output. The GLSL path emitted m*0.5 and blended
+    // DstColor/SrcColor (dst*src + src*dst = 2*src*dst) — the same product,
+    // but DstColor as a blend factor is what WebGPU drops here.
+    return vec4(m, 1);
   })();
 }
