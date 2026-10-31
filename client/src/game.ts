@@ -805,6 +805,11 @@ export class Game {
     // world builders load it themselves (module cache: one chunk).
     // WebGL pays nothing (no static import anywhere).
     const TSL = this.backend === "webgpu" ? await import("./tsl-materials") : null;
+    // The astronaut suit is a shader patch on the body skin; on WebGPU it has to
+    // come from TSL (onBeforeCompile is ignored there), so hand the module over
+    // before any actor is built.
+    if (TSL) await import("./astronaut").then((m) => m.setAstronautTsl(TSL)).catch(() => undefined);
+    else void import("./astronaut").then((m) => m.setAstronautTsl(null)).catch(() => undefined);
     // THE WORLD-BUILDER DISPATCH. Jungle Shipment is the shipping map; ?classic
     // keeps the original yard as a dev-only reference (1200+ unmerged draw calls
     // — never ships).

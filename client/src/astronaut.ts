@@ -188,7 +188,32 @@ function suitAttributes(mesh: THREE.SkinnedMesh): void {
   suitAttrCache.set(geo, true);
 }
 
-function dressMaterial(mat: THREE.MeshStandardMaterial, teamU: { value: THREE.Color }): void {
+type TslMod = typeof import("./tsl-materials");
+/** WebGPU suit skin (null on the WebGL path: the GLSL patch is used there). */
+let suitTsl: TslMod | null = null;
+
+/** Hand the TSL module in once (game.ts owns the WebGPU import). */
+export function setAstronautTsl(m: TslMod | null): void {
+  suitTsl = m;
+}
+
+function dressMaterial(
+  mat: THREE.MeshStandardMaterial,
+  teamU: { value: THREE.Color },
+  teamNodes: { value: THREE.Color }[],
+): THREE.Material {
+  // WebGPU: onBeforeCompile below is GLSL-only. Node materials ignore it, so the
+  // whole suit paint silently vanished and the actors looked like bare Kong
+  // bodies wearing a helmet. The node port applies the same maths.
+  if (suitTsl) {
+    const made = suitTsl.tslSuitSkin(mat, teamU.value);
+    const out = made.material;
+    out.name = mat.name;
+    // Live team colour: the rig's setAlly() copies into the holder, so register
+    // the node's own uniform and mirror it there.
+    teamNodes.push(made.team);
+    return out;
+  }
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uSuitTeam = teamU;
     sh.vertexShader = sh.vertexShader
@@ -208,6 +233,7 @@ function dressMaterial(mat: THREE.MeshStandardMaterial, teamU: { value: THREE.Co
   };
   mat.customProgramCacheKey = () => "ares-suit-skin-v1";
   mat.needsUpdate = true;
+  return mat;
 }
 
 // ---------------------------------------------------------------- hard parts
@@ -225,13 +251,19 @@ export function attachAstronaut(root: THREE.Object3D, bones: Record<string, THRE
   refreshTeamMats();
   const [allyCol, enemyCol] = suitTeamColors();
   const teamU = { value: (ally ? allyCol : enemyCol).clone() };
+  /** Node-path team uniforms (WebGPU suit skin) — one per dressed material. */
+  const suitTeamNodes: { value: THREE.Color }[] = [];
   // 1) the suit skin, on this actor's own (already cloned) materials
   root.traverse((o) => {
     const m = o as THREE.SkinnedMesh;
     if (!m.isSkinnedMesh || !m.skeleton) return;
     suitAttributes(m);
     const mats = Array.isArray(m.material) ? m.material : [m.material];
-    for (const mat of mats) if (mat instanceof THREE.MeshStandardMaterial) dressMaterial(mat, teamU);
+    if (Array.isArray(m.material)) {
+      m.material = m.material.map((x) => (x instanceof THREE.MeshStandardMaterial ? dressMaterial(x, teamU, suitTeamNodes) : x));
+    } else if (m.material instanceof THREE.MeshStandardMaterial) {
+      m.material = dressMaterial(m.material, teamU, suitTeamNodes);
+    }
   });
   // 2) hard parts, built once per source geometry
   let key = "";
@@ -331,6 +363,7 @@ export function attachAstronaut(root: THREE.Object3D, bones: Record<string, THRE
     refreshTeamMats();
     const [allyCol, enemyCol] = suitTeamColors();
     teamU.value.copy(ally ? allyCol : enemyCol);
+    for (const u of suitTeamNodes) u.value.copy(teamU.value);
     for (const panel of panels) panel.material = teams[ally ? 0 : 1]!;
   } };
   rig.setAlly(ally);

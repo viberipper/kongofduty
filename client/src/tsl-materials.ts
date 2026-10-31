@@ -57,12 +57,57 @@ import {
   cameraViewMatrix,
   instanceIndex,
 } from "three/tsl";
-import { MeshBasicNodeMaterial } from "three/webgpu";
+import { MeshBasicNodeMaterial, MeshStandardNodeMaterial } from "three/webgpu";
 import type { FxUniforms } from "./weapons/fx/gpu";
 
 export interface TslMaterial {
   material: THREE.Material;
 }
+
+// ---------------------------------------------------------------------------
+// ASTRONAUT SUIT SKIN (astronaut.ts dressMaterial, GLSL onBeforeCompile)
+//
+// The suit is not a separate mesh: it is PAINTED onto the actor's body skin by a
+// shader patch that reads suitCol/suitMask/suitTeam per vertex. onBeforeCompile
+// is GLSL-only and node materials ignore it, so on WebGPU the actors rendered as
+// bare Kong bodies with the helmet and gauntlets floating on top. This is the
+// same maths as a node material.
+export function tslSuitSkin(src: THREE.MeshStandardMaterial, team: THREE.Color): TslMaterial & { team: { value: THREE.Color } } {
+  const suitCol = attribute("suitCol", "vec3");
+  const suitMask = attribute("suitMask", "float");
+  const suitTeam = attribute("suitTeam", "float");
+  const uTeam = uniform(team);
+
+  const mat = new MeshStandardNodeMaterial({
+    color: src.color,
+    metalness: src.metalness,
+    roughness: src.roughness,
+    map: src.map ?? null,
+    normalMap: src.normalMap ?? null,
+    envMapIntensity: src.envMapIntensity,
+    emissive: src.emissive,
+    emissiveIntensity: src.emissiveIntensity,
+    side: src.side,
+    transparent: src.transparent,
+    opacity: src.opacity,
+    alphaTest: src.alphaTest,
+  });
+  // The base the patch starts from: the body's own texture (or flat colour),
+  // exactly what <map_fragment> leaves in diffuseColor.
+  const base: TslNodeLike = src.map
+    ? (texture(src.map, uv()) as unknown as { rgb: TslNodeLike }).rgb.mul(vec3(src.color.r, src.color.g, src.color.b))
+    : vec3(src.color.r, src.color.g, src.color.b);
+  // Paint's light/dark pattern kept as soft fabric folds (GLSL: normalised
+  // luminance of the map). One luminance for the whole paint, as before.
+  const lum = dot(base, vec3(0.3, 0.59, 0.11));
+  const suitC = mix(suitCol, uTeam, suitTeam);
+  const suit = suitC.mul(base).mul(float(0.9).add(clamp(lum.mul(1.6), 0, 1).mul(0.16)));
+  mat.colorNode = mix(base, suit, suitMask) as never;
+  mat.roughnessNode = mix(float(src.roughness), float(0.82), suitMask) as never;
+  return { material: mat as unknown as THREE.Material, team: uTeam as unknown as { value: THREE.Color } };
+}
+
+type TslNodeLike = ReturnType<typeof vec3>;
 
 // ---------------------------------------------------------------------------
 // Shared building blocks (1:1 from the GLSL COMMON blocks, smoothstep with
