@@ -195,6 +195,7 @@ let suitTsl: TslMod | null = null;
 /** Hand the TSL module in once (game.ts owns the WebGPU import). */
 export function setAstronautTsl(m: TslMod | null): void {
   suitTsl = m;
+  console.info(`[astronaut] suit skin: ${m ? "TSL (WebGPU)" : "GLSL patch (WebGL)"}`);
 }
 
 function dressMaterial(
@@ -202,6 +203,7 @@ function dressMaterial(
   teamU: { value: THREE.Color },
   teamNodes: { value: THREE.Color }[],
 ): THREE.Material {
+  console.info(`[astronaut] dressing "${mat.name || mat.type}" via ${suitTsl ? "TSL" : "GLSL"}`);
   // WebGPU: onBeforeCompile below is GLSL-only. Node materials ignore it, so the
   // whole suit paint silently vanished and the actors looked like bare Kong
   // bodies wearing a helmet. The node port applies the same maths.
@@ -356,8 +358,7 @@ export function attachAstronaut(root: THREE.Object3D, bones: Record<string, THRE
     item.traverse((o) => { if (o.userData.evaTeam) panels.push(o as THREE.Mesh); });
     bones[bone]?.add(item);
   }
-  const rig = { setAlly(ally: boolean) {
-    // A colour-vision change repaints through here (BruiserActor.setRelation
+  const rig = { setAlly(ally: boolean) {    // A colour-vision change repaints through here (BruiserActor.setRelation
     // re-runs on prefs().colorMode), so both the fabric uniform and the shared
     // hardware materials are refreshed off teamColors() every time.
     refreshTeamMats();
