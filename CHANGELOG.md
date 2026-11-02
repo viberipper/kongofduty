@@ -17,15 +17,15 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ## Unreleased
 
+## 2026-11-02
+
 ### Fixed
 
 - `fix(maps): Katana menu card shows the scenic artwork` — the card override
   pointed at the radar PNG (the rip had no `ui/maps/katana.jpg`, but upstream
   serves one), so the menu tile and the menu backdrop showed the top-down radar
   instead of the scenic art; the card now resolves to the shipped artwork like
-  every other map (Pending commit — hash follows on commit.).
-
-## 2026-11-02
+  every other map (`e40e24f`).
 
 ### Added
 
