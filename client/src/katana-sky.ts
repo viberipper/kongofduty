@@ -1,60 +1,16 @@
-/**
- * KATANA sky rig — the authored look for the WebGL path (gradient dome,
- * mountain rings, drizzle, height mist, PMREM environment). This is NOT a
- * 1:1 port of the source scene: its baked-lightmap path (lightmaps.json plus
- * ao/gi textures, never shipped) was removed rather than stubbed, so all
- * lighting here is procedural (sun + hemisphere + a PMREM of the sky).
- */
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { assetUrl } from "./asset-base";
+
+const A = (p: string) => assetUrl(`/assets/katana/${p}`);
 
 export const KATANA_EXPOSURE = 0.72;
 export const KATANA_KEY_DIR = new THREE.Vector3(-0.46, 0.78, 0.42).normalize();
 
-/**
- * Shared by the WebGL rig below and the WebGPU flat fallback in
- * katana-world.ts, so the two paths cannot drift apart.
- */
-export const KATANA_BG_HEX = "#202c3a";
-export const KATANA_FOG_HEX = "#34465c";
-export const KATANA_FOG_DENSITY = 0.0042;
-export const KATANA_SUN_COLOR = 0xb9ccef;
-export const KATANA_SUN_INTENSITY = 1.3;
-export const KATANA_HEMI_SKY = 0xb8cbe4;
-export const KATANA_HEMI_GROUND = 0x354039;
-export const katanaHemiIntensity = (low: boolean): number => (low ? 1.85 : 0.72);
-
-/** Key light incl. shadow frustum — one authoring for both backends. */
-export function makeKatanaSun(low: boolean): THREE.DirectionalLight {
-  const sun = new THREE.DirectionalLight(KATANA_SUN_COLOR, KATANA_SUN_INTENSITY);
-  sun.name = "katana/cool-key";
-  sun.position.copy(KATANA_KEY_DIR).multiplyScalar(155);
-  sun.target.position.set(0, 0, 0);
-  sun.castShadow = !low;
-  sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.left = -96;
-  sun.shadow.camera.right = 96;
-  sun.shadow.camera.top = 88;
-  sun.shadow.camera.bottom = -88;
-  sun.shadow.camera.near = 24;
-  sun.shadow.camera.far = 320;
-  sun.shadow.bias = -0.00018;
-  sun.shadow.normalBias = 0.055;
-  sun.shadow.radius = 2;
-  return sun;
-}
-
-/** Sky fill — one authoring for both backends. */
-export function makeKatanaHemisphere(low: boolean): THREE.HemisphereLight {
-  const hemisphere = new THREE.HemisphereLight(KATANA_HEMI_SKY, KATANA_HEMI_GROUND, katanaHemiIntensity(low));
-  hemisphere.name = "katana/sky-fill";
-  return hemisphere;
-}
-
 const SKY_ZENITH = new THREE.Color("#172231");
 const SKY_HORIZON = new THREE.Color("#43566f");
-const SKY_LOWER = new THREE.Color(KATANA_BG_HEX);
-const FOG_COLOR = new THREE.Color(KATANA_FOG_HEX);
+const SKY_LOWER = new THREE.Color("#202c3a");
+const FOG_COLOR = new THREE.Color("#34465c");
 const MIST_COLOR = new THREE.Color("#465a6c");
 
 export type KatanaSkyRig = {
@@ -334,11 +290,73 @@ function applyMist(material: THREE.Material, uniforms: MistUniforms): void {
   material.needsUpdate = true;
 }
 
-export function buildKatanaSky(scene: THREE.Scene, renderer: THREE.WebGLRenderer, low: boolean): KatanaSkyRig {
+export type KatanaLightmap = { ao?: THREE.Texture; gi?: THREE.Texture; giScale: number };
+export type KatanaLightmapsFile = Record<string, { ao?: string; gi?: string; giScale?: number }>;
+
+export async function loadKatanaLightmaps(low: boolean): Promise<Record<string, KatanaLightmap>> {
+  if (low) return {};
+  const manifest = await fetch(A("lightmaps.json"))
+    .then((r) => (r.ok ? r.json() as Promise<KatanaLightmapsFile> : null))
+    .catch(() => null);
+  if (!manifest) return {};
+  const loader = new THREE.TextureLoader();
+  const entries = await Promise.all(Object.entries(manifest).map(async ([key, entry]) => {
+    const [ao, gi] = await Promise.all([
+      entry.ao ? loader.loadAsync(A(entry.ao)).catch(() => undefined) : Promise.resolve(undefined),
+      entry.gi ? loader.loadAsync(A(entry.gi)).catch(() => undefined) : Promise.resolve(undefined),
+    ]);
+    for (const texture of [ao, gi]) {
+      if (!texture) continue;
+      texture.channel = 1;
+      texture.flipY = false;
+    }
+    if (gi) gi.colorSpace = THREE.SRGBColorSpace;
+    return [key, { ao, gi, giScale: entry.giScale ?? 1 }] as const;
+  }));
+  return Object.fromEntries(entries);
+}
+
+export function applyKatanaLightmap(material: THREE.MeshStandardMaterial, lightmap: KatanaLightmap | undefined): void {
+  if (!lightmap || material.transparent || material.userData.ktWater) return;
+  if (lightmap.ao) {
+    material.aoMap = lightmap.ao;
+    material.aoMapIntensity = 1;
+  }
+  if (!lightmap.gi || material.userData.ktBakedFill) return;
+  material.userData.ktBakedFill = true;
+  material.lightMap = lightmap.gi;
+  material.lightMapIntensity = lightmap.giScale;
+  const previous = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    previous.call(material, shader, renderer);
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <lights_fragment_begin>", `#include <lights_fragment_begin>
+        #if defined( RE_IndirectDiffuse )
+          irradiance = vec3( 0.0 );
+        #endif`)
+      .replace("#include <lights_fragment_maps>", `#include <lights_fragment_maps>
+        #if defined( RE_IndirectDiffuse )
+          iblIrradiance = vec3( 0.0 );
+        #endif
+        #if defined( USE_ENVMAP ) && defined( RE_IndirectSpecular )
+          float ktSkyVisibility = 1.0;
+          #ifdef USE_LIGHTMAP
+            ktSkyVisibility = clamp( ( texture2D( lightMap, vLightMapUv ).a - 0.5 ) * 2.0, 0.0, 1.0 );
+          #endif
+          radiance *= ktSkyVisibility;
+          clearcoatRadiance *= ktSkyVisibility;
+        #endif`);
+  };
+  const previousKey = material.customProgramCacheKey.bind(material);
+  material.customProgramCacheKey = () => `${previousKey()}|kt-baked-fill1`;
+  material.needsUpdate = true;
+}
+
+export function buildKatanaSky(scene: THREE.Scene, renderer: THREE.WebGLRenderer, low: boolean, nightEnvironment?: THREE.Texture | null): KatanaSkyRig {
   const sky = makeSky();
   scene.add(sky);
   scene.background = SKY_LOWER.clone();
-  scene.fog = new THREE.FogExp2(FOG_COLOR, KATANA_FOG_DENSITY);
+  scene.fog = new THREE.FogExp2(FOG_COLOR, 0.0042);
 
   const mountains = [mergeMountainRings([
     makeMountainRing(326, 16, 56, 3, new THREE.Color("#28384b")),
@@ -347,32 +365,45 @@ export function buildKatanaSky(scene: THREE.Scene, renderer: THREE.WebGLRenderer
   ], [3, 2, 1])];
   scene.add(...mountains);
 
-  const sun = makeKatanaSun(low);
+  const sun = new THREE.DirectionalLight(0xb9ccef, 1.3);
+  sun.name = "katana/cool-key";
+  sun.position.copy(KATANA_KEY_DIR).multiplyScalar(155);
+  sun.target.position.set(0, 0, 0);
+  sun.castShadow = !low;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -96;
+  sun.shadow.camera.right = 96;
+  sun.shadow.camera.top = 88;
+  sun.shadow.camera.bottom = -88;
+  sun.shadow.camera.near = 24;
+  sun.shadow.camera.far = 320;
+  sun.shadow.bias = -0.00018;
+  sun.shadow.normalBias = 0.055;
+  sun.shadow.radius = 2;
   scene.add(sun, sun.target);
 
-  const hemisphere = makeKatanaHemisphere(low);
+  const hemisphere = new THREE.HemisphereLight(0xb8cbe4, 0x354039, low ? 1.85 : 0.72);
+  hemisphere.name = "katana/sky-fill";
   scene.add(hemisphere);
 
   if (!low) {
     try {
       const pmrem = new THREE.PMREMGenerator(renderer);
-      const environment = new THREE.Scene();
-      environment.add(makeSky());
-      const ground = new THREE.Mesh(
-        new THREE.SphereGeometry(300, 24, 12, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color(0.18, 0.205, 0.22), side: THREE.BackSide }),
-      );
-      environment.add(ground);
-      scene.environment = pmrem.fromScene(environment, 0.035, 0.1, 600).texture;
-      scene.environmentIntensity = 0.85;
-      // The bake reads the temp scene once — free its geometries/materials.
-      environment.traverse((o) => {
-        const mesh = o as unknown as THREE.Mesh;
-        mesh.geometry?.dispose();
-        const material = mesh.material as THREE.Material | THREE.Material[] | undefined;
-        if (Array.isArray(material)) for (const m of material) m.dispose();
-        else material?.dispose();
-      });
+      if (nightEnvironment) {
+        scene.environment = pmrem.fromEquirectangular(nightEnvironment).texture;
+        nightEnvironment.dispose();
+        scene.environmentIntensity = 0.55;
+      } else {
+        const environment = new THREE.Scene();
+        environment.add(makeSky());
+        const ground = new THREE.Mesh(
+          new THREE.SphereGeometry(300, 24, 12, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5),
+          new THREE.MeshBasicMaterial({ color: new THREE.Color(0.18, 0.205, 0.22), side: THREE.BackSide }),
+        );
+        environment.add(ground);
+        scene.environment = pmrem.fromScene(environment, 0.035, 0.1, 600).texture;
+        scene.environmentIntensity = 0.85;
+      }
       pmrem.dispose();
     } catch {
       scene.environment = null;
@@ -399,4 +430,46 @@ export function buildKatanaSky(scene: THREE.Scene, renderer: THREE.WebGLRenderer
       (rain.material as THREE.ShaderMaterial).uniforms.uTime!.value = time;
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Local addition: shared authoring for the WebGPU flat fallback in
+// katana-world.ts (no GLSL sky there), so the two paths cannot drift apart.
+// Values mirror buildKatanaSky above (SKY_LOWER / FOG_COLOR / key light).
+// ---------------------------------------------------------------------------
+
+export const KATANA_BG_HEX = "#202c3a";
+export const KATANA_FOG_HEX = "#34465c";
+export const KATANA_FOG_DENSITY = 0.0042;
+export const KATANA_SUN_COLOR = 0xb9ccef;
+export const KATANA_SUN_INTENSITY = 1.3;
+export const KATANA_HEMI_SKY = 0xb8cbe4;
+export const KATANA_HEMI_GROUND = 0x354039;
+export const katanaHemiIntensity = (low: boolean): number => (low ? 1.85 : 0.72);
+
+/** Key light incl. shadow frustum — one authoring for both backends. */
+export function makeKatanaSun(low: boolean): THREE.DirectionalLight {
+  const sun = new THREE.DirectionalLight(KATANA_SUN_COLOR, KATANA_SUN_INTENSITY);
+  sun.name = "katana/cool-key";
+  sun.position.copy(KATANA_KEY_DIR).multiplyScalar(155);
+  sun.target.position.set(0, 0, 0);
+  sun.castShadow = !low;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -96;
+  sun.shadow.camera.right = 96;
+  sun.shadow.camera.top = 88;
+  sun.shadow.camera.bottom = -88;
+  sun.shadow.camera.near = 24;
+  sun.shadow.camera.far = 320;
+  sun.shadow.bias = -0.00018;
+  sun.shadow.normalBias = 0.055;
+  sun.shadow.radius = 2;
+  return sun;
+}
+
+/** Sky fill — one authoring for both backends. */
+export function makeKatanaHemisphere(low: boolean): THREE.HemisphereLight {
+  const hemisphere = new THREE.HemisphereLight(KATANA_HEMI_SKY, KATANA_HEMI_GROUND, katanaHemiIntensity(low));
+  hemisphere.name = "katana/sky-fill";
+  return hemisphere;
 }

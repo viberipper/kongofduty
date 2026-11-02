@@ -1,0 +1,90 @@
+{
+  "cedar": {
+    "tile_m": 2.4,
+    "files": {
+      "c": "cedar_c.webp",
+      "c-low": "cedar_c-low.webp",
+      "n": "cedar_n.webp",
+      "n-low": "cedar_n-low.webp",
+      "orm": "cedar_orm.webp",
+      "orm-low": "cedar_orm-low.webp"
+    }
+  },
+  "wet_slate": {
+    "tile_m": 3.2,
+    "files": {
+      "c": "wet_slate_c.webp",
+      "c-low": "wet_slate_c-low.webp",
+      "n": "wet_slate_n.webp",
+      "n-low": "wet_slate_n-low.webp",
+      "orm": "wet_slate_orm.webp",
+      "orm-low": "wet_slate_orm-low.webp"
+    }
+  },
+  "gravel": {
+    "tile_m": 3.2,
+    "files": {
+      "c": "gravel_c.webp",
+      "c-low": "gravel_c-low.webp",
+      "n": "gravel_n.webp",
+      "n-low": "gravel_n-low.webp",
+      "orm": "gravel_orm.webp",
+      "orm-low": "gravel_orm-low.webp"
+    }
+  },
+  "stone": {
+    "tile_m": 2.8,
+    "files": {
+      "c": "stone_c.webp",
+      "c-low": "stone_c-low.webp",
+      "n": "stone_n.webp",
+      "n-low": "stone_n-low.webp",
+      "orm": "stone_orm.webp",
+      "orm-low": "stone_orm-low.webp"
+    }
+  },
+  "roof": {
+    "tile_m": 2.5,
+    "files": {
+      "c": "roof_c.webp",
+      "c-low": "roof_c-low.webp",
+      "n": "roof_n.webp",
+      "n-low": "roof_n-low.webp",
+      "orm": "roof_orm.webp",
+      "orm-low": "roof_orm-low.webp"
+    }
+  },
+  "moss": {
+    "tile_m": 1.8,
+    "files": {
+      "c": "moss_c.webp",
+      "c-low": "moss_c-low.webp",
+      "n": "moss_n.webp",
+      "n-low": "moss_n-low.webp",
+      "orm": "moss_orm.webp",
+      "orm-low": "moss_orm-low.webp"
+    }
+  },
+  "deck": {
+    "tile_m": 2.4,
+    "files": {
+      "c": "deck_c.webp",
+      "c-low": "deck_c-low.webp",
+      "n": "deck_n.webp",
+      "n-low": "deck_n-low.webp",
+      "orm": "deck_orm.webp",
+      "orm-low": "deck_orm-low.webp"
+    }
+  },
+  "soffit": {
+    "tile_m": 2.4,
+    "files": {
+      "c": "soffit_c.webp",
+      "c-low": "soffit_c-low.webp",
+      "n": "soffit_n.webp",
+      "n-low": "soffit_n-low.webp",
+      "orm": "soffit_orm.webp",
+      "orm-low": "soffit_orm-low.webp"
+    }
+  }
+}
