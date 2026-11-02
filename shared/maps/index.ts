@@ -78,9 +78,7 @@ export const MAP_OPTIONS: MapOption[] = [
   { key: "dust2", label: DUST2_NAME, blurb: "Long lanes, two sites, a middle to fight over." },
   { key: "ares", label: "ARES RELAY", blurb: "Orbital station. Corridors and a glass core." },
   { key: "nuketown", label: NUKETOWN_NAME, blurb: "Two houses, one cul-de-sac. Every window is a lane." },
-  // No ui/maps/katana.jpg still ships with the rip — the card points at the
-  // shipped radar instead of a 404 (same image the HUD minimap draws).
-  { key: "katana", label: KATANA_NAME, card: "assets/maps/katana-radar.png", blurb: "Three tiers through a mountain shrine. Up, mid, low." },
+  { key: "katana", label: KATANA_NAME, blurb: "Three tiers through a mountain shrine. Up, mid, low." },
 ];
 
 // ---------------------------------------------------------------- map data
