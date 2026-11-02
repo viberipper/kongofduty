@@ -181,6 +181,16 @@ function mergeKatanaShadowProxies(group: THREE.Group): void {
 }
 
 function applyAtlasLightmapScale(material: THREE.MeshStandardMaterial): void {
+  // r187-verified (Nov 2026, against vendored three.module.js): every anchor
+  // below is stable. The #include names exist, and the ShaderChunk substrings
+  // ("lightMapTexel.rgb * lightMapIntensity", the aoMap sample,
+  // "aoMapIntensity") are unchanged. The "irradiance = vec3( 0.0 );" /
+  // "iblIrradiance = vec3( 0.0 );" / "radiance *= ktSkyVisibility;" targets are
+  // Katana's OWN lines injected by applyKatanaLightmap (which always runs first
+  // via previous.call), not three chunk text — no upstream chunk rename or
+  // move (e.g. into lights_fragment_begin) can silently break them. No
+  // r170-era workaround in this chain (cf. depth-precision.ts): nothing to
+  // remove or modernise.
   const previous = material.onBeforeCompile;
   material.onBeforeCompile = (shader, renderer) => {
     previous.call(material, shader, renderer);
@@ -220,6 +230,13 @@ export async function buildKatanaWorld(renderer: AnyRenderer): Promise<WorldApi>
   // patches, PMREM) — fall back to a flat background + the same fog and key
   // light, so the map stays playable. game.ts keeps the neutral basis
   // exposure (1.12) on this path; the WebGL path is the authored look.
+  // DELIBERATE (r187 review, Nov 2026): no TSL port this round, unlike
+  // ares-world.ts (`useTsl()` + tsl-materials.ts). A Katana port would have to
+  // cover the gradient/cloud sky, the mountain canopy patch, the height mist,
+  // the wood deck/soffit blend, the wet/puddle/paper surface patch, the
+  // baked-fill + atlas-scale lightmap gating and the drizzle points — all of
+  // it onBeforeCompile/ShaderMaterial work with no node mapping. The flat
+  // fallback stays until that port lands.
   if (isWebGpuRenderer(renderer)) return buildKatanaWebGpuFallback(renderer);
   const gl = renderer as THREE.WebGLRenderer;
   const low = isSoftwareGL(renderer);

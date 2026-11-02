@@ -317,6 +317,9 @@ export async function loadKatanaLightmaps(low: boolean): Promise<Record<string, 
 }
 
 export function applyKatanaLightmap(material: THREE.MeshStandardMaterial, lightmap: KatanaLightmap | undefined): void {
+  // r187-verified (Nov 2026): the #include <lights_fragment_begin> /
+  // <lights_fragment_maps> anchors and the USE_LIGHTMAP / vLightMapUv /
+  // RE_IndirectSpecular guards all still exist in the vendored build.
   if (!lightmap || material.transparent || material.userData.ktWater) return;
   if (lightmap.ao) {
     material.aoMap = lightmap.ao;
@@ -379,7 +382,10 @@ export function buildKatanaSky(scene: THREE.Scene, renderer: THREE.WebGLRenderer
   sun.shadow.camera.far = 320;
   sun.shadow.bias = -0.00018;
   sun.shadow.normalBias = 0.055;
-  sun.shadow.radius = 2;
+  sun.shadow.radius = 2; // authored 2.0, effective 1.6 via Game.clampShadowRadii
+  // (r187's 5-tap Vogel-disk PCF reads wider radii as grain — same convention
+  // as ares-world/nuketown-sky; the global shadowMap.type PCF comes from
+  // gpu-backend.ts, no per-map setting needed).
   scene.add(sun, sun.target);
 
   const hemisphere = new THREE.HemisphereLight(0xb8cbe4, 0x354039, low ? 1.85 : 0.72);
@@ -388,6 +394,10 @@ export function buildKatanaSky(scene: THREE.Scene, renderer: THREE.WebGLRenderer
 
   if (!low) {
     try {
+      // Direct generator, not the build-exact pmremEnv helper from
+      // gpu-backend.ts: this rig only ever runs on WebGL (katana-world returns
+      // early on WebGPU), and the HDR branch needs fromEquirectangular, which
+      // pmremEnv does not offer (plus buildKatanaSky is sync, pmremEnv async).
       const pmrem = new THREE.PMREMGenerator(renderer);
       if (nightEnvironment) {
         scene.environment = pmrem.fromEquirectangular(nightEnvironment).texture;
@@ -463,7 +473,8 @@ export function makeKatanaSun(low: boolean): THREE.DirectionalLight {
   sun.shadow.camera.far = 320;
   sun.shadow.bias = -0.00018;
   sun.shadow.normalBias = 0.055;
-  sun.shadow.radius = 2;
+  sun.shadow.radius = 2; // authored 2.0, effective 1.6 via Game.clampShadowRadii
+  // (r187 5-tap Vogel disk — see the identical note at the WebGL rig above).
   return sun;
 }
 

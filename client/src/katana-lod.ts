@@ -16,6 +16,8 @@ type MeshoptSimplifierApi = { ready: Promise<void>; simplify: MeshoptSimplifyFn 
  * (client/vendor/three only ships the GLTF *decoder*), so the runtime
  * simplifier loads lazily and every caller falls back to full detail when it
  * is absent. The authored far shell (katana-low.glb) never needs it.
+ * r187-verified (Nov 2026): still no `meshoptimizer` npm dependency and
+ * VERSION.txt confirms only the decoder is vendored — the lazy import stays.
  */
 let simplifierPromise: Promise<MeshoptSimplifierApi | null> | null = null;
 function loadMeshoptSimplifier(): Promise<MeshoptSimplifierApi | null> {
