@@ -41,6 +41,8 @@ export function buildWorld(renderer: AnyRenderer): Promise<ClassicWorld> {
       return import("./dust-world").then((m) => m.buildDustWorld(renderer) as unknown as ClassicWorld);
     case "ares":
       return import("./ares-world").then((m) => m.buildAresWorld(renderer) as unknown as ClassicWorld);
+    case "katana":
+      return import("./katana-world").then((m) => m.buildKatanaWorld(renderer) as unknown as ClassicWorld);
     case "jungle":
       return import("./jungle-world").then((m) => m.buildJungleWorld(renderer) as unknown as ClassicWorld);
     default:

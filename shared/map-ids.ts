@@ -15,7 +15,7 @@
  * importers keep working unchanged.
  */
 
-export const MAP_IDS = ["shipment", "dust2", "ares", "nuketown"] as const;
+export const MAP_IDS = ["shipment", "dust2", "ares", "nuketown", "katana"] as const;
 
 export type MapId = (typeof MAP_IDS)[number];
 

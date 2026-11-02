@@ -10,6 +10,8 @@
  *   Nuketown   lawns are grass, the street is asphalt, decks and house floors
  *              are wood (client/src/nuketown-surface.ts)
  *   Ares       a steel station
+ *   Katana     shrine stone slabs reuse dust2's dfloor tag: stone ("hard"
+ *              steps, stone impacts — no sand in the cedar/stone setting)
  */
 import { activeSolids, worldToLocal, type OBB } from "@shared/map";
 import { gridFor, gridQueryCircle } from "@shared/solidgrid";
@@ -50,6 +52,9 @@ export function footSurface(mapId: string, x: number, y: number, z: number, fall
   if (!o) return fallback();
   // dust2's walkable boxes are its floors: sand over stone, same as its impacts.
   if (mapId === "dust2" && o.visual === "dfloor") return "sand";
+  // Katana reuses the generator's dfloor tag for its shrine-stone slabs: no
+  // sand anywhere on the map (cedar + stone setting), so the shared table's
+  // stone stands — "hard" steps here, stone impacts there, one material.
   const tag = `${o.visual ?? ""} ${o.glb ?? ""}`;
   switch (surfaceOf(o, mapId)) {
     case "metal":

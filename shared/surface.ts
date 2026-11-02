@@ -24,6 +24,7 @@ const TAGS: Record<string, Surface> = {
   container: "metal", cwall: "metal", roof: "metal", wall: "metal", barrel: "metal", dumpster: "metal",
   car: "metal", forklift: "metal", "wreck-junk": "metal", seam: "metal", crate: "wood", "crate-spill": "wood", "tire-stack": "rubber",
   // dust2: sandstone masonry, stone/sand floors and stairs, wooden crates
+  // (dfloor: "stone" also covers katana's shrine slabs — deliberate, see foot-surface.ts)
   dwall: "stone", dceil: "stone", dfloor: "stone", dprop: "wood",
   // Ares relay: a steel station, two glass panes
   aglass: "glass",
@@ -35,6 +36,7 @@ const MAP_DEFAULT: Record<string, { solid: Surface; floor: Surface }> = {
   dust2: { solid: "stone", floor: "sand" },
   ares: { solid: "metal", floor: "metal" },
   nuketown: { solid: "concrete", floor: "dirt" },
+  katana: { solid: "stone", floor: "dirt" },
 };
 
 const KEYWORDS: [RegExp, Surface][] = [

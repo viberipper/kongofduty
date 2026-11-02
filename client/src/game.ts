@@ -858,6 +858,8 @@ export class Game {
             m.setAresTsl(TSL);
             return m.buildAresWorld(this.renderer);
           })
+        : MAP.id === "katana"
+        ? import("./katana-world").then(m => m.buildKatanaWorld(this.renderer))
         : MAP.id === "nuketown" // nuketown: Blender-built map + PBR library (client/src/nuketown-world.ts)
           ? import("./nuketown-world").then(async (m) => {
               // The procedural sky is GLSL-only; its TSL port needs the module
@@ -918,10 +920,14 @@ export class Game {
     maxAnisotropy(this.bruiserTpl.scene);
     if (softwareTier) softwareMaterials(this.world.scene, this.bruiserTpl.scene);
     bootStage("RENDER PIPELINE");
-    // The map exposure as the basis (nuketown: NUKETOWN_EXPOSURE); the
-    // exposure slider scales relative to it — see setGraphicsOptions().
+    // The map exposure as the basis (nuketown: NUKETOWN_EXPOSURE, katana:
+    // KATANA_EXPOSURE); the exposure slider scales relative to it.
     const ntSky = MAP.id === "nuketown" ? await import("./nuketown-sky") : null;
-    this.baseExposure = ntSky?.NUKETOWN_EXPOSURE ?? 1.12;
+    // Katana's 0.72 is authored for the WebGL sky rig; the WebGPU flat
+    // fallback stays on the neutral basis — its background is a flat color,
+    // not the graded dome, so the darkened basis would only dim it.
+    const ktSky = !ntSky && MAP.id === "katana" && this.backend !== "webgpu" ? await import("./katana-sky") : null;
+    this.baseExposure = ntSky?.NUKETOWN_EXPOSURE ?? ktSky?.KATANA_EXPOSURE ?? 1.12;
     // M3: measure the map-authored shadow size BEFORE prefs touch it
     // (Shipment/Nuketown/Ares/Dust2: 4096). ?classic/minimalWorld sets
     // neither mapSize (default 512) nor castShadow — see mapShadowsOn.

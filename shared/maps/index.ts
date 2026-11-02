@@ -44,10 +44,12 @@ import { SHIPMENT } from "./shipment";
 import { ARES } from "./ares";
 import { buildDust2, DUST2_NAME } from "./dust2";
 import { buildNuketown, NUKETOWN_NAME } from "./nuketown"; // nuketown: JSON-backed like dust2
+import { buildKatana, KATANA_NAME } from "./katana"; // katana: JSON-backed like dust2/nuketown
 
 export type { MapDef, Rect, FenceRect, MinimapRect, NavLattice } from "./types";
 export { DUST2_AUDIT, DUST2_IS_STUB, buildDust2, dust2GeoHash } from "./dust2";
 export { NUKETOWN_AUDIT, buildNuketown } from "./nuketown";
+export { KATANA_AUDIT, buildKatana } from "./katana";
 
 // Map ids live in shared/map-ids.ts (light-weight, no geometry/builders/TLA);
 // re-exported here so existing `@shared/maps` importers keep working unchanged.
@@ -76,6 +78,9 @@ export const MAP_OPTIONS: MapOption[] = [
   { key: "dust2", label: DUST2_NAME, blurb: "Long lanes, two sites, a middle to fight over." },
   { key: "ares", label: "ARES RELAY", blurb: "Orbital station. Corridors and a glass core." },
   { key: "nuketown", label: NUKETOWN_NAME, blurb: "Two houses, one cul-de-sac. Every window is a lane." },
+  // No ui/maps/katana.jpg still ships with the rip — the card points at the
+  // shipped radar instead of a 404 (same image the HUD minimap draws).
+  { key: "katana", label: KATANA_NAME, card: "assets/maps/katana-radar.png", blurb: "Three tiers through a mountain shrine. Up, mid, low." },
 ];
 
 // ---------------------------------------------------------------- map data
@@ -89,6 +94,7 @@ export const MAP_OPTIONS: MapOption[] = [
 const MAP_DATA_URL: Record<string, string> = {
   dust2: "assets/maps/dust2.json",
   nuketown: "assets/maps/nuketown.json",
+  katana: "assets/maps/katana.json",
 };
 const MAP_DATA: Record<string, unknown> = {};
 
@@ -201,6 +207,7 @@ function buildMap(id: string): MapDef {
   if (id === "ares") return ARES;
   if (id === "dust2") return buildDust2(mapDataOrThrow("dust2"));
   if (id === "nuketown") return buildNuketown(mapDataOrThrow("nuketown"));
+  if (id === "katana") return buildKatana(mapDataOrThrow("katana"));
   throw new Error(`unknown map "${id}"`);
 }
 
