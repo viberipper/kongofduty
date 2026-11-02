@@ -21,7 +21,7 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ### Added
 
-- `feat(menu): menu background music for the Katana map` — Katana gets its own passive menu/lobby theme like the other four maps: 84 BPM samurai bed in D in-scale (taiko ensemble, woodblock offbeats, koto runs, breathy flute lead, sho-like clusters, temple bowl every 8 bars), 68.6 s period-aligned seamless loop (`menu-katana.ogg`/`.mp3`, picked up automatically via `isMapId`), plus the matching audio.cpp prompt in `docs/menu-music-prompts.md`.
+- `feat(menu): menu background music for the Katana map` — Katana gets its own passive menu/lobby theme like the other four maps: 84 BPM samurai bed in D in-scale (taiko ensemble, woodblock offbeats, koto runs, breathy flute lead, sho-like clusters, temple bowl every 8 bars), 68.6 s period-aligned seamless loop (`menu-katana.ogg`/`.mp3`, picked up automatically via `isMapId`), plus the matching audio.cpp prompt in `docs/menu-music-prompts.md` (`47ea7c8`).
 
 ## 2026-11-01
 
