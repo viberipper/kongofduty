@@ -17,18 +17,6 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ## Unreleased
 
-### Added
-
-- `feat(maps): new Katana map, selectable in menu` — map id `katana`
-  joins the menu, lobby, and server map set (`shared/map-ids.ts`,
-  `shared/maps/index.ts` with the new `shared/maps/katana.ts`, client data
-  `client/static/assets/maps/katana.json` with its server mirror
-  `server/assets/maps/katana.json`); TDM, FFA, and Gun Game run on it with
-  its own sky and world presentation (`client/src/katana-sky.ts`,
-  `client/src/katana-world.ts`), and FFA seeds from 16 authored teamless
-  points plus the validated nav lattice across the full bounds (pending —
-  uncommitted).
-
 ## 2026-11-01
 
 ### Fixed

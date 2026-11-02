@@ -39,7 +39,6 @@ Self-hostable version of the browser game at https://cnvs.dev/kong/ — playable
 - **Q/E corner lean (view-only):** lean around corners with Q/E (rebindable) — the eye shifts and the model rolls with easing while the hit capsule never moves; replicated on snapshots for every renderer.
 - **Ten-streak extra frag:** every 10 kills without dying grants an extra frag (the belt carries up to 2 and the HUD then shows a second pip), plus banner and announcer call and no blast; applies on every map and in every mode, and in round-based rooms it takes ten kills in one life (effectively TDM/FFA/gun-game territory).
 - **Authored corner-lean body animation:** the lean is a Blender-authored body pose (pelvis slide, IK-kept feet, spine roll with a level head) rather than a rigid tilt, with its own baked crouch variant. Bots lean tactically as well, but only where the straight eye is blocked and the leaned eye clears the target.
-- **New Katana map:** a mountain-shrine map selectable in the menu like any other map and playable in TDM, FFA, and Gun Game, with its own sky and world presentation; FFA draws on authored teamless seeds plus the validated nav lattice across the whole map, and the server loads it like the other maps.
 
 ## Changelog
 
@@ -55,8 +54,9 @@ Upstream features from the original (https://cnvs.dev/kong/) are ported in batch
 | 2026-10-22/23 | Upstream state as of 2026-10-22/23 (fresh rip) | Base features: Gun Game, Penetration/Wallbangs, Xmas-Deko, Foot-Surfaces, Bug-Report, Gun-Preview, Lobby lobbyset/shuffle/relocate, Endcard-Podium, Colour Vision, Loadout-Wheel, Fence-Fix, Footstep-Verdrahtung |
 | 2026-10-26 | Upstream state as of 2026-10-26 (fresh rip) | 11 updates: lobby follow + ping badges + kills-per-gun option; gun-game goal options (`GUN_KILL_OPTIONS` 1/2/3/5); announcer + Kong voice lines; combat-stats endcard; spraypaint emotes; anti-skate catch-up; Nuketown TDM limit 100; movement speeds; weapon rebalance |
 | 2026-10-28 | Upstream state as of 2026-10-28 (fresh rip) | 9 updates: network-stats overlay; spawn facing toward map center; collateral multi-kills + medal; forklift/Ares steps fixes; directional damage indicator; crate penetration; voice-lines content table; special reload animations; spawn LOS weighting |
+| 2026-11-02 | Upstream state as of 2026-11-02 (fresh rip) | New map Katana: mountain-shrine map, selectable in the menu like any other map, playable in TDM, FFA, and Gun Game, with its own sky and world presentation (world rebuilt locally — upstream ships no matching world module); FFA draws on authored teamless seeds plus the validated nav lattice |
 
-Last sync: 2026-10-28. Anything newer lives only in the original (https://cnvs.dev/kong/) until the next batch port.
+Last sync: 2026-11-02. Anything newer lives only in the original (https://cnvs.dev/kong/) until the next batch port.
 
 ## Quick start
 
