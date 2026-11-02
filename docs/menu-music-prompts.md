@@ -60,6 +60,15 @@ below with audio.cpp and drop them onto the same filenames — no code change ne
 > underneath. Original composition, instrumental, no vocals, seamless
 > 60 second loop, no intro, no outro.
 
+### 5. katana — Mountain Shrine (`menu-katana`)
+
+> Samurai menu loop, 84 BPM, D in-scale (D Eb G A Bb). Deep taiko ensemble
+> with woodblock offbeats, bright koto runs, one breathy shakuhachi-style
+> flute phrase, sustained sho-like reed clusters, a temple bowl every eight
+> bars, low D drone underneath. Disciplined, misty, coiled — a duel at dawn.
+> Original composition, instrumental, no vocals, seamless loop, no intro,
+> no outro.
+
 ## audio.cpp commands (ace_step family)
 
 ```bat
