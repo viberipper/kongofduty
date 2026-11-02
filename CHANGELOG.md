@@ -17,17 +17,14 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ## Unreleased
 
+## 2026-11-02
+
 ### Fixed
 
 - `fix(katana): start Katana matches on WebGL` — the world builder called the
   software-GL probe without its renderer argument, so world init crashed
   before any backend branching with `isWebGPURenderer of undefined`; it now
-  receives the renderer like every other world (Pending commit — hash follows
-  on commit.).
-
-## 2026-11-02
-
-### Fixed
+  receives the renderer like every other world (`34bf281`).
 
 - `fix(maps): Katana menu card shows the scenic artwork` — the card override
   pointed at the radar PNG (the rip had no `ui/maps/katana.jpg`, but upstream
