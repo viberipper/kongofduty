@@ -47,7 +47,7 @@ function binColor(tag: string | undefined): number {
 export async function buildKatanaWorld(renderer: AnyRenderer): Promise<ClassicWorld> {
   const MAP = activeMap();
   const scene = new THREE.Scene();
-  const low = isSoftwareGL();
+  const low = isSoftwareGL(renderer);
 
   // ---- solids: one merged mesh per palette bin ---------------------------
   const bins = new Map<number, THREE.BufferGeometry[]>();
