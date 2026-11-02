@@ -8,7 +8,7 @@
  * selection persists (localStorage) so a returning player's last setup is
  * already highlighted.
  */
-import { asModeId, modeInfo, modesFor, type ModeId } from "@shared/modes";
+import { asModeId, modeInfo, modesFor, supportsMode, type ModeId } from "@shared/modes";
 import { DEFAULT_MAP_ID, isMapId } from "@shared/maps";
 import { mapBlurb, mapCardUrl, mapIds, mapLabel } from "./flow";
 import { onPrefs, prefs, setPrefs } from "./prefs";
@@ -79,6 +79,9 @@ export function initMenu(pageMap: string, cb: (s: MenuSelection) => void): void 
     map: urlMap ?? (isMapId(saved.map) ? saved.map : isMapId(pageMap) ? pageMap : DEFAULT_MAP_ID),
     mode: asModeId(saved.mode),
   };
+  // S&D / Domination only exist on katana: a remembered pick from another map
+  // (or for another map) falls back to the default public mode.
+  if (!supportsMode(sel.map, sel.mode)) sel.mode = "tdm";
   const menu = $("menu");
   if (menu) wireSfx(menu);
   buildCards();
@@ -114,7 +117,12 @@ function initPadBar(): void {
 }
 
 export function setMenuSelection(patch: Partial<MenuSelection>): void {
-  sel = { ...sel, ...patch };
+  const map = patch.map ?? sel.map;
+  let mode = patch.mode ?? sel.mode;
+  // Switching maps (or picking a mode) never leaves an unsupported mode
+  // selected: katana's S&D/Domination fall back to TDM anywhere else.
+  if (!supportsMode(map, mode)) mode = "tdm";
+  sel = { map, mode };
   try {
     localStorage.setItem(SEL_KEY, JSON.stringify(sel));
   } catch {

@@ -13,6 +13,7 @@ import { activeMap } from "./maps";
 import { DECK_RAIL_ALLOW_Y } from "./deckrail";
 import { gridQueryCircle, gridQueryRect, indexSolids, type SolidGrid } from "./solidgrid";
 import { CEIL_EPS, ceilingCrossed } from "./ceiling"; // map stream: overhead contact is vertical
+import type { ObjectiveDef } from "./maps/types";
 import {
   WEAPON_BY_ID,
   PRIMARY_WEAPON_ID,
@@ -36,14 +37,22 @@ import {
   RESPITE,
   FFA_KILL_LIMIT,
   TDM_MATCH_TIME,
-  matchTimeFor,
+  matchTime,
   scoreLimit,
   ROUNDS_TOTAL,
   ROUNDS_TO_WIN,
   ROUND_TIME,
   ROUND_INTERMISSION_S,
   isRoundBased,
+  SND_PLANT_S,
+  SND_DEFUSE_S,
+  SND_BOMB_S,
+  DOM_CAPTURE_S,
+  DOM_POINT_S,
+  DOM_SCORE_LIMIT,
+  type ObjectiveSnap,
   type RoundState,
+  type SimMode,
   type InputCmd,
   type PlayerSnap,
   type NadeSnap,
@@ -1362,6 +1371,8 @@ export type SimPlayer = {
    * hold a round open nor hand the other side a wipe. Cleared by spawn().
    */
   sitOut: boolean;
+  /** SEARCH & DESTROY: holding the interact key (plant / defuse). */
+  use: boolean;
 };
 
 /**
@@ -1384,12 +1395,40 @@ export type HistFrame = {
   slide: number;
 };
 
-export type Mode = "tdm" | "ffa" | "kc";
+export type Mode = SimMode | "kc";
+
+type SndInteraction = { kind: "plant" | "defuse"; site: string; by: string; progress: number };
+type PlantedBomb = { site: string; by: string; fuse: number };
+type DomFlag = { id: string; owner: -1 | Team; captureTeam: -1 | Team; progress: number; contested: boolean };
 
 export class GameSession {
   time = 0;
   tick = 0;
-  mode: Mode = "tdm";
+  private _mode: Mode = "tdm";
+  private sndInteraction: SndInteraction | null = null;
+  private bomb: PlantedBomb | null = null;
+  private domFlags: DomFlag[] = [];
+  private domScoreClock = 0;
+  get mode(): Mode {
+    return this._mode;
+  }
+  /** The match clock follows the mode (shared/protocol.ts matchTime) until the match has started. */
+  set mode(m: Mode) {
+    if (m === "snd" && (!MAP.objectives?.bombsites || !MAP.spawnSets?.snd)) throw new Error(`${MAP.id}: S&D requires bomb sites and spawn sets`);
+    if (m === "dom" && (!MAP.objectives?.flags || !MAP.spawnSets?.dom)) throw new Error(`${MAP.id}: Domination requires flags and spawn sets`);
+    const objectives = m === "snd" || m === "dom" || this._mode === "snd" || this._mode === "dom";
+    this._mode = m;
+    if (objectives) this.resetObjectives();
+    if (this.time === 0 && !this.roundBased) this.remain = matchTime(m);
+  }
+
+  private resetObjectives(): void {
+    this.sndInteraction = null;
+    this.bomb = null;
+    this.domScoreClock = 0;
+    this.domFlags = (MAP.objectives?.flags ?? []).map((f) => ({ id: f.id, owner: -1, captureTeam: -1, progress: 0, contested: false }));
+    for (const p of this.players.values()) p.use = false;
+  }
   /** GUN GAME: an FFA room whose guns come off the ladder (shared/gungame.ts), set before anyone joins. */
   gunGame = false;
   /** GUN GAME kills per gun (shared/gungame.ts GUN_KILL_OPTIONS). */
@@ -1505,6 +1544,8 @@ export class GameSession {
     p.sitOut = true;
     p.alive = false;
     p.hp = 0;
+    p.use = false;
+    if (this.sndInteraction?.by === p.id) this.sndInteraction = null;
     // Never reaches zero: the only respawn in a round-based room is startRound.
     p.dead = 1e9;
     return true;
@@ -1526,6 +1567,18 @@ export class GameSession {
     };
   }
 
+  objectiveSnap(): ObjectiveSnap | undefined {
+    if (this.mode === "snd") {
+      return {
+        mode: "snd",
+        interaction: this.sndInteraction ? { ...this.sndInteraction } : null,
+        bomb: this.bomb ? { ...this.bomb } : null,
+      };
+    }
+    if (this.mode === "dom") return { mode: "dom", flags: this.domFlags.map((f) => ({ ...f })) };
+    return undefined;
+  }
+
   /**
    * Open round `round + 1`. Round 1 opens silently on the match's own start
    * (the server's lobby countdown already played); every later round respawns
@@ -1540,6 +1593,11 @@ export class GameSession {
     this.roundEndsAt = 0;
     this.nades.length = 0;
     this.uavUntil = [0, 0];
+    if (this.mode === "snd") {
+      this.sndInteraction = null;
+      this.bomb = null;
+      for (const p of this.players.values()) p.use = false;
+    }
     if (countdown) {
       for (const p of this.players.values()) {
         if (p.bench) continue;
@@ -1571,6 +1629,10 @@ export class GameSession {
     this.roundState = "end";
     this.roundEndsAt = this.time + ROUND_INTERMISSION_S;
     this.remain = ROUND_TIME;
+    if (this.mode === "snd") {
+      this.sndInteraction = null;
+      for (const p of this.players.values()) p.use = false;
+    }
     this.events.push({ t: "round", state: "end", round: this.round, winner, wins0: this.score0, wins1: this.score1 });
     const clinched = this.score0 >= ROUNDS_TO_WIN || this.score1 >= ROUNDS_TO_WIN;
     if (clinched || this.round >= ROUNDS_TOTAL) {
@@ -1592,6 +1654,10 @@ export class GameSession {
       return;
     }
     if (this.phase !== "live") return;
+    if (this.mode === "snd" && this.bomb) {
+      this.remain = this.bomb.fuse;
+      return;
+    }
     // "Fielded" is read live, not latched at the round's start: on the server
     // round 1 opens while the lobby is still filling, and a team that never
     // had anybody (a solo test, a half lobby) cannot be "eliminated".
@@ -1604,7 +1670,7 @@ export class GameSession {
       return;
     }
     this.remain = Math.max(0, this.remain - dt);
-    if (this.remain <= 0) this.endRound(alive[0] > alive[1] ? 0 : alive[1] > alive[0] ? 1 : -1);
+    if (this.remain <= 0) this.endRound(this.mode === "snd" ? 1 : alive[0] > alive[1] ? 0 : alive[1] > alive[0] ? 1 : -1);
   }
 
   nextRand(): number {
@@ -1736,6 +1802,7 @@ export class GameSession {
       netFed: false,
       bench: false,
       sitOut: false,
+      use: false,
     };
     fillAmmo(p);
     this.players.set(id, p);
@@ -1744,6 +1811,7 @@ export class GameSession {
   }
 
   remove(id: string): void {
+    if (this.sndInteraction?.by === id) this.sndInteraction = null;
     this.players.delete(id);
   }
 
@@ -1757,10 +1825,9 @@ export class GameSession {
     for (const p of this.players.values()) this.setGun(p, 0);
   }
 
-  setMode(mode: "tdm" | "ffa", gunGame: boolean): void {
+  setMode(mode: SimMode, gunGame: boolean): void {
     this.mode = mode;
     this.gunGame = mode === "ffa" && gunGame;
-    if (this.time === 0 && !this.roundBased) this.remain = matchTimeFor(mode);
     for (const p of this.players.values()) {
       p.gun = 0;
       p.gunWeapon = this.gunGame ? gunFor(0) : "";
@@ -1808,7 +1875,7 @@ export class GameSession {
    */
   nextMatch(): void {
     this.over = false;
-    this.remain = matchTimeFor(this.mode);
+    this.remain = matchTime(this.mode);
     this.score0 = 0;
     this.score1 = 0;
     this.phase = "live";
@@ -1820,6 +1887,7 @@ export class GameSession {
     this.roundState = "live";
     this.roundWinner = -1;
     this.roundEndsAt = 0;
+    if (this.mode === "snd" || this.mode === "dom") this.resetObjectives();
     for (const p of this.players.values()) {
       p.kills = 0;
       p.deaths = 0;
@@ -1840,6 +1908,8 @@ export class GameSession {
   spawn(p: SimPlayer): void {
     // A body that sat a round out is back in the yard the moment it is spawned.
     p.sitOut = false;
+    p.use = false;
+    if (this.sndInteraction?.by === p.id) this.sndInteraction = null;
     // THE POOL. Team modes: the authored points, team-filtered, exactly as
     // shipped (flat maps), plus the nav nodes around the authored side on a
     // stacked-floors map (dust2, Nuketown) — see spawnPool(). FFA: the authored
@@ -2004,7 +2074,7 @@ export class GameSession {
           // Last resort: the authored sides (authored FFA points in FFA where
           // they exist, otherwise the team sides, team-filtered below) — the
           // safest points to stand, not the full scoring pool.
-          const fbSrc = this.mode === "ffa" ? (ffaAuthored() ?? SPAWNS) : SPAWNS;
+          const fbSrc = this.mode === "snd" || this.mode === "dom" ? spawnPool(this.mode, p.team) : this.mode === "ffa" ? (ffaAuthored() ?? SPAWNS) : SPAWNS;
           for (const s of fbSrc) {
             if (this.mode !== "ffa" && s.team !== p.team) continue;
             const y = spawnFootY(s.x, s.z, s.y);
@@ -2092,7 +2162,12 @@ export class GameSession {
     p.seq = cmd.seq;
     // A consumed command is acknowledged even when its body is dead. Otherwise
     // the client replays a whole corpse's input backlog onto the next life.
-    if (!p.alive) return;
+    if (!p.alive) {
+      p.use = false;
+      if (this.sndInteraction?.by === p.id) this.sndInteraction = null;
+      return;
+    }
+    p.use = cmd.use === true;
     // SEMI/BOLT TRIGGER DISCIPLINE, server-side. A released button re-arms the
     // trigger; tryFire spends the arm. Holding fire is one shot, and a press that
     // lands inside the fire interval fires the moment the gun is ready (the arm
@@ -2115,6 +2190,7 @@ export class GameSession {
     // stored movement. FROZEN is a module-level scratch, mutated in place, so a
     // gated tick allocates nothing.
     if (inputLocked(this.phase)) {
+      p.use = false;
       FROZEN.seq = cmd.seq;
       FROZEN.yaw = p.yaw;
       FROZEN.pitch = p.pitch;
@@ -2125,11 +2201,19 @@ export class GameSession {
       p.nadeUp = false;
       return;
     }
+    const interacting = this.mode === "snd" && p.use && (this.sndInteraction?.by === p.id || this.sndSiteFor(p) !== null);
     // weapons stream: 1/2 / wheel / Y — the swap (validated: only ever to the holstered gun).
-    trySwap(p, cmd.weapon);
-    if (cmd.reload) startReload(p);
+    if (!interacting) {
+      trySwap(p, cmd.weapon);
+      if (cmd.reload) startReload(p);
+    }
     movePlayer(p, cmd, TICK_DT);
     p.firing = false;
+    if (interacting) {
+      p.cook = 0;
+      p.nadeUp = false;
+      return;
+    }
     // FRAG: pin, cook, throw — or the hand. One pair of paws: a pulled pin
     // locks out the gun until it has left.
     const cooking = p.cook > 0;
@@ -2379,6 +2463,8 @@ export class GameSession {
     this.dropCooked(p);
     p.alive = false;
     p.hp = 0;
+    p.use = false;
+    if (this.sndInteraction?.by === p.id) this.sndInteraction = null;
     p.dead = RESPITE;
     p.deaths += 1;
     p.streak = 0;
@@ -2756,6 +2842,8 @@ export class GameSession {
     this.dropCooked(dst);
     dst.alive = false;
     dst.hp = 0;
+    dst.use = false;
+    if (this.sndInteraction?.by === dst.id) this.sndInteraction = null;
     dst.dead = RESPITE;
     dst.deaths += 1;
     dst.streak = 0;
@@ -2775,7 +2863,8 @@ export class GameSession {
     }
     // Round-based rooms keep score0/score1 as ROUND WINS (endRound); a kill
     // there is worth nothing on the scorebug and can never end the match.
-    if (this.mode !== "ffa" && !this.roundBased) {
+    // Domination scores flag points, never kills.
+    if (this.mode !== "ffa" && this.mode !== "dom" && !this.roundBased) {
       if (src.team === 0) this.score0 += 1;
       else this.score1 += 1;
     } else if (this.mode === "ffa") {
@@ -2822,7 +2911,7 @@ export class GameSession {
 
     const limitHit =
       this.mode !== "ffa"
-        ? !this.roundBased && (this.score0 >= scoreLimit(MAP.id) || this.score1 >= scoreLimit(MAP.id))
+        ? this.mode !== "dom" && !this.roundBased && (this.score0 >= scoreLimit(MAP.id) || this.score1 >= scoreLimit(MAP.id))
         : this.gunGame
           ? src.gun >= gunGoal(this.gunKills)
           : src.kills >= FFA_KILL_LIMIT;
@@ -2860,6 +2949,132 @@ export class GameSession {
         o.hp -= Math.round(lerp(120, 40, d / 5.5));
         o.regenT = 0;
         if (o.hp <= 0) this.kill(src, o, "strike", false);
+      }
+    }
+  }
+
+  private inObjective(p: SimPlayer, def: ObjectiveDef): boolean {
+    return p.alive && !p.bench && p.onGround && Math.abs(p.y - def.y) <= 0.65 && Math.hypot(p.x - def.x, p.z - def.z) <= def.r;
+  }
+
+  private sndSiteFor(p: SimPlayer): ObjectiveDef | null {
+    if (this.mode !== "snd" || !p.use || Math.hypot(p.vx, p.vz) > 0.35) return null;
+    const sites = MAP.objectives?.bombsites ?? [];
+    if (this.bomb) {
+      if (p.team !== 1) return null;
+      const site = sites.find((s) => s.id === this.bomb!.site);
+      return site && this.inObjective(p, site) ? site : null;
+    }
+    if (p.team !== 0) return null;
+    return sites.find((s) => this.inObjective(p, s)) ?? null;
+  }
+
+  private tickObjectives(dt: number): void {
+    if (this.mode === "snd") this.tickSnd(dt);
+    else if (this.mode === "dom") this.tickDom(dt);
+  }
+
+  private tickSnd(dt: number): void {
+    if (this.roundState !== "live") return;
+    const sites = MAP.objectives?.bombsites ?? [];
+    let interaction = this.sndInteraction;
+    if (interaction) {
+      const p = this.players.get(interaction.by);
+      const site = sites.find((s) => s.id === interaction!.site);
+      const role = interaction.kind === "plant" ? !this.bomb && p?.team === 0 : this.bomb?.site === interaction.site && p?.team === 1;
+      if (!p || !site || !p.use || !role || !this.inObjective(p, site) || Math.hypot(p.vx, p.vz) > 0.35) {
+        this.sndInteraction = null;
+        interaction = null;
+      }
+    }
+    if (!interaction) {
+      for (const p of this.players.values()) {
+        const site = this.sndSiteFor(p);
+        if (!site) continue;
+        interaction = { kind: this.bomb ? "defuse" : "plant", site: site.id, by: p.id, progress: 0 };
+        this.sndInteraction = interaction;
+        break;
+      }
+    }
+    if (interaction) {
+      const p = this.players.get(interaction.by)!;
+      interaction.progress = Math.min(1, interaction.progress + dt / (interaction.kind === "plant" ? SND_PLANT_S : SND_DEFUSE_S));
+      if (interaction.progress >= 1 - 1e-9) {
+        interaction.progress = 1;
+        const site = sites.find((s) => s.id === interaction!.site)!;
+        if (interaction.kind === "plant") {
+          this.bomb = { site: site.id, by: p.id, fuse: SND_BOMB_S };
+          this.remain = SND_BOMB_S;
+          this.events.push({ t: "plant", site: site.id, by: p.id, team: p.team, x: p.x, y: p.y, z: p.z });
+          this.sndInteraction = null;
+          return;
+        }
+        this.events.push({ t: "defuse", site: site.id, by: p.id, team: p.team, x: p.x, y: p.y, z: p.z });
+        this.bomb = null;
+        this.sndInteraction = null;
+        this.endRound(1);
+        return;
+      }
+    }
+    if (!this.bomb) return;
+    this.bomb.fuse = Math.max(0, this.bomb.fuse - dt);
+    this.remain = this.bomb.fuse;
+    if (this.bomb.fuse > 0) return;
+    const site = sites.find((s) => s.id === this.bomb!.site)!;
+    const bomb = this.bomb;
+    this.events.push({ t: "explode", site: site.id, by: bomb.by, team: 0, x: site.x, y: site.y, z: site.z });
+    this.bomb = null;
+    this.endRound(0);
+  }
+
+  private tickDom(dt: number): void {
+    const defs = MAP.objectives?.flags ?? [];
+    for (const def of defs) {
+      const flag = this.domFlags.find((f) => f.id === def.id);
+      if (!flag) continue;
+      const count: [number, number] = [0, 0];
+      const first: [SimPlayer | null, SimPlayer | null] = [null, null];
+      for (const p of this.players.values()) {
+        if (!this.inObjective(p, def)) continue;
+        if (!first[p.team]) first[p.team] = p;
+        count[p.team] += 1;
+      }
+      flag.contested = count[0] > 0 && count[1] > 0;
+      if (flag.contested) continue;
+      const team = count[0] > 0 ? 0 : count[1] > 0 ? 1 : -1;
+      if (team === -1) {
+        flag.progress = Math.max(0, flag.progress - dt / DOM_CAPTURE_S);
+        if (flag.progress === 0) flag.captureTeam = -1;
+        continue;
+      }
+      if (flag.owner === team) {
+        flag.captureTeam = -1;
+        flag.progress = 0;
+        continue;
+      }
+      if (flag.captureTeam !== team) {
+        flag.captureTeam = team;
+        flag.progress = 0;
+      }
+      flag.progress = Math.min(1, flag.progress + dt / DOM_CAPTURE_S);
+      if (flag.progress < 1 - 1e-9) continue;
+      const actor = first[team]!;
+      flag.owner = team;
+      flag.captureTeam = -1;
+      flag.progress = 0;
+      this.events.push({ t: "capture", flag: def.id, by: actor.id, team, x: def.x, y: def.y, z: def.z });
+    }
+    this.domScoreClock += dt;
+    while (this.domScoreClock >= DOM_POINT_S - 1e-9) {
+      this.domScoreClock = Math.max(0, this.domScoreClock - DOM_POINT_S);
+      for (const flag of this.domFlags) {
+        if (flag.owner === 0) this.score0 += 1;
+        else if (flag.owner === 1) this.score1 += 1;
+      }
+      if (this.score0 >= DOM_SCORE_LIMIT || this.score1 >= DOM_SCORE_LIMIT) {
+        this.over = true;
+        this.events.push({ t: "match", state: "end", score0: this.score0, score1: this.score1 });
+        break;
       }
     }
   }
@@ -2971,6 +3186,7 @@ export class GameSession {
         });
       }
     }
+    if (live && !this.over) this.tickObjectives(dt);
     // Frags fly after the bodies move: a nana that lands this tick sees the
     // positions the shot rays already used.
     if (this.nades.length) this.stepNades(dt);
@@ -4579,6 +4795,68 @@ function botPress(s: GameSession): Map<string, { by: string; t: number }> {
   return m;
 }
 
+function botIdHash(id: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < id.length; i++) hash = Math.imul(hash ^ id.charCodeAt(i), 16777619) >>> 0;
+  return hash;
+}
+
+function botSndSite(s: GameSession, p: SimPlayer, sites: ObjectiveDef[]): ObjectiveDef | undefined {
+  return sites[(botIdHash(p.id) + s.round + p.team) % sites.length];
+}
+
+function botSndExecutor(s: GameSession, p: SimPlayer, sites: ObjectiveDef[], def: ObjectiveDef, objective: Extract<ObjectiveSnap, { mode: "snd" }>): boolean {
+  const team = objective.bomb ? 1 : 0;
+  if (p.team !== team) return false;
+  if (objective.interaction) return objective.interaction.by === p.id;
+  let executor: SimPlayer | null = null;
+  let health = -Infinity;
+  let nearest = Infinity;
+  for (const o of s.players.values()) {
+    if (!o.bot || !o.alive || o.bench || o.team !== team) continue;
+    if (!objective.bomb && botSndSite(s, o, sites)?.id !== def.id) continue;
+    const d = Math.hypot(o.x - def.x, o.y - def.y, o.z - def.z);
+    if (o.hp < health || o.hp === health && d >= nearest) continue;
+    executor = o;
+    health = o.hp;
+    nearest = d;
+  }
+  return executor === p;
+}
+
+function botSndGuard(s: GameSession, p: SimPlayer, sites: ObjectiveDef[], def: ObjectiveDef): boolean {
+  if (!p.bot || !p.alive || p.bench || p.team !== 1 || botSndSite(s, p, sites)?.id !== def.id) return false;
+  const hash = botIdHash(p.id);
+  let rank = 0;
+  for (const o of s.players.values()) {
+    if (!o.bot || !o.alive || o.bench || o.team !== 1 || botSndSite(s, o, sites)?.id !== def.id) continue;
+    if (botIdHash(o.id) < hash) rank++;
+  }
+  return rank < 2;
+}
+
+function botObjectiveGoal(s: GameSession, p: SimPlayer): { def: ObjectiveDef; interact: boolean } | null {
+  const objective = s.objectiveSnap();
+  if (!objective) return null;
+  const hash = botIdHash(p.id);
+  if (objective.mode === "snd") {
+    const sites = MAP.objectives?.bombsites ?? [];
+    const def = objective.bomb ? sites.find((s) => s.id === objective.bomb!.site) : botSndSite(s, p, sites);
+    if (!def || !objective.bomb && p.team === 1 && !botSndGuard(s, p, sites, def)) return null;
+    return { def, interact: botSndExecutor(s, p, sites, def, objective) };
+  }
+  const defs = MAP.objectives?.flags ?? [];
+  const offset = hash % defs.length;
+  for (let i = 0; i < defs.length; i++) {
+    const at = (offset + i) % defs.length;
+    const index = p.team === 0 ? at : defs.length - 1 - at;
+    const state = objective.flags.find((f) => f.id === defs[index]!.id);
+    if (state && state.owner !== p.team) return { def: defs[index]!, interact: false };
+  }
+  const def = defs[Math.floor(defs.length / 2)];
+  return def ? { def, interact: false } : null;
+}
+
 function botFairnessLog(r: { v: Float32Array; n: number }, x: number): void {
   r.v[r.n % r.v.length] = x;
   r.n += 1;
@@ -5154,10 +5432,16 @@ function ffaNeutralPool(): Spawn[] {
 }
 
 function spawnPool(mode: string, team: 0 | 1): Spawn[] {
-  const key = mode === "ffa" ? "ffa" : `team${team}`;
+  const key = mode === "ffa" ? "ffa" : mode === "tdm" || mode === "kc" ? `team${team}` : `${mode}${team}`;
   let pool = SPAWN_POOLS.get(key);
   if (pool) return pool;
-  if (mode === "ffa") {
+  if (mode === "snd" || mode === "dom") {
+    const side = mode === "snd"
+      ? team === 0 ? MAP.spawnSets?.snd?.attack : MAP.spawnSets?.snd?.defend
+      : team === 0 ? MAP.spawnSets?.dom?.west : MAP.spawnSets?.dom?.east;
+    if (!side?.length) throw new Error(`${MAP.id}: ${mode} has no spawn set for team ${team}`);
+    pool = [...side];
+  } else if (mode === "ffa") {
     // ONE RULE FOR EVERY MAP: authored seeds (where the map has them) plus
     // the validated nav lattice, deduped. The old "authored points are the
     // whole pool" branch shipped ARES RELAY with eight points covering a
@@ -5191,12 +5475,13 @@ function spawnPool(mode: string, team: 0 | 1): Spawn[] {
  * below so the two can never disagree about what "the pool" is.
  */
 function fallbackSpawnPool(mode: string, team: 0 | 1): Spawn[] {
-  if (mode === "ffa") return spawnPool(mode, team);
+  if (mode === "ffa" || mode === "snd" || mode === "dom") return spawnPool(mode, team);
   return STACKED_FLOORS ? spawnPool(mode, team) : SPAWNS.filter((s) => s.team === team);
 }
 
 /** Instruments only: the spawn pool a mode/team draws from on this map. */
-export function spawnPoolFor(mode: "ffa" | "tdm", team: 0 | 1): Spawn[] {
+export function spawnPoolFor(mode: "ffa" | "tdm" | "snd" | "dom", team: 0 | 1): Spawn[] {
+  if (mode === "snd" || mode === "dom") return spawnPool(mode, team);
   // No authored preference here by design: fallbackSpawnPool already applies
   // it (ARES RELAY exact, Nuketown augmented, neutral pool otherwise), so a
   // branch that returns the raw team pool past the authored points cannot
@@ -7326,6 +7611,9 @@ function thinkBot(s: GameSession, p: SimPlayer, dt: number): void {
   if (m.plant > 0) m.plant = Math.max(0, m.plant - dt);
   if (m.leanCd > 0) m.leanCd = Math.max(0, m.leanCd - dt);
   m.settle = 1 + (m.settle - 1) * Math.exp(-dt / BOT_TUNING.settleTau);
+  const objectiveGoal = s.mode === "snd" || s.mode === "dom" ? botObjectiveGoal(s, p) : null;
+  const objectiveHolding = !!objectiveGoal && Math.hypot(p.x - objectiveGoal.def.x, p.z - objectiveGoal.def.z) <= objectiveGoal.def.r - 0.35 && Math.abs(p.y - objectiveGoal.def.y) <= 0.65;
+  if (objectiveHolding) m.escape = 0;
 
   // ------------------------------------------------------------ watchdogs --
   // Nothing below teleports anything: a stuck bot gets a shove along the face
@@ -7342,7 +7630,7 @@ function thinkBot(s: GameSession, p: SimPlayer, dt: number): void {
   // progress. Anchoring on progress means the clock keeps running through the
   // pacing, the nudge lands at 3 s, the committed escape at 6 s, and a bot that
   // is genuinely walking somewhere resets it the moment it is `progressM` away.
-  if (Math.hypot(p.x - m.anchorX, p.z - m.anchorZ) >= BOT_TUNING.progressM || p.protect > 0) {
+  if (objectiveHolding || Math.hypot(p.x - m.anchorX, p.z - m.anchorZ) >= BOT_TUNING.progressM || p.protect > 0) {
     m.anchorX = p.x;
     m.anchorZ = p.z;
     m.anchorT = m.t;
@@ -7385,12 +7673,12 @@ function thinkBot(s: GameSession, p: SimPlayer, dt: number): void {
   }
   // Holding one pocket for 4.2 s is how a firefight becomes a statue (and how
   // botwatch's 6 s / 0.6 m STUCK window trips): relocate, still fighting.
-  if (m.t - m.loiterT >= BOT_TUNING.loiterWin) {
+  if (!objectiveHolding && m.t - m.loiterT >= BOT_TUNING.loiterWin) {
     if (Math.hypot(p.x - m.loiterX, p.z - m.loiterZ) < BOT_TUNING.loiterDisp) {
       m.reposition = 1.5 + s.nextRand() * 0.9;
       m.flank = -m.flank;
       m.moveT = 0; // a new intention needs a new destination, not the old one
-      if (m.goalT > 2) botRepath(s, p, m, true);
+      if (m.goalT > 2 && !objectiveGoal) botRepath(s, p, m, true);
     }
     m.loiterX = p.x;
     m.loiterZ = p.z;
@@ -7764,7 +8052,8 @@ function thinkBot(s: GameSession, p: SimPlayer, dt: number): void {
       m.moveHurt = hurt;
       m.moveT = 1.1 + s.nextRand() * 0.9;
     }
-    botSteer(s, p, m, m.moveX, m.moveZ, dt);
+    const executionGoal = s.mode === "snd" && objectiveGoal?.interact ? objectiveGoal.def : null;
+    botSteer(s, p, m, executionGoal?.x ?? m.moveX, executionGoal?.z ?? m.moveZ, dt, NAV_Y && executionGoal ? executionGoal.y : NaN);
     botMove(s, p, m, cmd, m.dirX, m.dirZ);
     cmd.sprint =
       dist > (p.weapon === "smg" ? BOT_RANGE.sprintGate * 0.7 : BOT_RANGE.sprintGate) && p.hp > 35 && m.escape <= 0 && !sniping;
@@ -7797,6 +8086,10 @@ function thinkBot(s: GameSession, p: SimPlayer, dt: number): void {
       // into the steel it is standing next to.
       botMove(s, p, m, cmd, 0, 0);
     }
+    if (objectiveGoal && !objectiveHolding) {
+      botSteer(s, p, m, objectiveGoal.def.x, objectiveGoal.def.z, dt, NAV_Y ? objectiveGoal.def.y : NaN);
+      botMove(s, p, m, cmd, m.dirX, m.dirZ);
+    }
   } else if (p.botTarget && m.t - m.seenT < BOT_TUNING.memory) {
     // Lost sight: pressure the last known spot for a beat. A bot that forgets
     // you the instant a container crosses the line is furniture, not an enemy.
@@ -7812,15 +8105,49 @@ function thinkBot(s: GameSession, p: SimPlayer, dt: number): void {
     // ------------------------------------------------------------ patrol --
     p.botTarget = null;
     p.botReact = Math.max(p.botReact, 0.2 + s.nextRand() * 0.2);
-    const dg = Math.hypot(m.goalX - p.x, m.goalZ - p.z);
-    // NAV_Y: a goal on the far storey of the far house is a 20 s walk (two doors and a stair).
-    if ((dg < 1.5 && (!NAV_Y || Math.abs(m.goalY - p.y) < 1.2)) || m.goalT > (NAV_Y ? 28 : 14)) botRepath(s, p, m);
-    botSteer(s, p, m, m.goalX, m.goalZ, dt, NAV_Y ? m.goalY : NaN);
-    cmd.pitch = 0;
-    p.botAimP = 0;
-    botMove(s, p, m, cmd, m.dirX, m.dirZ, true);
-    cmd.sprint = m.escape <= 0;
-    cmd.tac = cmd.sprint && s.nextRand() > 0.8;
+    const objective = objectiveGoal;
+    if (objective) {
+      const def = objective.def;
+      if (m.goalX !== def.x || m.goalZ !== def.z || m.goalY !== def.y) {
+        m.goalX = def.x;
+        m.goalZ = def.z;
+        m.goalY = def.y;
+        m.goalT = 0;
+        m.steerCd = 0;
+      }
+      botSteer(s, p, m, def.x, def.z, dt, NAV_Y ? def.y : NaN);
+      cmd.pitch = 0;
+      p.botAimP = 0;
+      const inside = Math.hypot(p.x - def.x, p.z - def.z) <= def.r - 0.35 && Math.abs(p.y - def.y) <= 0.65;
+      botMove(s, p, m, cmd, inside ? 0 : m.dirX, inside ? 0 : m.dirZ, true);
+      if (inside) {
+        cmd.ax = 0;
+        cmd.az = 0;
+      }
+      cmd.sprint = !inside && m.escape <= 0;
+      cmd.tac = !inside && cmd.sprint && s.nextRand() > 0.8;
+      cmd.use = inside && objective.interact;
+    } else {
+      const dg = Math.hypot(m.goalX - p.x, m.goalZ - p.z);
+      // NAV_Y: a goal on the far storey of the far house is a 20 s walk (two doors and a stair).
+      if ((dg < 1.5 && (!NAV_Y || Math.abs(m.goalY - p.y) < 1.2)) || m.goalT > (NAV_Y ? 28 : 14)) botRepath(s, p, m);
+      botSteer(s, p, m, m.goalX, m.goalZ, dt, NAV_Y ? m.goalY : NaN);
+      cmd.pitch = 0;
+      p.botAimP = 0;
+      botMove(s, p, m, cmd, m.dirX, m.dirZ, true);
+      cmd.sprint = m.escape <= 0;
+      cmd.tac = cmd.sprint && s.nextRand() > 0.8;
+    }
+  }
+
+  if (objectiveHolding && (s.mode !== "snd" || objectiveGoal!.interact || !target)) {
+    cmd.ax = 0;
+    cmd.az = 0;
+    cmd.sprint = false;
+    cmd.tac = false;
+    cmd.use = objectiveGoal!.interact && (s.mode !== "snd" || p.team === 0 || !target);
+  } else if (objectiveGoal && cmd.sprint) {
+    cmd.tac = true;
   }
 
   // Fresh spawn: hold position ~0.5 s (orient, don't sprint through a teammate's
@@ -7886,6 +8213,14 @@ function thinkBot(s: GameSession, p: SimPlayer, dt: number): void {
   // TACTICAL LEAN (Q/E): same view-only mechanic as players, held situationally
   // from cover. Runs last so the final sprint/hands state gates it.
   botLean(s, p, m, cmd, target, dt);
+  if (cmd.use) {
+    cmd.fire = false;
+    cmd.reload = false;
+    cmd.melee = false;
+    cmd.weapon = p.weapon;
+    cmd.nade = false;
+    cmd.nadeHold = false;
+  }
   m.lastFire = cmd.fire;
   const dir = aimDir(cmd.yaw, cmd.pitch);
   cmd.dx = dir.dx;
@@ -7953,6 +8288,7 @@ export function localCmd(
     melee: boolean;
     nade?: boolean;
     nadeHold?: boolean;
+    use?: boolean;
     /** Corner lean keys (Q/E): exactly one, both or neither may be held. */
     leanL?: boolean;
     leanR?: boolean;
@@ -7990,6 +8326,7 @@ export function localCmd(
     melee: keys.melee,
     nade: !!keys.nade,
     nadeHold: !!keys.nadeHold,
+    use: !!keys.use,
     lean: (keys.leanR ? 1 : 0) - (keys.leanL ? 1 : 0) as -1 | 0 | 1,
     weapon,
     clientTime,

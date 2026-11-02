@@ -14,7 +14,7 @@
  */
 import { WEAPON_BY_ID } from "@shared/weapons";
 import { WEAPON_CARDS, type LoadoutWeaponId } from "@shared/loadout";
-import { modeInfo, type ModeId } from "@shared/modes";
+import { modeInfo, supportsMode, type ModeId, type ModeInfo } from "@shared/modes";
 import { GUN_LADDER, asGunKills, gunFor, gunGoal } from "@shared/gungame";
 import type { PlayerSnap } from "@shared/protocol";
 import type { Game, HudState } from "../game";
@@ -22,7 +22,9 @@ import { readHudFeed } from "../hud-api";
 import { attachSpectate, detachSpectate } from "../spectate";
 import { paintRoundStrip } from "../roundstrip";
 import { lobbyOnScreen, spectating } from "../lobby";
+import { activeMap } from "@shared/maps";
 import { activePad } from "./gamepad";
+import { keyFor } from "./keybinds";
 import { prefs } from "./prefs";
 import { mapLabel } from "./flow";
 import { uiSfx } from "./sfx";
@@ -112,7 +114,7 @@ export function paintHud(game: Game, s: HudState, mapId: string): void {
     }
   }
 
-  const mode: ModeId = s.gun ? "gun" : s.mode === "ffa" ? "ffa" : "tdm";
+  const mode: ModeId = s.gun ? "gun" : s.mode;
   const info = modeInfo(mapId, mode);
   // Kills per gun for the ladder reads below (the room's choice online, settings offline).
   const perGun = asGunKills(s.gunKills);
@@ -175,12 +177,13 @@ export function paintHud(game: Game, s: HudState, mapId: string): void {
       ? `ROUND ${s.round.n}/${s.round.total}`
       : mode === "gun" && !bench
         ? `GUN ${Math.min(GUN_LADDER.length, 1 + Math.floor(pts(s.me) / perGun))}/${GUN_LADDER.length} · ${WEAPON_BY_ID[gunFor(pts(s.me), perGun)]?.short ?? ""}`
-        : `${info.short} · ${info.limit}`,
+        : `${info.short} · ${info.limit} ${info.unit}`,
   );
   const remain = num(s.remain);
   text("clock", mmss(remain));
   cls("clock", "low", remain <= 30 && remain > 0);
   paintRoundStrip(s);
+  paintObjectives(game, s, mapId, info);
   callouts(game, s, info.rounds);
 
   // ---- weapon / lethal -----------------------------------------------------
@@ -275,6 +278,71 @@ export function paintHud(game: Game, s: HudState, mapId: string): void {
   // ---- scoreboard (only while it is open, 4 Hz) ------------------------------
   const sb = $("scoreboard");
   if (sb && !sb.classList.contains("hidden")) paintScoreboard(sb, s, info, mapId);
+}
+
+function paintObjectives(game: Game, s: HudState, mapId: string, info: ModeInfo): void {
+  const objective = s.objective;
+  const mode = info.mode;
+  const active = (mode === "snd" || mode === "dom") && objective?.mode === mode && supportsMode(mapId, mode);
+  show("objective-hud", active);
+  if (!active || !objective) return;
+  cls("objective-hud", "with-rounds", info.rounds && !!s.round);
+  const map = activeMap();
+  if (objective.mode === "dom") {
+    show("obj-flags", true);
+    show("obj-prompt", false);
+    show("obj-progress", false);
+    text("obj-status", "DOMINATION");
+    text("obj-detail", "HOLD FLAGS TO SCORE");
+    for (const def of map.objectives?.flags ?? []) {
+      const flag = objective.flags.find((f) => f.id === def.id);
+      const id = `obj-flag-${def.id}`;
+      show(id, !!flag);
+      if (!flag) continue;
+      const mine = flag.owner === s.me.team;
+      const capturing = flag.captureTeam !== -1 && flag.progress > 0;
+      const captureMine = flag.captureTeam === s.me.team;
+      const pct = Math.round(Math.max(0, Math.min(1, flag.progress)) * 100);
+      const owner = flag.owner === -1 ? "NEUTRAL" : mine ? "YOUR TEAM" : "ENEMY";
+      const state = flag.contested ? `${owner} · CONTESTED` : capturing ? `${owner} · ${captureMine ? "ALLY" : "ENEMY"} ${pct}%` : owner;
+      text(`${id}-state`, state);
+      style(id, "--capture", Math.max(0, Math.min(1, flag.progress)).toFixed(3));
+      cls(id, "neutral", flag.owner === -1);
+      cls(id, "ally", flag.owner !== -1 && mine);
+      cls(id, "enemy", flag.owner !== -1 && !mine);
+      cls(id, "contested", flag.contested);
+      cls(id, "capturing", capturing);
+    }
+    return;
+  }
+
+  show("obj-flags", false);
+  const bomb = objective.bomb;
+  const interaction = objective.interaction;
+  text("obj-status", bomb ? `BOMB PLANTED · ${bomb.site} · ${Math.max(0, bomb.fuse).toFixed(1)}S` : "BOMB NOT PLANTED");
+  const noBody = spectating() || s.spectating || !s.me.alive || game.deadSpectate || game.killcamT > 0 || !!game.fkc;
+  let detail = "ATTACKERS PLANT · DEFENDERS DEFUSE";
+  if (interaction) detail = `${interaction.kind === "plant" ? "PLANTING" : "DEFUSING"} ${interaction.site} · ${Math.round(interaction.progress * 100)}%`;
+  else if (!noBody && bomb) detail = s.me.team === 1 ? `DEFUSE AT ${bomb.site}` : "DEFEND THE BOMB";
+  else if (!noBody) detail = s.me.team === 0 ? "PLANT AT A OR B" : "DEFEND A AND B";
+  text("obj-detail", detail);
+  show("obj-progress", !!interaction);
+  style("obj-progress", "--progress", Math.max(0, Math.min(1, interaction?.progress ?? 0)).toFixed(3));
+
+  let prompt = "";
+  const canInteract = !noBody && game.matchLive() && (!s.round || s.round.state === "live") && (!interaction || interaction.by === s.you) && Math.hypot(s.me.vx, s.me.vz) <= 0.35;
+  if (canInteract) {
+    const sites = map.objectives?.bombsites ?? [];
+    const site = bomb
+      ? s.me.team === 1 ? sites.find((s) => s.id === bomb.site) : undefined
+      : s.me.team === 0 ? sites.find((site) => Math.hypot(s.me.x - site.x, s.me.z - site.z) <= site.r && Math.abs(s.me.y - site.y) <= 0.65) : undefined;
+    if (site && Math.hypot(s.me.x - site.x, s.me.z - site.z) <= site.r && Math.abs(s.me.y - site.y) <= 0.65) {
+      prompt = `HOLD TO ${bomb ? "DEFUSE" : "PLANT"} ${site.id}`;
+    }
+  }
+  text("obj-key", keyFor("interact"));
+  text("obj-action", prompt);
+  show("obj-prompt", !!prompt);
 }
 
 let sbKey = "";

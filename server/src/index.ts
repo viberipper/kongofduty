@@ -220,10 +220,10 @@ await import("../../shared/maps");
 import { GameSession, type SimPlayer } from "../../shared/sim";
 import { MAX_SPECTATORS, COUNTDOWN_MS } from "../../shared/matchphase";
 import type { ClientMsg, InputCmd, LobbyMember, NameCheck, NetEvent, PredictionState, ServerMsg, Snapshot, Team, MatchPhase } from "../../shared/protocol";
-import { BOT_NAMES, matchTimeFor, MAX_INPUT_QUEUE } from "../../shared/protocol";
+import { BOT_NAMES, matchTime, MAX_INPUT_QUEUE } from "../../shared/protocol";
 import { packPlayers } from "../../shared/snapshot-wire";
 import { sanitizeLoadout, type Loadout } from "../../shared/loadout";
-import { seatsFor, simMode, type ModeId } from "../../shared/modes";
+import { asModeId, seatsFor, simMode, supportsMode, type ModeId } from "../../shared/modes";
 import { GUN_KILLS_PER_TIER, asGunKills } from "../../shared/gungame";
 import { shuffledYardTeams } from "./yard-teams";
 
@@ -644,6 +644,10 @@ function sanitizeCmd(c: unknown, serverNowSec: number): InputCmd | null {
     dz: clampDirection(o.dz),
     nade: o.nade === true,
     nadeHold: o.nadeHold === true,
+    // SEARCH & DESTROY: hold-to-plant/defuse (keybind "interact"). Movement-
+    // inert like lean (the sim gates on it, it never moves the capsule), so
+    // the strict === true read is the whole validation.
+    use: o.use === true,
     // LEAN (Q/E, view-only): -1 | 0 | 1, anything else is neutral. Inert
     // movement-wise (the capsule never reads it), allowlisted so the snap can
     // echo it to every renderer.
@@ -662,7 +666,7 @@ function sanitizeCmd(c: unknown, serverNowSec: number): InputCmd | null {
 function cmdActive(c: InputCmd, seat: Seat): boolean {
   if (
     c.ax !== 0 || c.az !== 0 || c.jump || c.crouch || c.sprint || c.tac ||
-    c.ads || c.fire || c.reload || c.melee || c.nade || c.nadeHold || c.lean !== 0
+    c.ads || c.fire || c.reload || c.melee || c.nade || c.nadeHold || c.use === true || c.lean !== 0
   ) return true;
   if (!Number.isFinite(seat.lastYaw) || !Number.isFinite(seat.lastPitch)) return true;
   return Math.abs(c.yaw - seat.lastYaw) > 1e-4 || Math.abs(c.pitch - seat.lastPitch) > 1e-4;
@@ -789,13 +793,17 @@ class Room {
   pushedPing = new Map<string, number>();
 
   constructor(id: string, kind: "yard" | "private", mode: ModeId) {
+    // S&D / Domination only exist on katana (shared/modes.ts supportsMode): a
+    // wire mode for any other map falls back to TDM instead of throwing in the
+    // sim's mode setter (which requires bomb sites / flags + spawn sets).
+    if (!supportsMode(SERVER_MAP, mode)) mode = "tdm";
     this.id = id;
     this.kind = kind;
     this.seatCount = seatsFor(SERVER_MAP, mode);
     this.session = new GameSession();
     this.session.mode = simMode(mode);
     this.session.gunGame = mode === "gun";
-    this.session.remain = matchTimeFor(simMode(mode));
+    this.session.remain = matchTime(simMode(mode));
     if (kind === "yard") {
       for (let i = 0; i < this.seatCount; i++) this.addBot((i % 2) as Team);
       this.session.nextMatch();
@@ -811,7 +819,9 @@ class Room {
   }
 
   get mode(): ModeId {
-    return this.session.gunGame ? "gun" : this.session.mode === "ffa" ? "ffa" : "tdm";
+    if (this.session.gunGame) return "gun";
+    const m = this.session.mode;
+    return m === "ffa" || m === "snd" || m === "dom" ? m : "tdm";
   }
 
   playableHumans(): Seat[] {
@@ -1128,11 +1138,13 @@ class Room {
         this.broadcastLobby();
       }
     }
-    if (mode !== "tdm" && mode !== "ffa" && mode !== "gun") return;
-    if (mode === this.mode) return;
-    this.session.setMode(simMode(mode), mode === "gun");
-    if (!this.session.roundBased) this.session.remain = matchTimeFor(simMode(mode));
-    this.seatCount = seatsFor(SERVER_MAP, mode);
+    const next = asModeId(mode);
+    if (!supportsMode(SERVER_MAP, next)) return;
+    if (next === this.mode) return;
+    const m: ModeId = next;
+    this.session.setMode(simMode(m), m === "gun");
+    if (!this.session.roundBased) this.session.remain = matchTime(simMode(m));
+    this.seatCount = seatsFor(SERVER_MAP, m);
     this.broadcastLobby();
   }
 
@@ -1248,9 +1260,9 @@ class Room {
       this.broadcastLobby();
       return;
     }
-    // Bare move = team toggle (TDM only — FFA/GUN are teamless, so a bare
-    // move there is a no-op without broadcast).
-    if (this.mode !== "tdm") return;
+    // Bare move = team toggle (team modes only — FFA/GUN are teamless, so a
+    // bare move there is a no-op without broadcast).
+    if (this.mode === "ffa" || this.mode === "gun") return;
     if (target.spectator) return;
     target.team = (target.team === 0 ? 1 : 0) as Team;
     target.arranged = true;
@@ -1700,6 +1712,7 @@ class Room {
     const playersRaw: PlayerSnap[] = this.session.snap();
     const nades = this.session.nadeSnap();
     const round = this.session.roundSnap();
+    const objective = this.session.objectiveSnap();
     const countWall = this.phase === "countdown" ? this.countdownAtWall() : undefined;
     for (const s of this.seats.values()) {
       const snap: Snapshot = {
@@ -1718,6 +1731,7 @@ class Room {
         mode: this.mode,
         map: SERVER_MAP,
         round,
+        objective,
         players: s.packed ? (packPlayers(playersRaw) as unknown as PlayerSnap[]) : playersRaw,
         nades,
         ev,
@@ -2147,7 +2161,7 @@ if (IS_WORKER) {
 // HUB: one process per map, spawned lazily; the WS upgrade is passed
 // through via TCP (the worker performs its own upgrade handshake).
 // ---------------------------------------------------------------------------
-const WORKER_ORDER = ["shipment", "dust2", "ares", "nuketown"] as const;
+const WORKER_ORDER = ["shipment", "dust2", "ares", "nuketown", "katana"] as const;
 const workerPorts = new Map<string, number>();
 const workers = new Map<string, { port: number; child: ChildProcess | null }>();
 const spawning = new Map<string, Promise<number>>();
@@ -2519,15 +2533,15 @@ function onSocket(ws: WsConn, ip: string): void {
         // PUBLIC (yard) door: the check names no room — answer with the
         // running yard for the asked mode, so the gate sees the live match
         // (phase, bench/full flags) instead of blind defaults. The lazy
-        // ffa/gun yards are bounded (two, ever); the tdm yard pre-exists.
-        const md: ModeId = m.mode === "gun" ? "gun" : m.mode === "ffa" ? "ffa" : "tdm";
+        // ffa/gun/snd/dom yards are bounded (four, ever); the tdm yard pre-exists.
+        const md: ModeId = supportsMode(SERVER_MAP, asModeId(m.mode)) ? asModeId(m.mode) : "tdm";
         ws.send(JSON.stringify(getOrCreateYard(md).namecheck(m)));
         return;
       }
       const r = rooms.get(asked);
       if (!r) {
         // NoSuchRoom case: created on join of this code.
-        const md: ModeId = m.mode === "gun" ? "gun" : m.mode === "ffa" ? "ffa" : "tdm";
+        const md: ModeId = supportsMode(SERVER_MAP, asModeId(m.mode)) ? asModeId(m.mode) : "tdm";
         ws.send(
           JSON.stringify({
             t: "namecheck",
@@ -2557,7 +2571,7 @@ function onSocket(ws: WsConn, ip: string): void {
 
     if (m.t === "join") {
       if (room && seat) return;
-      const mode: ModeId = m.mode === "gun" ? "gun" : m.mode === "ffa" ? "ffa" : "tdm";
+      const mode: ModeId = supportsMode(SERVER_MAP, asModeId(m.mode)) ? asModeId(m.mode) : "tdm";
       const code = cleanRoomCode(m.room);
       const target = code ? getOrCreateRoom(code, mode) : getOrCreateYard(mode);
       if (!target) {

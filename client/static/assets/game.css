@@ -68,7 +68,7 @@
 .music-toggle.is-off::after{content:"";position:absolute;left:16%;right:16%;top:50%;height:2px;margin-top:-1px;background:var(--c-danger);border-radius:2px;transform:rotate(-45deg);pointer-events:none}
 
 /* PRE-GAME LOBBY LAYOUT (appended, same convention as the badge block above):
-   the right rail — map card + rules + mode/map setup + actions — is taller than
+   the right rail ï¿½ map card + rules + mode/map setup + actions ï¿½ is taller than
    a 1080p-class viewport and used to clip its own buttons (SETTINGS, LEAVE) with
    no way to reach them: .nana-wrap is height:100% and the grid row is 1fr, so
    the overflow simply fell off the screen. Both columns now own their scroll
@@ -97,3 +97,33 @@
 .nana-wrap>.nana-top{flex:0 0 auto}
 .nana-wrap>.nana-grid{flex:1 1 0;min-height:0;height:auto;overflow:hidden}
 .nana-wrap>.nana-foot{flex:0 0 auto}
+/* OBJECTIVE HUD (SEARCH & DESTROY / DOMINATION, client/src/ui/hud.ts paintObjectives). */
+#objective-hud{position:absolute;top:calc(var(--hud-m) + calc(236 * var(--tu)) + calc(20 * var(--tu)));left:var(--hud-m);display:grid;gap:calc(6 * var(--tu));width:calc(236 * var(--tu));padding:calc(6 * var(--tu)) calc(8 * var(--tu)) calc(8 * var(--tu));background:linear-gradient(90deg,#06080a80,#06080a47 70%,#06080a00)}
+#objective-hud.hidden{display:none}
+#objective-hud.with-rounds{top:calc(var(--hud-m) + calc(96 * var(--tu)))}
+#obj-status{font-size:max(13px,calc(20 * var(--tu)));font-weight:700;letter-spacing:.08em}
+#obj-detail{font-family:var(--f-body);font-size:max(9px,calc(11 * var(--tu)));font-weight:700;letter-spacing:.16em;color:var(--c-text-2)}
+#obj-flags{display:grid;gap:calc(4 * var(--tu))}
+#obj-flags.hidden{display:none}
+.obj-flag{display:grid;grid-template-columns:calc(24 * var(--tu)) 1fr;grid-template-rows:auto auto;column-gap:calc(8 * var(--tu));align-items:center;padding:calc(3 * var(--tu)) calc(6 * var(--tu));background:#06080a80;border:1px solid var(--c-line-2)}
+.obj-flag.hidden{display:none}
+.obj-flag b{grid-row:1 / span 2;font-size:max(16px,calc(28 * var(--tu)));font-weight:700;text-align:center}
+.obj-flag span{font-family:var(--f-body);font-size:max(8.5px,calc(10 * var(--tu)));font-weight:700;letter-spacing:.12em;color:var(--c-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.obj-flag i{grid-column:2;position:relative;display:block;height:max(3px,calc(5 * var(--tu)));background:#ffffff24;transform:skew(-20deg)}
+.obj-flag i em{position:absolute;left:0;top:0;bottom:0;width:calc(var(--capture, 0) * 100%);background:var(--c-text-2)}
+.obj-flag.ally{border-left:3px solid var(--c-ally)}
+.obj-flag.ally b{color:var(--c-ally)}
+.obj-flag.ally i em{background:var(--c-ally)}
+.obj-flag.enemy{border-left:3px solid var(--c-enemy)}
+.obj-flag.enemy b{color:var(--c-enemy)}
+.obj-flag.enemy i em{background:var(--c-enemy)}
+.obj-flag.neutral{border-left:3px solid var(--c-text-3)}
+.obj-flag.contested{border-style:dashed}
+.obj-flag.capturing i em{background:var(--c-accent)}
+#obj-prompt{display:flex;align-items:center;gap:calc(8 * var(--tu));font-family:var(--f-body);font-size:max(10px,calc(12 * var(--tu)));font-weight:700;letter-spacing:.12em;color:var(--c-text)}
+#obj-prompt.hidden{display:none}
+#obj-prompt .key{display:inline-grid;place-items:center;min-width:calc(22 * var(--tu));height:calc(22 * var(--tu));padding:0 calc(4 * var(--tu));font-family:var(--f-body);font-size:max(9px,calc(11 * var(--tu)));font-weight:700;border:1px solid var(--c-line-3)}
+#obj-progress{position:relative;height:max(4px,calc(6 * var(--tu)));background:#ffffff24}
+#obj-progress.hidden{display:none}
+#obj-progress i{position:absolute;left:0;top:0;bottom:0;width:calc(var(--progress, 0) * 100%);background:var(--c-accent)}
+#hud.killcam-on #objective-hud{display:none}

@@ -24,36 +24,46 @@ import { MAX_PLAYABLE } from "./matchphase";
 import {
   DUST2_FFA_SEATS,
   DUST2_TDM_SEATS,
+  DOM_CAPTURE_S,
+  DOM_MAPS,
+  DOM_MATCH_TIME,
+  DOM_POINT_S,
+  DOM_SCORE_LIMIT,
   FFA_KILL_LIMIT,
-  TDM_MATCH_TIME,
-  FFA_MATCH_TIME,
-  matchTimeFor,
-  ROUND_MAPS,
+  isRoundBased,
+  matchTime,
   ROUND_TIME,
   ROUNDS_TO_WIN,
   ROUNDS_TOTAL,
+  SND_MAPS,
   scoreLimit,
+  type ModeId,
+  type SimMode,
 } from "./protocol";
-
 import { GUN_GOAL, GUN_KILLS_PER_TIER, GUN_LADDER } from "./gungame";
 
-/** `gun` is GUN GAME: an FFA room whose guns come off the ladder (shared/gungame.ts). */
-export type ModeId = "tdm" | "ffa" | "gun";
+export type { ModeId, SimMode };
 
 /** The sim's own mode for a menu mode: GUN GAME plays as FFA with the ladder switched on. */
-export function simMode(mode: ModeId): "tdm" | "ffa" {
-  return mode === "tdm" ? "tdm" : "ffa";
+export function simMode(mode: ModeId): SimMode {
+  return mode === "gun" ? "ffa" : mode;
 }
 
 /** Whatever the transport says, as a ModeId (unknown -> TDM). */
 export function asModeId(x: unknown): ModeId {
-  return x === "ffa" || x === "gun" ? x : "tdm";
+  return x === "ffa" || x === "gun" || x === "snd" || x === "dom" ? x : "tdm";
 }
 
-/** Playable seats (humans + bot fill) per mode on one map. TDM seats split evenly. */
+/** Playable seats (humans + bot fill) per mode on one map. Team seats split evenly. */
 export interface MapSeats {
   tdm: number;
   ffa: number;
+  snd?: number;
+  dom?: number;
+}
+
+export function supportsMode(map: string, mode: ModeId): boolean {
+  return mode === "snd" ? SND_MAPS.includes(map) : mode === "dom" ? DOM_MAPS.includes(map) : true;
 }
 
 /**
@@ -69,6 +79,7 @@ export const MAP_SEATS: Record<string, MapSeats> = {
   dust2: { tdm: DUST2_TDM_SEATS, ffa: DUST2_FFA_SEATS },
   ares: { tdm: 12, ffa: 12 },
   nuketown: { tdm: 12, ffa: 12 },
+  katana: { tdm: 12, ffa: 16, snd: 10, dom: 12 },
 };
 
 /** A map with no entry (a new map before its row lands) plays CoD-standard 6v6. */
@@ -76,29 +87,25 @@ export const DEFAULT_SEATS: MapSeats = { tdm: 12, ffa: 12 };
 
 export function seatsFor(map: string, mode: ModeId): number {
   const s = MAP_SEATS[map] ?? DEFAULT_SEATS;
-  return mode === "tdm" ? s.tdm : s.ffa;
+  return mode === "snd" ? s.snd ?? s.tdm : mode === "dom" ? s.dom ?? s.tdm : mode === "tdm" ? s.tdm : s.ffa;
 }
 
 /** The most bodies any mode on this map can field — renderer pre-warm budgets. */
 export function maxSeats(map: string): number {
   const s = MAP_SEATS[map] ?? DEFAULT_SEATS;
-  return Math.max(s.tdm, s.ffa);
+  return Math.max(s.tdm, s.ffa, s.snd ?? 0, s.dom ?? 0);
 }
 
-/** One-life rounds? Mirrors shared/protocol.ts isRoundBased (same ROUND_MAPS). */
 export function roundBased(map: string, mode: ModeId): boolean {
-  return mode === "tdm" && ROUND_MAPS.includes(map);
+  return isRoundBased(mode, map);
 }
 
 /** Everything a screen needs to describe one map + mode, all derived. */
 export interface ModeInfo {
   map: string;
   mode: ModeId;
-  /** "TEAM DEATHMATCH" | "FREE-FOR-ALL" | "ELIMINATION" | "GUN GAME" */
   label: string;
-  /** Short tag for tight spaces: "TDM" | "FFA" | "ELIM" | "GUN" */
   short: string;
-  /** "5v5", "6v6", or "10 PLAYERS" */
   size: string;
   seats: number;
   teamSize: number;
@@ -108,12 +115,12 @@ export interface ModeInfo {
   rules: string;
   /** Win condition line for the lobby card / loading screen. */
   goal: string;
-  /** Score limit (team kills, FFA kills, or rounds to win). */
+  /** Score limit (team kills, flag points, FFA kills, or rounds to win). */
   limit: number;
   /** Seconds on the clock: the match clock, or the per-round clock. */
   clock: number;
   /** What the two scorebug numbers count. */
-  unit: "KILLS" | "ROUNDS";
+  unit: "KILLS" | "ROUNDS" | "POINTS";
 }
 
 const mmss = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -133,9 +140,9 @@ export function modeInfo(map: string, mode: ModeId): ModeInfo {
       teams: false,
       rounds: false,
       rules: `Every kill hands you the next gun: ${GUN_LADDER.map((g) => g.toUpperCase()).join(" → ")}, ${GUN_KILLS_PER_TIER} kills each. Finish the ladder to win. A knife kill knocks your victim back one.`,
-      goal: `FINISH THE LADDER · ${GUN_GOAL} KILLS · ${mmss(matchTimeFor("ffa"))}`,
+      goal: `FINISH THE LADDER · ${GUN_GOAL} KILLS · ${mmss(matchTime("ffa"))}`,
       limit: GUN_GOAL,
-      clock: matchTimeFor("ffa"),
+      clock: matchTime("ffa"),
       unit: "KILLS",
     };
   }
@@ -150,14 +157,50 @@ export function modeInfo(map: string, mode: ModeId): ModeInfo {
       teamSize: 1,
       teams: false,
       rounds: false,
-      rules: `Every operator for themselves. First to ${FFA_KILL_LIMIT} kills, or the most kills when ${mmss(FFA_MATCH_TIME)} runs out.`,
-      goal: `FIRST TO ${FFA_KILL_LIMIT} KILLS · ${mmss(FFA_MATCH_TIME)}`,
+      rules: `Every operator for themselves. First to ${FFA_KILL_LIMIT} kills, or the most kills when ${mmss(matchTime("ffa"))} runs out.`,
+      goal: `FIRST TO ${FFA_KILL_LIMIT} KILLS · ${mmss(matchTime("ffa"))}`,
       limit: FFA_KILL_LIMIT,
-      clock: FFA_MATCH_TIME,
+      clock: matchTime("ffa"),
       unit: "KILLS",
     };
   }
   const teamSize = Math.floor(seats / 2);
+  if (mode === "dom") {
+    return {
+      map,
+      mode,
+      label: "DOMINATION",
+      short: "DOM",
+      size: `${teamSize}v${teamSize}`,
+      seats,
+      teamSize,
+      teams: true,
+      rounds: false,
+      rules: `Hold A, B and C. A flag takes ${DOM_CAPTURE_S} seconds to capture and each held flag scores one point every ${DOM_POINT_S} second.`,
+      goal: `FIRST TO ${DOM_SCORE_LIMIT} POINTS · ${mmss(DOM_MATCH_TIME)}`,
+      limit: DOM_SCORE_LIMIT,
+      clock: DOM_MATCH_TIME,
+      unit: "POINTS",
+    };
+  }
+  if (mode === "snd") {
+    return {
+      map,
+      mode,
+      label: "SEARCH & DESTROY",
+      short: "S&D",
+      size: `${teamSize}v${teamSize}`,
+      seats,
+      teamSize,
+      teams: true,
+      rounds: true,
+      rules: `One life per round. Attackers plant at A or B; defenders defuse. Best of ${ROUNDS_TOTAL}.`,
+      goal: `FIRST TO ${ROUNDS_TO_WIN} ROUNDS · ONE LIFE`,
+      limit: ROUNDS_TO_WIN,
+      clock: ROUND_TIME,
+      unit: "ROUNDS",
+    };
+  }
   if (rounds) {
     return {
       map,
@@ -186,10 +229,10 @@ export function modeInfo(map: string, mode: ModeId): ModeInfo {
     teamSize,
     teams: true,
     rounds: false,
-    rules: `Two teams, instant respawns. First team to ${scoreLimit(map)} kills, or the most kills when ${mmss(TDM_MATCH_TIME)} runs out.`,
-    goal: `FIRST TO ${scoreLimit(map)} KILLS · ${mmss(TDM_MATCH_TIME)}`,
+    rules: `Two teams, instant respawns. First team to ${scoreLimit(map)} kills, or the most kills when ${mmss(matchTime("tdm"))} runs out.`,
+    goal: `FIRST TO ${scoreLimit(map)} KILLS · ${mmss(matchTime("tdm"))}`,
     limit: scoreLimit(map),
-    clock: TDM_MATCH_TIME,
+    clock: matchTime("tdm"),
     unit: "KILLS",
   };
 }
@@ -200,9 +243,9 @@ export function modeHeadline(map: string, mode: ModeId): string {
   return `${m.label} · ${m.size}`;
 }
 
-/** The modes offered on a map, in menu order. Every map runs all three today. */
+/** The modes offered on a map, in menu order. */
 export function modesFor(map: string): ModeInfo[] {
-  return (["tdm", "ffa", "gun"] as const).map((m) => modeInfo(map, m));
+  return (["tdm", "snd", "dom", "ffa", "gun"] as const).filter((m) => supportsMode(map, m)).map((m) => modeInfo(map, m));
 }
 
 /**

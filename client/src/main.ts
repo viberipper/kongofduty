@@ -707,7 +707,7 @@ function openPauseMenu(opts?: { fullscreenLost?: boolean }): void {
       la: $("s0lbl")?.textContent ?? "",
       lb: $("s1lbl")?.textContent ?? "",
       clock: $("clock")?.textContent ?? "",
-      ffa: state.mode !== "tdm",
+      ffa: !info.teams,
     },
     invite: state.online && state.room ? inviteLink(state.room, PAGE_MAP) : undefined,
     online: state.online,

@@ -115,6 +115,35 @@ export type MapDef = {
    * points: both builders neutralise the team tag (team: 0).
    */
   ffaSpawns?: Spawn[];
+  /**
+   * Objective pins (SEARCH & DESTROY bomb sites, Domination flags), as the
+   * generator emits them. Only maps with objective modes carry them (katana);
+   * the sim reads them only in those modes (shared/sim.ts tickSnd/tickDom).
+   */
+  objectives?: {
+    bombsites: ObjectiveDef[];
+    flags: ObjectiveDef[];
+  };
+  /** Per-mode team spawn sets (katana: tdm/dom/snd/ffa). */
+  spawnSets?: SpawnSets;
   /** everything else comes from the runtime map json (setMapData) */
   [key: string]: unknown;
+};
+
+/** Objective pin (bomb site / domination flag), as the generator emits it. */
+export type ObjectiveDef = {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  z: number;
+  r: number;
+};
+
+/** Per-mode team spawn sets, as the generator emits them. */
+export type SpawnSets = {
+  tdm: { west: Spawn[]; east: Spawn[] };
+  dom: { west: Spawn[]; east: Spawn[] };
+  snd: { attack: Spawn[]; defend: Spawn[] };
+  ffa: Spawn[];
 };

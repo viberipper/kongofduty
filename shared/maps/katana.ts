@@ -8,11 +8,9 @@
  * POLICY defaults (fence height, audio/bot scale, nav lattice, height gate).
  * Non-finite numbers throw; thin colliders are counted into KATANA_AUDIT.
  *
- * SCOPE: TDM/FFA/GUN only. The file also ships authored SND/DOM objective
- * and spawn sets — they are validated softly (a regen that drops a site
- * warns into KATANA_AUDIT and rides empty, it never aborts the start — no
- * local mode reads them: this game plays tdm/ffa/gun (shared/modes.ts))
- * and ride the def for the future.
+ * SCOPE: TDM/FFA/GUN plus SEARCH & DESTROY and DOMINATION on katana's
+ * authored objective and spawn sets (shared/modes.ts supportsMode) — they are
+ * validated strictly: a regen that drops a site aborts the start.
  */
 import type { OBB, Spawn, Waypoint } from "../map";
 import type { FenceRect, MapDef, MinimapRect, NavLattice, Rect } from "./types";
@@ -147,30 +145,23 @@ export function buildKatana(raw: unknown): MapDef {
   };
   const nadeFenceTop = f.nadeFenceTop ?? 32;
   if (nadeFenceTop < 30) A.warnings.push(`nadeFenceTop ${nadeFenceTop} < 30`);
-  // SND/DOM sets ride the def for the future; no local mode reads them
-  // (tdm/ffa/gun only), so a regen that drops a site warns — it never aborts
-  // the start over an unplayed mode.
-  let bombsites: ObjectiveDef[] = [];
-  let flags: ObjectiveDef[] = [];
-  let spawnSets: SpawnSets | undefined;
-  try {
-    const generatedObjectives = need(f.objectives, "objectives");
-    bombsites = objectives(generatedObjectives.snd?.sites, ["A", "B"], "bomb sites");
-    flags = objectives(generatedObjectives.dom?.flags, ["A", "B", "C"], "domination flags");
-    spawnSets = need(f.spawnSets, "spawnSets");
-    const tdm = need(spawnSets.tdm, "spawnSets.tdm");
-    const dom = need(spawnSets.dom, "spawnSets.dom");
-    const snd = need(spawnSets.snd, "spawnSets.snd");
-    spawnGroup(tdm.west, "tdm.west");
-    spawnGroup(tdm.east, "tdm.east");
-    spawnGroup(dom.west, "dom.west");
-    spawnGroup(dom.east, "dom.east");
-    spawnGroup(snd.attack, "snd.attack");
-    spawnGroup(snd.defend, "snd.defend");
-    spawnGroup(spawnSets.ffa, "ffa");
-  } catch (err) {
-    A.warnings.push(`SND/DOM sets skipped: ${err instanceof Error ? err.message : String(err)}`);
-  }
+  // SND/DOM sets are load-bearing now: katana is the only map that offers
+  // SEARCH & DESTROY and DOMINATION (shared/modes.ts supportsMode), so a regen
+  // that drops a site aborts the start instead of shipping an unplayed mode.
+  const generatedObjectives = need(f.objectives, "objectives");
+  const bombsites = objectives(generatedObjectives.snd?.sites, ["A", "B"], "bomb sites");
+  const flags = objectives(generatedObjectives.dom?.flags, ["A", "B", "C"], "domination flags");
+  const spawnSets = need(f.spawnSets, "spawnSets");
+  const tdm = need(spawnSets.tdm, "spawnSets.tdm");
+  const dom = need(spawnSets.dom, "spawnSets.dom");
+  const snd = need(spawnSets.snd, "spawnSets.snd");
+  spawnGroup(tdm.west, "tdm.west");
+  spawnGroup(tdm.east, "tdm.east");
+  spawnGroup(dom.west, "dom.west");
+  spawnGroup(dom.east, "dom.east");
+  spawnGroup(snd.attack, "snd.attack");
+  spawnGroup(snd.defend, "snd.defend");
+  spawnGroup(spawnSets.ffa, "ffa");
   return {
     id: "katana",
     name: KATANA_NAME,

@@ -5,6 +5,17 @@ export const TICK_HZ = 64;
 export const TICK_DT = 1 / TICK_HZ;
 export const SNAP_HZ = 32;
 export const INPUT_HZ = 64;
+
+export type ModeId = "tdm" | "ffa" | "gun" | "snd" | "dom";
+export type SimMode = Exclude<ModeId, "gun">;
+
+export const SND_PLANT_S = 5;
+export const SND_DEFUSE_S = 7;
+export const SND_BOMB_S = 45;
+export const DOM_CAPTURE_S = 10;
+export const DOM_POINT_S = 1;
+export const DOM_SCORE_LIMIT = 200;
+export const DOM_MATCH_TIME = 480;
 /**
  * Hard ceiling on lag compensation: how far into the past the server will ever
  * rewind a body to resolve a shot, and therefore the entire favour-the-shooter
@@ -32,11 +43,11 @@ export const INPUT_HZ = 64;
 export const REWIND_MS = 350;
 export const INTERP_MS = 80;
 /**
- * Hard ceiling on bodies in one GameSession (humans + bots). dust2 FFA seats 15
- * (DUST2_FFA_SEATS) and a room can carry a promoted spectator's body for a tick
- * while a bot is trimmed, so this sits one above the largest seat count.
+ * Hard ceiling on bodies in one GameSession (humans + bots). Katana FFA seats 16
+ * (shared/modes.ts MAP_SEATS) and a room can carry a promoted spectator's body
+ * for a tick while a bot is trimmed, so this sits one above the largest seat count.
  */
-export const MAX_PLAYERS = 16;
+export const MAX_PLAYERS = 17;
 /** Team modes end at this many TEAM kills — same 25 the FFA limit uses, so
  *  every mode is "first to 25 or the clock", whichever lands first. */
 export const SCORE_LIMIT = 25;
@@ -60,9 +71,13 @@ export const FFA_MATCH_TIME = 10 * 60;
  * @deprecated Use TDM_MATCH_TIME / FFA_MATCH_TIME / matchTimeFor(mode) instead.
  */
 export const MATCH_TIME = TDM_MATCH_TIME;
+/** Match clock for a mode: FFA gets the 10 min clock, Domination 8 min, S&D runs the round clock. */
+export function matchTime(mode: string): number {
+  return mode === "ffa" ? FFA_MATCH_TIME : mode === "dom" ? DOM_MATCH_TIME : mode === "snd" ? ROUND_TIME : TDM_MATCH_TIME;
+}
 /** Match clock for a mode: FFA gets the 10 min clock, everything else 8 min. */
 export function matchTimeFor(mode: string): number {
-  return mode === "ffa" ? FFA_MATCH_TIME : TDM_MATCH_TIME;
+  return matchTime(mode);
 }
 /**
  * ROUND-BASED TDM (dust2 only). A team match on a map listed here plays
@@ -77,15 +92,17 @@ export function matchTimeFor(mode: string): number {
  * no client special case, and SCORE_LIMIT can never trip on them.
  */
 export const ROUND_MAPS: readonly string[] = ["dust2"];
+export const SND_MAPS: readonly string[] = ["katana"];
+export const DOM_MAPS: readonly string[] = ["katana"];
 export const ROUNDS_TOTAL = 5;
 export const ROUNDS_TO_WIN = 3;
 /** Per-round clock, seconds. Rides Snapshot.remain while a round is live. */
 export const ROUND_TIME = 120;
 /** Result-card beat between a round ending and the next countdown, seconds. */
 export const ROUND_INTERMISSION_S = 5;
-/** Team deathmatch on a listed map plays rounds; every other mode/map is unchanged. */
+/** Team deathmatch on a listed map plays rounds; S&D always does; every other mode/map is unchanged. */
 export function isRoundBased(mode: string, mapId: string): boolean {
-  return mode === "tdm" && ROUND_MAPS.includes(mapId);
+  return (mode === "tdm" && ROUND_MAPS.includes(mapId)) || (mode === "snd" && SND_MAPS.includes(mapId));
 }
 /**
  * Round state on every snapshot (Snapshot.round) in round-based rooms; absent
@@ -128,6 +145,17 @@ export const RESPITE = 2.35;
 
 export type Team = 0 | 1;
 
+export type ObjectiveSnap =
+  | {
+      mode: "snd";
+      interaction: { kind: "plant" | "defuse"; site: string; by: string; progress: number } | null;
+      bomb: { site: string; by: string; fuse: number } | null;
+    }
+  | {
+      mode: "dom";
+      flags: { id: string; owner: -1 | Team; captureTeam: -1 | Team; progress: number; contested: boolean }[];
+    };
+
 /** Half a second of honest input, including TCP stalls delivered in a burst. */
 export const MAX_INPUT_QUEUE = 32;
 
@@ -150,6 +178,8 @@ export type InputCmd = {
   fire: boolean;
   reload: boolean;
   melee: boolean;
+  /** SEARCH & DESTROY: hold to plant / defuse at a bomb site (keybind "interact"). */
+  use?: boolean;
   /**
    * The weapon the player WANTS in hand (a weapon id). Equal to the held weapon:
    * nothing happens. Equal to the holstered one: a swap starts (shared/sim.ts
@@ -335,6 +365,8 @@ export type NetEvent =
   | { t: "chat"; name: string; text: string }
   /** A spray tag on a surface (client/src/sprays.ts). */
   | { t: "spray"; src: string; tag: number; x: number; y: number; z: number; nx: number; ny: number; nz: number }
+  | { t: "plant" | "defuse" | "explode"; site: string; by: string; team: Team; x: number; y: number; z: number }
+  | { t: "capture"; flag: string; by: string; team: Team; x: number; y: number; z: number }
   | { t: "match"; state: "live" | "end"; score0: number; score1: number }
   /**
    * Round-based TDM only. "end": round `round` just finished, `winner` took it
@@ -355,6 +387,8 @@ export type Snapshot = {
   score1: number;
   remain: number;
   mode: string;
+  /** Bomb/flag state in objective modes (S&D, Domination); absent elsewhere. */
+  objective?: ObjectiveSnap;
   /**
    * THE MAP THIS ROOM IS SIMULATING, on every snapshot, for exactly the reason
    * `phase` rides one (see the note below): a client that joined late, or
@@ -449,7 +483,7 @@ export type LobbyMember = {
 export type LobbyState = {
   t: "lobby";
   room: string;
-  mode: "tdm" | "ffa" | "gun";
+  mode: ModeId;
   /** The map this room runs. Rendered on the lobby card so everyone in the
    *  room can see they are about to load the same world. */
   map: string;
@@ -487,7 +521,7 @@ export type NameCheck = {
     exists: boolean;
     /** The room's real mode, when it exists — an invited guest's client must
      *  render the mode the HOST picked, not the one it would have picked. */
-    mode?: "tdm" | "ffa" | "gun";
+    mode?: ModeId;
     /**
      * THE MAP THIS ROOM RUNS — and the whole reason the map is on the wire.
      *
@@ -536,7 +570,7 @@ export type ClientMsg =
    * it is actually simulating on every snapshot — a client that guessed wrong
    * finds out on the first frame instead of after a match of ghost hits.
    */
-  | { t: "join"; name: string; team: Team | -1; room?: string; mode?: "tdm" | "ffa" | "gun"; map?: string; lobby?: boolean; snapshotFormat?: "compact-v1"; loadout?: Loadout }
+  | { t: "join"; name: string; team: Team | -1; room?: string; mode?: ModeId; map?: string; lobby?: boolean; snapshotFormat?: "compact-v1"; loadout?: Loadout }
   /**
    * LOADOUT CHANGE. Sanitized server-side (shared/loadout.ts sanitizeLoadout);
    * in a live match it applies at this player's NEXT spawn (CoD rule), before
@@ -548,7 +582,7 @@ export type ClientMsg =
    * map (the room moves: every seat is sent `relocate`). Anyone else, or a
    * room that is counting down or live, is ignored.
    */
-  | { t: "lobbyset"; mode?: "tdm" | "ffa" | "gun"; map?: string; gunKills?: number }
+  | { t: "lobbyset"; mode?: ModeId; map?: string; gunKills?: number }
   /**
    * HOST, PRE-GAME ONLY, and only with every seat taken and someone on the
    * bench: re-deal every seat but the host's at random — who plays, who
@@ -575,7 +609,7 @@ export type ClientMsg =
    * server checks the same name again on `join` — this is a courtesy, never a
    * permission (see server/index.ts resolveName).
    */
-  | { t: "checkname"; name: string; room?: string }
+  | { t: "checkname"; name: string; room?: string; mode?: ModeId }
   /** HOST ONLY: leave pre-game and run the countdown. Ignored from anyone else. */
   | { t: "startmatch" }
   /**
@@ -616,4 +650,4 @@ export type ServerMsg =
    * map, so the room re-opens under the same code on `map`'s server: the host
    * (`host: true`) re-creates it, everyone else follows it there.
    */
-  | { t: "relocate"; map: string; room: string; mode: "tdm" | "ffa" | "gun"; host: boolean };
+  | { t: "relocate"; map: string; room: string; mode: ModeId; host: boolean };

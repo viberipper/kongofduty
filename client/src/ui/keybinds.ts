@@ -32,6 +32,7 @@ export type Action =
   | "fire"
   | "ads"
   | "reload"
+  | "interact"
   | "melee"
   | "frag"
   | "primary"
@@ -57,6 +58,7 @@ export const ACTIONS: { id: Action; label: string; group: string; desc: string }
   { id: "fire", label: "Fire", group: "COMBAT", desc: "Fire your weapon." },
   { id: "ads", label: "Aim Down Sights", group: "COMBAT", desc: "Aim down sights. Hold or toggle is set under GAMEPLAY." },
   { id: "reload", label: "Reload", group: "COMBAT", desc: "Reload. Longer when the magazine is empty." },
+  { id: "interact", label: "Interact", group: "COMBAT", desc: "Hold to plant or defuse at a bomb site. Domination flags capture by presence." },
   { id: "melee", label: "Melee", group: "COMBAT", desc: "Knife attack." },
   { id: "frag", label: "Frag Grenade · Hold to Cook", group: "COMBAT", desc: "Hold to pull the pin and cook, release to throw. Cooked too long it goes off in your hand." },
   { id: "primary", label: "Primary Weapon", group: "WEAPONS", desc: "Switch to your primary weapon." },
@@ -80,6 +82,9 @@ export const DEFAULT_BINDS: Readonly<Binds> = {
   fire: ["Mouse0", ""],
   ads: ["Mouse2", ""],
   reload: ["KeyR", ""],
+  // X, not E: E leans right (leanR) in this build — upstream binds E here and
+  // has no lean. Rebindable in SETTINGS → CONTROLS either way.
+  interact: ["KeyX", ""],
   melee: ["KeyF", "KeyV"],
   frag: ["KeyG", "Mouse1"],
   primary: ["Digit1", "Numpad1"],

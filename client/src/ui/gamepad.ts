@@ -18,7 +18,8 @@
  *   left stick MOVE · right stick LOOK · LT ADS · RT FIRE ·
  *   A JUMP · B CROUCH/SLIDE (hold) · X RELOAD · Y SWAP ·
  *   LB FRAG (hold to cook) · RB MELEE · L3 SPRINT (hold) · R3 MELEE ·
- *   DUp PRIMARY · DDown SECONDARY · Back SCOREBOARD (hold) · Start PAUSE
+ *   DUp PRIMARY · DDown SECONDARY · DLeft INTERACT (S&D plant/defuse) ·
+ *   DRight SPRAY · Back SCOREBOARD (hold) · Start PAUSE
  * TACTICAL swaps B ↔ R3 (crouch on the stick, knife on B).
  * SOUTHPAW (padStick) swaps the two sticks.
  *
@@ -221,6 +222,7 @@ export function padMapping(layout: PadButtonLayout): PadRow[] {
       : { button: "R3", action: "Melee", desc: "Stick-click knife (CoD default)." },
     { button: "D-UP", action: "Primary Weapon", desc: "Switch to your primary weapon." },
     { button: "D-DOWN", action: "Secondary Weapon", desc: "Switch to your pistol." },
+    { button: "D-LEFT", action: "Interact", desc: "Hold to plant or defuse at a bomb site (SEARCH & DESTROY)." },
     { button: "D-RIGHT", action: "Spray Paint", desc: "Spray your tag (SETTINGS → GAMEPLAY) on the wall, crate or floor in front of you. Everyone sees it; a new spray replaces your last." },
     { button: "BACK", action: "Scoreboard", desc: "Hold to show the scoreboard." },
     { button: "START", action: "Pause", desc: "Opens the pause menu (same as ESC)." },

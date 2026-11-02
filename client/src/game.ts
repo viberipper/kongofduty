@@ -90,12 +90,12 @@ import {
   TDM_MATCH_TIME,
   FFA_KILL_LIMIT,
   ROUNDS_TO_WIN,
-  matchTimeFor,
-  scoreLimit,
+  matchTime,
   RESPITE,
   BOT_NAMES,
   type RoundState,
   type InputCmd,
+  type ObjectiveSnap,
   type PlayerSnap,
   type PredictionState,
   type NadeSnap,
@@ -124,7 +124,7 @@ import { bootStage } from "./bootstage";
 // UI stream hooks: player settings (sens/ADS/FOV/invert/render scale) and the
 // one seat table every room and the offline match share.
 import { prefs, teamColors, vfov } from "./ui/prefs";
-import { asModeId, seatsFor, maxSeats, simMode } from "@shared/modes";
+import { asModeId, seatsFor, maxSeats, simMode, modeInfo, supportsMode, type ModeId } from "@shared/modes";
 import { GUN_KILLS_PER_TIER, asGunKills, gunGoal } from "@shared/gungame";
 import { Announcer } from "./announcer"; // match announcer (voice + subtitles)
 import { Sprays, sprayHit } from "./sprays"; // spray paint
@@ -189,7 +189,7 @@ type Snapshot = { t: number; players: PlayerSnap[]; nades?: NadeSnap[] };
 
 export type BootOpts = {
   name: string;
-  mode: "tdm" | "ffa";
+  mode: ModeId;
   /** GUN GAME: FFA with the ladder (shared/gungame.ts) switched on. */
   gun?: boolean;
   host: string;
@@ -354,7 +354,7 @@ export class Game {
   actors = new Map<string, BruiserActor>();
   bruiserTpl: BruiserTemplate | null = null;
   lastEv: NetEvent[] = [];
-  keys = { f: false, b: false, l: false, r: false, jump: false, crouch: false, leanL: false, leanR: false, sprint: false, tac: false, ads: false, fire: false, reload: false, melee: false };
+  keys = { f: false, b: false, l: false, r: false, jump: false, crouch: false, leanL: false, leanR: false, sprint: false, tac: false, ads: false, fire: false, reload: false, melee: false, use: false };
   /**
    * GAMEPAD (ui/gamepad.ts). Analog move −1..1, refreshed every render frame by
    * pollGamepad; fixed() lets the louder of stick vs. WASD win (see localCmd).
@@ -592,6 +592,8 @@ export class Game {
    * asked directly — roundInfo() is the one read for both.
    */
   netRound: RoundState | null = null;
+  /** Public objective state from the newest online snapshot; offline reads the sim directly. */
+  netObjective: ObjectiveSnap | null = null;
   lastPredMark = 0;
   /** GUN GAME (shared/gungame.ts): this room plays the ladder, on- or offline. */
   gunGame = false;
@@ -629,6 +631,12 @@ export class Game {
   roundInfo(): RoundState | null {
     if (this.session) return this.session.roundSnap() ?? null;
     return this.netRound;
+  }
+
+  /** Bomb/flag state, or null outside objective modes (S&D, Domination). */
+  objectiveInfo(): ObjectiveSnap | null {
+    if (this.session) return this.session.objectiveSnap() ?? null;
+    return this.netObjective;
   }
   /**
    * The interpolated poses the last frame DREW — the list predictHit tests
@@ -1681,10 +1689,10 @@ export class Game {
       await this.connect(opts.host.trim());
     } else {
       this.session = new GameSession();
-      this.session.mode = opts.mode;
+      this.session.mode = simMode(opts.mode);
       this.session.gunGame = this.gunGame;
       this.session.gunKills = this.gunKills = asGunKills(prefs().gunKills); // Settings → Gun Game
-      this.session.remain = matchTimeFor(opts.mode);
+      this.session.remain = matchTime(opts.mode);
       const me = this.session.addPlayer("local", opts.name, "bruiser", 0, readLoadout().primary, "", false);
       this.you = me.id;
       this.yaw = me.yaw;
@@ -2005,6 +2013,7 @@ export class Game {
           this.netScore1 = msg.score1;
           this.netRemain = msg.remain;
           this.netRound = msg.round ?? null;
+          this.netObjective = msg.objective ?? null;
           // THE ROOM'S MODE IS THE HOST'S, NOT THIS CLIENT'S. An invited guest
           // dials in with whatever mode their own menu last held; every mode
           // read in this file (HUD, nameplates, minimap, the endcard) goes
@@ -2053,32 +2062,37 @@ export class Game {
           this.lastEv.push(...msg.ev);
           this.handleEvents(msg.ev, msg.tick);
           // End-of-match trigger (client-side endcard fallback; the server is
-          // authoritative). TDM ends on the clock or a team hitting the map's
-          // score limit (scoreLimit: 100 on Nuketown, SCORE_LIMIT elsewhere);
-          // FFA ends on the clock or any single player hitting FFA_KILL_LIMIT
-          // (team scores never move in FFA, so SCORE_LIMIT must not apply).
-          // GUN GAME ends on the clock or any single player finishing the ladder.
-          const gun = (msg.mode ?? (this.gunGame ? "gun" : this.opts?.mode)) === "gun";
-          const ffa = (msg.mode ?? this.opts?.mode) !== "tdm";
+          // authoritative). Team rooms end on the clock or their room hitting
+          // the mode's limit (Domination: 200 flag points; TDM: the map's kill
+          // limit; round rooms: clinched round wins, below — remain is the
+          // ROUND clock there, so it must never end the match). FFA ends on
+          // the clock or any single player hitting FFA_KILL_LIMIT (team scores
+          // never move in FFA, so no team limit applies). GUN GAME ends on the
+          // clock or any single player finishing the ladder.
+          const m = asModeId(msg.mode ?? (this.gunGame ? "gun" : this.opts?.mode));
+          const info = modeInfo(msg.map ?? MAP.id, m);
+          const gun = m === "gun";
+          const ffa = m === "ffa";
           const best = ffa
             ? msg.players.reduce((m, p) => (num(p.kills) > m ? num(p.kills) : m), 0)
             : 0;
           const gunBest = gun ? msg.players.reduce((m, p) => Math.max(m, num(p.gun ?? 0)), 0) : 0;
-          const limitHit = gun ? gunBest >= gunGoal(this.gunKills) : ffa ? best >= FFA_KILL_LIMIT : num(msg.score0) >= scoreLimit(msg.map ?? MAP.id) || num(msg.score1) >= scoreLimit(msg.map ?? MAP.id);
+          const limitHit = gun ? gunBest >= gunGoal(this.gunKills) : ffa ? best >= FFA_KILL_LIMIT : info.rounds ? false : num(msg.score0) >= info.limit || num(msg.score1) >= info.limit;
+          const clockUp = !info.rounds && msg.remain <= 0;
           // END-OF-MATCH WATCHDOG (endWatchdog, fixed()): record that the end
           // was seen on the wire — before finish() runs, so the evidence
           // survives even if finish() ever failed to run. Round-based rooms
           // park remain on ROUND_TIME and score round wins, so neither trigger
           // above fires there: clinched round wins (>= ROUNDS_TO_WIN ends the
           // match synchronously in the sim) count as end evidence too.
-          if (!this.ended && (msg.remain <= 0 || limitHit)) this.endEvidenceAt = performance.now();
+          if (!this.ended && (clockUp || limitHit)) this.endEvidenceAt = performance.now();
           if (!this.ended && (this.netRound ? this.netRound.wins0 >= ROUNDS_TO_WIN || this.netRound.wins1 >= ROUNDS_TO_WIN : false)) this.endEvidenceAt = performance.now();
           // TRANSIENT FALSE EVIDENCE must not linger: a fresh live snapshot with
           // a healthy stand (clock running, no limit, no clinched rounds) clears
           // it. Snaps with remain<=0/limitHit/clinch never reach this branch —
           // they set evidence above.
-          else if (!this.ended && msg.remain > 0 && !limitHit && !(this.netRound ? this.netRound.wins0 >= ROUNDS_TO_WIN || this.netRound.wins1 >= ROUNDS_TO_WIN : false)) this.endEvidenceAt = 0;
-          if (msg.remain <= 0 || limitHit)
+          else if (!this.ended && !clockUp && !limitHit && !(this.netRound ? this.netRound.wins0 >= ROUNDS_TO_WIN || this.netRound.wins1 >= ROUNDS_TO_WIN : false)) this.endEvidenceAt = 0;
+          if (clockUp || limitHit)
             this.finish(num(msg.score0), num(msg.score1));
           // A BENCHED SEAT HAS NOTHING TO RECONCILE. Reconciliation exists to
           // replay the commands the server has not acknowledged yet; a spectator
@@ -2525,6 +2539,9 @@ export class Game {
         break;
       }
       case "melee": this.keys.melee = on; break;
+      // SEARCH & DESTROY: hold to plant / defuse at a bomb site (the sim gates
+      // on it; Domination flags capture by presence and ignore it).
+      case "interact": this.keys.use = on; break;
       // BANANA FRAG. Hold to keep aiming (the landing marker stays live), release to throw.
       case "frag": if (on) this.nadeDown(); else this.nadeUp(); break;
       // weapons stream: primary, pistol, and the toggle (the wheel by default).
@@ -2733,9 +2750,11 @@ export class Game {
     // --- scoreboard: BACK hold
     const sbHeld = nowPressed(PAD.BACK);
     if (sbHeld !== !!prev[PAD.BACK]) this.inputAction("scoreboard", sbHeld);
-    // DLEFT doubles as scoreboard for pads without a BACK button wired.
-    if (edge(PAD.DLEFT)) this.inputAction("scoreboard", true);
-    else if (!nowPressed(PAD.DLEFT) && prev[PAD.DLEFT]) this.inputAction("scoreboard", false);
+    // --- interact (S&D plant/defuse): D-LEFT hold, like the keyboard key.
+    const useHeld = nowPressed(PAD.DLEFT);
+    if (useHeld && !prev[PAD.DLEFT]) this.inputAction("interact", true);
+    else if (!useHeld && prev[PAD.DLEFT]) this.inputAction("interact", false);
+    else if (useHeld) this.keys.use = true;
 
     this.padPrev = [...pad.buttons.map((b) => !!b?.pressed)];
   }
@@ -3335,6 +3354,7 @@ export class Game {
             fire: false,
             reload: false,
             melee: false,
+            use: false,
             nade: false,
             nadeHold: false,
           }
@@ -5260,6 +5280,7 @@ export class Game {
       const ffa = this.opts?.mode === "ffa";
       let bestOther = 0;
       if (ffa) for (const p of this.players.values()) if (p.id !== this.you) bestOther = Math.max(bestOther, num(p.kills));
+      const info = modeInfo(MAP.id, this.gunGame ? "gun" : (this.opts?.mode ?? "tdm"));
       this.announcer.tick({
         live: this.matchLive() && !this.ended,
         remain,
@@ -5269,7 +5290,7 @@ export class Game {
         ffa,
         myKills: num(me.kills),
         bestOther,
-        modeLabel: this.gunGame ? "GUN GAME" : ffa ? "FREE FOR ALL" : round ? "ELIMINATION" : "TEAM DEATHMATCH",
+        modeLabel: info.label,
         roundN: round ? round.n : 0,
       });
     }
@@ -5285,6 +5306,7 @@ export class Game {
       gun: this.gunGame,
       gunKills: this.gunKills,
       round,
+      objective: this.objectiveInfo(),
       spectating: !!this.spectateCam,
     });
     // SAT OUT (round-based TDM): a seat that arrived mid-round lies dead with
@@ -5880,6 +5902,68 @@ export class Game {
     return img && img.complete && img.naturalWidth > 0 ? img : null;
   }
 
+  private drawMapObjectives(
+    ctx: CanvasRenderingContext2D,
+    sx: (x: number) => number,
+    sz: (z: number) => number,
+    me: PlayerSnap,
+  ): void {
+    const objective = this.objectiveInfo();
+    if (!objective || this.opts?.mode !== objective.mode || !supportsMode(MAP.id, objective.mode)) return;
+    const palette = teamColors();
+    const ownerColor = (team: -1 | Team): string =>
+      team === -1 ? "rgba(245,238,218,0.72)" : `rgb(${team === me.team ? palette.miniAlly : palette.miniEnemy})`;
+    const marker = (x: number, z: number, label: string, color: string, progress: number, captureColor: string, diamond: boolean, contested: boolean): void => {
+      ctx.save();
+      ctx.translate(sx(x), sz(z));
+      ctx.beginPath();
+      if (diamond) {
+        ctx.moveTo(0, -7);
+        ctx.lineTo(7, 0);
+        ctx.lineTo(0, 7);
+        ctx.lineTo(-7, 0);
+        ctx.closePath();
+      } else ctx.arc(0, 0, 7, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(6,8,10,0.82)";
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash(contested ? [2, 2] : []);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      if (progress > 0) {
+        ctx.beginPath();
+        ctx.arc(0, 0, 10, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, progress));
+        ctx.strokeStyle = captureColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      ctx.font = '700 9px "Barlow Condensed", sans-serif';
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = "rgba(6,8,10,0.95)";
+      ctx.strokeText(label, 0, 0.5);
+      ctx.fillStyle = color;
+      ctx.fillText(label, 0, 0.5);
+      ctx.restore();
+    };
+    if (objective.mode === "snd") {
+      for (const site of MAP.objectives?.bombsites ?? []) {
+        const planted = objective.bomb?.site === site.id;
+        const progress = objective.interaction?.site === site.id ? objective.interaction.progress : 0;
+        marker(site.x, site.z, site.id, planted ? "#ff9f43" : "rgba(245,238,218,0.9)", progress, "#ffd34d", true, false);
+      }
+    } else {
+      for (const def of MAP.objectives?.flags ?? []) {
+        const flag = objective.flags.find((f) => f.id === def.id);
+        if (!flag) continue;
+        const color = flag.contested ? "#f2c14e" : ownerColor(flag.owner);
+        marker(def.x, def.z, def.id, color, flag.progress, ownerColor(flag.captureTeam), false, flag.contested);
+      }
+    }
+  }
+
   drawMap(me: PlayerSnap): void {
     const c = document.getElementById("mmap") as HTMLCanvasElement | null;
     if (!c) return;
@@ -6002,6 +6086,8 @@ export class Game {
     ctx.fillStyle = "rgba(255,255,255,0.12)"; // UI stream: neutral view cone
     ctx.fill();
     ctx.restore();
+
+    this.drawMapObjectives(ctx, sx, sz, me);
 
     // ---- live frags near you: the one thing worth shouting about ------------
     for (const n of this.nadeLive) {
@@ -6409,13 +6495,15 @@ export type HudState = {
   players: PlayerSnap[];
   you: string;
   locked: boolean;
-  mode: "tdm" | "ffa";
+  mode: ModeId;
   /** GUN GAME: FFA standings rank by ladder progress (PlayerSnap.gun), not kills. */
   gun: boolean;
   /** GUN GAME kills per gun. */
   gunKills: number;
-  /** Round-based TDM only (shared/protocol.ts RoundState); null elsewhere. */
+  /** Round-based rooms only (elimination, S&D); null elsewhere. */
   round: RoundState | null;
+  /** Bomb/flag state; null outside objective modes (S&D, Domination). */
+  objective: ObjectiveSnap | null;
   /** This client is on the bench: its own body is a camera, not a player. */
   spectating: boolean;
 };

@@ -108,7 +108,8 @@ const ptsOf = (mode: ModeId, r: EndRow): number => (mode === "gun" ? num(r.gun) 
 
 export function computeResult(p: Pick<EndParams, "mode" | "s0" | "s1" | "board">): { result: MatchResult; mine: number; theirs: number; place: number; of: number } {
   const me = p.board.find((r) => r.you);
-  if (p.mode !== "tdm") {
+  const teams = p.mode !== "ffa" && p.mode !== "gun";
+  if (!teams) {
     const sorted = [...p.board].sort((a, b) => ptsOf(p.mode, b) - ptsOf(p.mode, a));
     const top = sorted[0] ? ptsOf(p.mode, sorted[0]) : 0;
     const myK = me ? ptsOf(p.mode, me) : 0;
@@ -153,7 +154,8 @@ export function showEndcard(p: EndParams): MatchResult {
   // Score line: your side first, in your colour.
   const score = $("endscore");
   score.replaceChildren();
-  if (p.mode !== "tdm") {
+  const teams = info.teams;
+  if (!teams) {
     score.append(h("span", undefined, `${ord(r.place)}`), h("small", undefined, p.mode === "gun" ? `OF ${r.of} · LADDER ${r.mine}/${info.limit}` : `OF ${r.of} · ${r.mine} KILLS`));
   } else {
     const mid = h("small", undefined, info.rounds ? "ROUNDS" : "VS");
@@ -204,9 +206,9 @@ export function showEndcard(p: EndParams): MatchResult {
   // clip the panel, so 15-player dust2 FFA hid three people — usually including
   // the one reading it. A long board goes COMPACT (shorter rows) and, past what
   // even that fits, scrolls inside the panel; nobody is ever cut.
-  const biggest = p.mode !== "tdm" ? p.board.length : Math.max(p.board.filter((x) => (x.team === 1 ? 1 : 0) === 0).length, p.board.filter((x) => (x.team === 1 ? 1 : 0) === 1).length);
-  board.classList.toggle("dense", biggest > (p.mode !== "tdm" ? 10 : 8));
-  if (p.mode !== "tdm") {
+  const biggest = !teams ? p.board.length : Math.max(p.board.filter((x) => (x.team === 1 ? 1 : 0) === 0).length, p.board.filter((x) => (x.team === 1 ? 1 : 0) === 1).length);
+  board.classList.toggle("dense", biggest > (!teams ? 10 : 8));
+  if (!teams) {
     const block = h("div", "eb-block");
     block.append(head(), ...sorted(p.board).map(line));
     board.append(block);
@@ -370,7 +372,7 @@ function paintPodium(p: EndParams, outOf: string): void {
   for (const place of [2, 1, 3]) {
     const r = ranked[place - 1];
     if (!r) continue;
-    const side = p.mode === "tdm" ? (r.team === myTeam ? " ally" : " enemy") : "";
+    const side = p.mode === "ffa" || p.mode === "gun" ? "" : r.team === myTeam ? " ally" : " enemy";
     const col = h("div", `pod pod-${place}${r.you ? " you" : ""}${side}`);
     col.style.animationDelay = `${(3 - place) * 140 + 200}ms`;
     const fur = h("i", "pod-fur");

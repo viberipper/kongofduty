@@ -224,6 +224,17 @@
             <div class="sb-row enemy"><b id="s1">0</b><div class="sb-bar"><i id="s1bar"></i></div><span id="s1lbl">ENEMY</span></div>
           </div>
         </div>
+        <div id="objective-hud" class="hidden">
+          <b id="obj-status"></b>
+          <span id="obj-detail"></span>
+          <div id="obj-flags" class="hidden">
+            <div class="obj-flag neutral" id="obj-flag-A"><b>A</b><span id="obj-flag-A-state">NEUTRAL</span><i><em></em></i></div>
+            <div class="obj-flag neutral" id="obj-flag-B"><b>B</b><span id="obj-flag-B-state">NEUTRAL</span><i><em></em></i></div>
+            <div class="obj-flag neutral" id="obj-flag-C"><b>C</b><span id="obj-flag-C-state">NEUTRAL</span><i><em></em></i></div>
+          </div>
+          <div id="obj-prompt" class="hidden"><span class="key" id="obj-key">X</span><span id="obj-action"></span></div>
+          <div id="obj-progress" class="hidden"><i></i></div>
+        </div>
         <div id="killfeed"></div>
         <div id="chat"><div id="chat-log"></div><input id="chat-input" class="hidden" type="text" maxlength="80" autocomplete="off" spellcheck="false" placeholder="SAY: ENTER to send · ESC to close" /></div>
         <div id="streaks"></div>

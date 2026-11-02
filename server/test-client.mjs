@@ -616,6 +616,58 @@ async function main() {
   mg.ws.close();
   late2.ws.close();
 
+  // ---------- 8) KATANA OBJECTIVE MODES (S&D + DOMINATION) ----------
+  // S&D and Domination exist only on katana (shared/modes.ts supportsMode):
+  // separate always-live yards (yard:snd / yard:dom) carrying bomb/flag
+  // state on the snapshot. Structural only — the headless probe (below, and
+  // any manual run) covers live captures/plants; bots need tens of seconds
+  // to walk a flag, which is not a protocol assertion.
+  const ks = new Fake("kat-snd");
+  await ks.connect(url("katana"));
+  ks.send({ t: "join", name: "SAPPER", team: -1, mode: "snd", map: "katana", snapshotFormat: "compact-v1" });
+  const kswel = await ks.waitFor((m) => m.find((x) => x.t === "welcome"));
+  if (kswel.room !== "yard:snd") throw new Error(`S&D yard welcome.room=${kswel.room}, expected yard:snd`);
+  const ksnap = await ks.waitFor((m) => m.find((x) => x.t === "snap" && x.mode === "snd" && x.objective?.mode === "snd"));
+  // seatsFor(katana, snd) = 10 == 5v5 (MAP_SEATS, shared/modes.ts)
+  if (ksnap.players.length !== 10) throw new Error(`S&D yard has ${ksnap.players.length} bodies, expected 10 (5v5)`);
+  if (!ksnap.round || ksnap.round.total !== 5) throw new Error("S&D yard has no 5-round block on the snapshot");
+  const sndKeys = Object.keys(ksnap.objective).sort().join(",");
+  if (sndKeys !== "bomb,interaction,mode") throw new Error(`S&D objective keys=${sndKeys}, expected bomb,interaction,mode`);
+  // interact streams without dropping the seat (server sanitizeCmd allowlists `use`)
+  let kseq = 1;
+  const krun = setInterval(() => { ks.send({ t: "in", cmd: cmd(kseq++, { use: true }) }); }, 15);
+  await sleep(3000);
+  clearInterval(krun);
+  const ksnap2 = ks.snaps[ks.snaps.length - 1];
+  if (ksnap2.mode !== "snd" || ksnap2.objective?.mode !== "snd") throw new Error("S&D yard lost its mode/objective under an interact stream");
+  console.log(`[kat-snd] yard ok players=10 round=${ksnap2.round.n}/${ksnap2.round.total} bomb=${ksnap2.objective.bomb ? ksnap2.objective.bomb.site : "none"}`);
+  ks.ws.close();
+
+  const kd = new Fake("kat-dom");
+  await kd.connect(url("katana"));
+  kd.send({ t: "join", name: "FLAGGER", team: -1, mode: "dom", map: "katana", snapshotFormat: "compact-v1" });
+  const kdwel = await kd.waitFor((m) => m.find((x) => x.t === "welcome"));
+  if (kdwel.room !== "yard:dom") throw new Error(`DOM yard welcome.room=${kdwel.room}, expected yard:dom`);
+  const kdsnap = await kd.waitFor((m) => m.find((x) => x.t === "snap" && x.mode === "dom" && x.objective?.mode === "dom"));
+  // seatsFor(katana, dom) = 12 == 6v6 (MAP_SEATS, shared/modes.ts)
+  if (kdsnap.players.length !== 12) throw new Error(`DOM yard has ${kdsnap.players.length} bodies, expected 12 (6v6)`);
+  const flagIds = (kdsnap.objective.flags ?? []).map((f) => f.id).sort().join(",");
+  if (flagIds !== "A,B,C") throw new Error(`DOM flags=${flagIds}, expected A,B,C`);
+  // bots play the flags: walk (anti-AFK) and expect a capture or flag points.
+  let dseq = 1;
+  const drun = setInterval(() => { kd.send({ t: "in", cmd: cmd(dseq++, { az: 1 }) }); }, 15);
+  const domScored = await kd.waitFor((m) => {
+    const scored = m.find((x) => x.t === "snap" && x.mode === "dom" && ((x.score0 ?? 0) + (x.score1 ?? 0) > 0));
+    if (scored) return scored;
+    const snaps = m.filter((x) => x.t === "snap");
+    const cap = snaps.find((s) => (s.ev ?? []).some((e) => e.t === "capture"));
+    return cap;
+  }, 60000);
+  clearInterval(drun);
+  const domCap = kd.msgs.filter((x) => x.t === "snap").flatMap((s) => s.ev ?? []).find((e) => e.t === "capture");
+  console.log(`[kat-dom] flag play ok score=${domScored.score0}-${domScored.score1}${domCap ? ` capture=${domCap.flag}/team${domCap.team}` : ""}`);
+  kd.ws.close();
+
   // shut the hub worker back down (spawned case)
   clearInterval(keep);
   if (proc) {
