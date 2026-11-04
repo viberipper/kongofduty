@@ -60,7 +60,7 @@ const HEIGHT = 1.78; // world meters, matches STAND_H-ish hitbox
 // up across the chest (forward reach is what the hit capsule cannot cover), and
 // the budget gets the last word on every frame.
 type V3 = [number, number, number];
-type HoldPose = { p: V3; yaw: number; elev: number; roll: number; follow: number; rPole: V3; lPole: V3; sup: number; blade: number; fk?: boolean };
+export type HoldPose = { p: V3; yaw: number; elev: number; roll: number; follow: number; rPole: V3; lPole: V3; sup: number; blade: number; fk?: boolean };
 type HoldFrame = { p: THREE.Vector3; q: THREE.Quaternion; r: THREE.Vector3; l: THREE.Vector3; sup: number; blade: number };
 type AimHold = { pocket: V3; drop: number; rPole: V3; lPole: V3; sup: number; blade: number };
 type HoldSet = { ready: HoldPose; sprint: HoldPose; low: HoldPose; one: HoldPose; reload: HoldPose; lift: HoldPose; aim: AimHold };
@@ -1591,6 +1591,12 @@ export class BruiserActor {
   bind: Record<string, THREE.Quaternion> = {};
   aimQuat: Record<string, THREE.Quaternion> = {};
   id: string;
+  /**
+   * cine stream: the HERO POSE (intro hero shot, POTG / MVP card) — an authored hold for the gun (the hands
+   * are IK'd onto it like any hold) plus the attitude: chest twist / lift, head turn to the lens, chin, tilt.
+   * Render-only; null in play.
+   */
+  hero: { hold: HoldPose; pistol?: HoldPose; w: number; twist: number; chest: number; look: number; chin: number; tilt: number } | null = null;
   /** Claim a freshly prepared actor; never used to recycle a played skeleton. */
   claim(p: PlayerSnap): void {
     this.id = p.id;
@@ -2706,6 +2712,12 @@ export class BruiserActor {
       this.holdFrame(set.low, Bf);
       this.mixFrame(A, Bf, this.lowW);
     }
+    // cine stream: an AUTHORED hold (the hero pose of the intro and the POTG card), over everything above;
+    // the hands are solved onto it exactly as onto any hold, so the paws stay on the gun
+    if (this.hero && this.hero.w > 0.001) {
+      this.holdFrame(g.proto.cls === "pistol" && this.hero.pistol ? this.hero.pistol : this.hero.hold, Bf);
+      this.mixFrame(A, Bf, this.hero.w);
+    }
     // WALL LIFT. Walk the barrel (a third, two thirds, the crown) against the
     // solids within reach; a muzzle that would be inside one lifts the gun up
     // across the chest instead — what a body does, and what keeps the barrel
@@ -3216,6 +3228,18 @@ export class BruiserActor {
       (this.bones.Spine02 as THREE.Bone | undefined)?.rotateZ(0.18 * f * this.hitSide);
       (this.bones.Head as THREE.Bone | undefined)?.rotateZ(-0.14 * f * this.hitSide);
       this.holder.position.y = (template?.yOff ?? 0) - 0.02 * f;
+    }
+    // cine stream: the hero pose's attitude — the chest turned, the head to the lens, the chin up
+    if (this.hero && this.hero.w > 0.001) {
+      const h = this.hero;
+      const w = h.w;
+      (this.bones.Spine01 as THREE.Bone | undefined)?.rotateY(h.twist * 0.45 * w);
+      (this.bones.Spine02 as THREE.Bone | undefined)?.rotateY(h.twist * 0.55 * w);
+      (this.bones.Spine02 as THREE.Bone | undefined)?.rotateX(-h.chest * w);
+      (this.bones.NeckTwist01 as THREE.Bone | undefined)?.rotateY(h.look * 0.4 * w);
+      (this.bones.Head as THREE.Bone | undefined)?.rotateY(h.look * 0.6 * w);
+      (this.bones.Head as THREE.Bone | undefined)?.rotateX(-h.chin * w);
+      (this.bones.Head as THREE.Bone | undefined)?.rotateZ(h.tilt * w);
     }
     // Aim pitch distributed over the spine chain (clamped), blended by aim weight.
     const pw = 0.5 + this.aimW * 0.85;

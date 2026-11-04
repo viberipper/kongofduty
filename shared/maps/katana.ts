@@ -11,9 +11,24 @@
  * SCOPE: TDM/FFA/GUN plus SEARCH & DESTROY and DOMINATION on katana's
  * authored objective and spawn sets (shared/modes.ts supportsMode) — they are
  * validated strictly: a regen that drops a site aborts the start.
+ * OUTSTANDING: grey-world loader + v3 renderer — assets staged (katana-grey.glb, assets/katana/v3/) but unwired.
  */
 import type { OBB, Spawn, Waypoint } from "../map";
 import type { FenceRect, MapDef, MinimapRect, NavLattice, Rect } from "./types";
+import { registerSurface } from "../surface";
+
+// KATANA v3: every collider carries one of these tags — pinned here so
+// impacts, penetration and footsteps read the material the art mesh shows.
+registerSurface("kv-gravel", "dirt");
+registerSurface("kv-slate", "stone");
+registerSurface("kv-stone", "stone");
+registerSurface("kv-rock", "stone");
+registerSurface("kv-plaster", "stone");
+registerSurface("kv-wood", "wood");
+// TODO(v3-fluid): kv-water is dirt until the v3 liquid ships — footsteps/splash read dirt, penetration is unaffected.
+registerSurface("kv-water", "dirt");
+registerSurface("kv-plant", "wood");
+registerSurface("kv-roof", "stone");
 
 /** Menu label, needed before the data exists (MAP_OPTIONS is built at import). */
 export const KATANA_NAME = "KATANA";
@@ -42,6 +57,17 @@ export type KatanaFile = {
   solids: OBB[];
   spawns: Spawn[];
   ffaSpawns?: Spawn[];
+  tdmSpawnReach?: number;
+  ffaAuthoredOnly?: boolean;
+  spawnDistCap?: number;
+  domFlip?: boolean;
+  patrolUpperBonus?: number;
+  stepUpCeilings?: boolean;
+  nadeRoofSlide?: boolean;
+  nadeCCD?: boolean;
+  pushCap?: number;
+  nadeThinSlide?: boolean;
+  tdmFlip?: MapDef["tdmFlip"];
   spawnSets?: SpawnSets;
   nadeFenceRects?: FenceRect[];
   nadeFenceTop?: number;
@@ -173,6 +199,17 @@ export function buildKatana(raw: unknown): MapDef {
     nadeFenceRects: f.nadeFenceRects ?? [],
     nadeFenceTop,
     spawns,
+    tdmSpawnReach: f.tdmSpawnReach,
+    ffaAuthoredOnly: f.ffaAuthoredOnly,
+    spawnDistCap: f.spawnDistCap,
+    domFlip: f.domFlip,
+    patrolUpperBonus: f.patrolUpperBonus,
+    stepUpCeilings: f.stepUpCeilings,
+    nadeRoofSlide: f.nadeRoofSlide,
+    nadeCCD: f.nadeCCD,
+    pushCap: f.pushCap,
+    nadeThinSlide: f.nadeThinSlide,
+    tdmFlip: f.tdmFlip,
     // Authored FFA points ride the def so shared/sim.ts seeds FFA from them
     // instead of the two team-side pools — neutral throughout like
     // dust2/nuketown: a future file that tags a side still yields teamless

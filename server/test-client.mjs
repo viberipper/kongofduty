@@ -361,7 +361,10 @@ async function main() {
   h.send({ t: "startmatch" });
   const start = await h.waitFor((m) => m.find((x) => x.t === "start"));
   console.log(`[priv] start ok startAt=${start.startAt} (in ${start.startAt - Date.now()} ms)`);
-  await sleep(3600); // countdown 3.2 s + margin
+  // cine stream: the match-start countdown carries the intro lead (shared/cine.ts MATCH_START_MS = 10 s)
+  const lead = start.startAt - Date.now();
+  if (!(lead > 9000 && lead < 11000)) throw new Error(`intro lead ${lead} ms, expected ~10000 (MATCH_START_MS)`);
+  await sleep(10600); // countdown 10 s (intro lead + 3-2-1) + margin
   const phases = [...new Set(h.snaps.map((s) => s.phase))].join("/");
   console.log(`[priv] snap phases seen: ${phases} (n=${h.snaps.length})`);
   const live = h.snaps.find((s) => s.phase === "live");
@@ -424,7 +427,7 @@ async function main() {
   if (alob.map !== "ares") throw new Error(`ares lobby.map=${alob.map}, expected ares`);
   ah.send({ t: "startmatch" });
   await ah.waitFor((m) => m.find((x) => x.t === "start"));
-  await sleep(3600);
+  await sleep(10600); // countdown 10 s (intro lead + 3-2-1) + margin
   const alive = ah.snaps.find((s) => s.phase === "live");
   if (!alive) throw new Error("ares: no live snapshot after countdown");
   const ateams = new Map();
@@ -456,7 +459,7 @@ async function main() {
   if (glob.maxPlayable !== 12) throw new Error(`gun maxPlayable=${glob.maxPlayable}, expected 12`);
   gh.send({ t: "startmatch" });
   await gh.waitFor((m) => m.find((x) => x.t === "start"));
-  await sleep(3600);
+  await sleep(10600); // countdown 10 s (intro lead + 3-2-1) + margin
   const glive = gh.snaps.find((s) => s.phase === "live");
   if (!glive) throw new Error("gun: no live snapshot after countdown");
   console.log(`[gun] live players=${glive.players.length} gun0=${glive.players[0]?.gun}`);
@@ -519,7 +522,7 @@ async function main() {
   mg.msgs.length = 0;
   mg.send({ t: "startmatch" });
   await mg.waitFor((m) => m.find((x) => x.t === "start"));
-  await sleep(3600);
+  await sleep(10600); // countdown 10 s (intro lead + 3-2-1) + margin
   const mvlive = mg.snaps.find((s) => s.phase === "live");
   if (!mvlive) throw new Error("mv: no live snapshot after handover start");
   console.log(`[mv] new-host start live ok players=${mvlive.players.length}`);
@@ -622,6 +625,12 @@ async function main() {
   // state on the snapshot. Structural only — the headless probe (below, and
   // any manual run) covers live captures/plants; bots need tens of seconds
   // to walk a flag, which is not a protocol assertion.
+  // Mirror sync (trivial gate): the server-local copy must match the client
+  // copy — a regen that edits one side only trips here.
+  const katClient = JSON.parse(fs.readFileSync(path.join(HERE, "..", "client", "static", "assets", "maps", "katana.json"), "utf8"));
+  const katServer = JSON.parse(fs.readFileSync(path.join(HERE, "assets", "maps", "katana.json"), "utf8"));
+  if (katClient.solids.length !== katServer.solids.length) throw new Error(`katana mirror drift: client solids=${katClient.solids.length} server=${katServer.solids.length}`);
+  console.log(`[kat-sync] mirror ok solids=${katServer.solids.length}`);
   const ks = new Fake("kat-snd");
   await ks.connect(url("katana"));
   ks.send({ t: "join", name: "SAPPER", team: -1, mode: "snd", map: "katana", snapshotFormat: "compact-v1" });
@@ -630,6 +639,7 @@ async function main() {
   const ksnap = await ks.waitFor((m) => m.find((x) => x.t === "snap" && x.mode === "snd" && x.objective?.mode === "snd"));
   // seatsFor(katana, snd) = 10 == 5v5 (MAP_SEATS, shared/modes.ts)
   if (ksnap.players.length !== 10) throw new Error(`S&D yard has ${ksnap.players.length} bodies, expected 10 (5v5)`);
+  if (ksnap.phase !== "live") throw new Error(`S&D yard phase=${ksnap.phase}, expected live (yards skip the countdown)`);
   if (!ksnap.round || ksnap.round.total !== 5) throw new Error("S&D yard has no 5-round block on the snapshot");
   const sndKeys = Object.keys(ksnap.objective).sort().join(",");
   if (sndKeys !== "bomb,interaction,mode") throw new Error(`S&D objective keys=${sndKeys}, expected bomb,interaction,mode`);
@@ -651,6 +661,7 @@ async function main() {
   const kdsnap = await kd.waitFor((m) => m.find((x) => x.t === "snap" && x.mode === "dom" && x.objective?.mode === "dom"));
   // seatsFor(katana, dom) = 12 == 6v6 (MAP_SEATS, shared/modes.ts)
   if (kdsnap.players.length !== 12) throw new Error(`DOM yard has ${kdsnap.players.length} bodies, expected 12 (6v6)`);
+  if (kdsnap.phase !== "live") throw new Error(`DOM yard phase=${kdsnap.phase}, expected live (yards skip the countdown)`);
   const flagIds = (kdsnap.objective.flags ?? []).map((f) => f.id).sort().join(",");
   if (flagIds !== "A,B,C") throw new Error(`DOM flags=${flagIds}, expected A,B,C`);
   // bots play the flags: walk (anti-AFK) and expect a capture or flag points.
@@ -667,6 +678,20 @@ async function main() {
   const domCap = kd.msgs.filter((x) => x.t === "snap").flatMap((s) => s.ev ?? []).find((e) => e.t === "capture");
   console.log(`[kat-dom] flag play ok score=${domScored.score0}-${domScored.score1}${domCap ? ` capture=${domCap.flag}/team${domCap.team}` : ""}`);
   kd.ws.close();
+
+  // ---------- 8b) KATANA PRIVATE COUNTDOWN — same 10 s intro lead as nuketown ----------
+  // Lead-only (no 10 s live wait): the countdown carries MATCH_START_MS on every map.
+  const kh = new Fake("kat-lead");
+  await kh.connect(url("katana"));
+  kh.send({ t: "join", name: "KATLEAD", room: "KAT-LEAD", mode: "tdm", map: "katana", snapshotFormat: "compact-v1", lobby: true });
+  const khw = await kh.waitFor((m) => m.find((x) => x.t === "welcome"));
+  await kh.waitFor((m) => m.find((x) => x.t === "lobby" && x.host === khw.id));
+  kh.send({ t: "startmatch" });
+  const kstart = await kh.waitFor((m) => m.find((x) => x.t === "start"));
+  const klead = kstart.startAt - Date.now();
+  if (!(klead > 9000 && klead < 11000)) throw new Error(`katana intro lead ${klead} ms, expected ~10000 (MATCH_START_MS)`);
+  console.log(`[kat-lead] countdown lead ok (${klead} ms)`);
+  kh.ws.close();
 
   // shut the hub worker back down (spawned case)
   clearInterval(keep);

@@ -171,6 +171,8 @@ import { softwareMaterials } from "./software-materials";
 import { RenderTimeline } from "./render-timeline";
 import { DepthPrecision } from "./depth-precision";
 import { COUNTDOWN_MS, inputLocked, isStaleMatchTick, type MatchPhase } from "@shared/matchphase";
+import { plausibleStartLeft } from "@shared/cine";
+import { Cine } from "./cine"; // cine stream: match intro + play of the game (client/src/cine/)
 // AAA graphics (feature/aaa-graphics): fused cinematic final pass, map-agnostic
 // contact AO, selective bloom, opt-in motion blur, quality presets, GPU-backend
 // detection (WebGPU-first via the vendored three r187 WebGPURenderer — see gpu-backend).
@@ -340,6 +342,8 @@ export class Game {
   audio = new AudioRig2();
   /** The 3-2-1 card, the resupply flash and the recovered flash. */
   matchFeel = new MatchFeel();
+  /** cine stream: the match-start intro, the whole-match tape and the play of the game (client/src/cine). */
+  readonly cine: Cine = new Cine(this as never);
   /** feel stream: what your kills earn (accolades.ts), how they show (ui/medals.ts) and sound (medal-stings.ts). */
   accolades = new AccoladeTracker();
   medals = new Medals();
@@ -759,7 +763,7 @@ export class Game {
     const svMs = this.svNow() * 1000;
     let left = COUNTDOWN_MS;
     if (Number.isFinite(startAt)) left = startAt > 1e12 ? startAt - Date.now() : startAt - svMs;
-    if (!(left > -2000 && left < COUNTDOWN_MS + 5000)) left = COUNTDOWN_MS;
+    if (!plausibleStartLeft(left)) left = COUNTDOWN_MS; // cine stream: a match start now carries the intro lead
     this.netStartAt = svMs + left;
     this.netPhase = "countdown";
     // A (re-)armed match starts on clean walls (rematch after lobby return).
@@ -977,6 +981,7 @@ export class Game {
     // Re-sync once here so any resize that happened on the menu — before the
     // renderer existed to be resized — is picked up on the way into a match.
     this.resize();
+    await this.cine.init(); // cine stream (before the warm-up compile: its rim light is part of the lit set)
     await this.prepareGraphics();
     this.bindInput();
     this.inited = true;
@@ -1626,6 +1631,8 @@ export class Game {
   private adaptQuality(renderMs: number): void {
     // UI stream hook: GRAPHICS → RENDER RESOLUTION (prefs also honours ?quality=native).
     if (this.testMode || prefs().renderScale === "native") return;
+    // cine stream: never re-scale under a cinematic (a resolution pop mid-shot).
+    if (this.cine.busy()) return;
     if (!this.quality.sample(renderMs, performance.now())) return;
     // m3: ONE owner — the pref. adaptQuality only sets a transient
     // cap (shadows ≤2048 at small scale) that never overrides the pref;
@@ -1677,6 +1684,7 @@ export class Game {
     // tags would otherwise survive into the next match.
     this.sprays?.clear();
     this.stopFinalKillcam(); // feel stream
+    this.cine.reset(); // cine stream
     this.fkTape.reset();
     this.accolades.reset(this.you);
     this.medals.clear();
@@ -1720,7 +1728,7 @@ export class Game {
       // code path, the same numbers, and stepped-clock-safe for the capture rig.
       // Never in ?test: those scenarios pose exact tick counts and a 3.2 s input
       // lock at t=0 would silently eat the first frames of every one of them.
-      if (!this.testMode) this.session.beginCountdown();
+      if (!this.testMode) this.session.beginCountdown(this.cine.matchStartMs()); // cine stream: + the intro lead
     }
     // SET AFTER THE SEAT EXISTS, NOT BEFORE. `running` is what every gate in
     // qa/ waits on to mean "the game is up", and it used to be set before
@@ -1939,6 +1947,7 @@ export class Game {
         this.keepAlive();
         const msg = decodeServerMessage(JSON.parse(raw));
         if (msg.t === "snap" && !this.freshSnap(msg)) return;
+        if ((msg as { t: string }).t === "potg") return this.cine.announce(msg); // cine stream: the server's play of the game
         if (msg.t === "welcome") {
           this.you = msg.id;
           this.udpTries = 0;
@@ -3746,6 +3755,7 @@ export class Game {
   }
 
   handleEvents(ev: NetEvent[], tick: number = this.snapTick): void {
+    this.cine.events(ev); // cine stream: tape shots/hits, offline highlight scoring
     // END-OF-MATCH ROBUSTNESS: each event runs in its own try/catch, so one
     // faulty event in the final flush (feed, accolades, announcer, tracer)
     // can never throw past the match/end event — and finish() — behind it.
@@ -4848,7 +4858,7 @@ export class Game {
     BruiserActor.nowMs = this.nowMs();
     // feel stream: markers keep a constant on-screen size, and nothing in the world draws over the endcard
     BruiserActor.viewTan = Math.tan((this.camera.fov * Math.PI) / 360);
-    BruiserActor.overlays = !this.endcardUp && !this.fkc;
+    BruiserActor.overlays = !this.endcardUp && !this.fkc && !this.cine.hideOverlays && !this.cine.potgOn; // cine stream
     const list = this.interpPlayers();
     // THE POSES THIS FRAME IS ABOUT TO PUT ON SCREEN, kept for hit prediction.
     // predictHit runs from fixed(), which loop() drains BEFORE draw(), so it can
@@ -4875,11 +4885,14 @@ export class Game {
     // is already on it by the time the playhead gets there.
     // feel stream: the FINAL KILLCAM plays off its own clip (final-killcam.ts) and outranks everything.
     const fk = this.fkc;
-    const kcKiller = fk ? fk.clip.kill.src : this.killerId;
-    const replayOn = !!fk || (this.killcamT > 0 && !!this.killerId && this.kcClock >= 0 && !this.spectateCam);
+    const potg = !fk && this.cine.potgOn; // cine stream: the play of the game rides the same replay path
+    const kcKiller = fk ? fk.clip.kill.src : potg ? this.cine.potgPovId() : this.killerId;
+    const replayOn = !!fk || potg || (this.killcamT > 0 && !!this.killerId && this.kcClock >= 0 && !this.spectateCam);
     let alist = list;
     if (fk) {
       alist = this.tickFinalKillcam(dt);
+    } else if (potg) {
+      alist = this.cine.potgTick(dt);
     } else if (replayOn) {
       this.kcClock = Math.min(this.kcClock + dt * 1000, this.kcFreeze);
       alist = this.replayAt(this.kcClock);
@@ -4900,10 +4913,10 @@ export class Game {
     if (this.kcReplayOn !== replayOn) this.footstepCadence.clear();
     this.kcReplayOn = replayOn;
 
-    for (const p of alist) {
+    for (const p of this.cine.posed(alist)) {
       // Your own body has no actor in live play (you are the camera) — but the
       // replay is shot through the KILLER's eyes, so there it needs one.
-      if (p.id === this.you && !replayOn) continue;
+      if (p.id === this.you && !replayOn && !this.cine.selfBody) continue; // cine stream: your body is in the intro's shots
       let a = this.actors.get(p.id);
       if (!a && this.bruiserTpl) {
         a = this.preparedActors.pop();
@@ -4930,7 +4943,8 @@ export class Game {
       // Render-only step ease on remote bodies (fix-round-3 order 5). The
       // ORIGINAL `p` goes on to plantOnHitbox and is what the hit list holds;
       // only the drawn root moves.
-      a.apply(p.id === this.you ? p : { ...p, y: this.remoteStepY(p, dt) }, dt);
+      const adt = potg ? this.cine.potgActorDt(dt) : dt; // cine stream: bodies animate at the replay's speed (slow motion, the freeze)
+      a.apply(p.id === this.you ? p : { ...p, y: this.remoteStepY(p, dt) }, adt);
       // weapons stream: an enemy reloading is AUDIBLE (CoD's push cue) — the sim
       // sends no event, so a fresh rise of the snapshot's reload timer is the start.
       if (!replayOn && p.id !== this.you) {
@@ -4950,8 +4964,9 @@ export class Game {
         }
       }
     }
+    const replayIds = replayOn ? new Set(alist.map((p) => p.id)) : null; // cine stream: a replay keeps the bodies it poses (a player who left mid-match)
     for (const [id, a] of this.actors) {
-      if (!this.players.has(id) || (id === this.you && !replayOn)) {
+      if ((!this.players.has(id) && !replayIds?.has(id)) || (id === this.you && !replayOn && !this.cine.selfBody)) {
         this.world!.scene.remove(a.root);
         a.dispose();
         this.actors.delete(id);
@@ -4992,6 +5007,9 @@ export class Game {
       // feel stream: FINAL KILLCAM — the killer's eye and gun, off the clip.
       if (this.ghostRing) this.ghostRing.visible = false;
       this.finalCam(alist, dt);
+    } else if (potg) {
+      if (this.ghostRing) this.ghostRing.visible = false;
+      this.cine.potgCamera(alist, dt); // cine stream
     } else if (this.spectateCam && this.spectateCam(dt)) {
       if (this.ghostRing) this.ghostRing.visible = false;
     } else if (this.killcamT > 0 && this.killerId) {
@@ -5176,6 +5194,9 @@ export class Game {
       }
     }
 
+    // cine stream: the intro overrides the camera just placed (and lands back on it).
+    this.cine.frame(dt);
+    this.cine.tick();
     // Listener and movement cues share this frame's camera and actor positions,
     // including spectator follow and killcam playback.
     this.camera.getWorldDirection(this.audioForward);
@@ -5338,7 +5359,7 @@ export class Game {
         breath: this.feel.breath,
         breathOut: this.feel.breathOut,
         breathHold: this.feel.breathHold,
-        visible: !this.spectateCam && this.killcamT <= 0 && !this.fkc, // feel stream: the final killcam drives its own scope (finalCam)
+        visible: !this.spectateCam && this.killcamT <= 0 && !this.fkc && !this.cine.potgOn, // feel stream: the final killcam drives its own scope (finalCam); cine stream: so does the play of the game
       });
     }
     // feel stream: the low-health heartbeat (only for the body you are actually playing, in a live match)
@@ -5353,7 +5374,7 @@ export class Game {
     }
     const phase = this.matchPhase();
     if (!this.session && phase === "countdown" && this.countdownLeftMs() <= 0) this.netPhase = "live";
-    this.matchFeel.update(this.nowMs(), phase, this.countdownLeftMs(), this.audio);
+    this.matchFeel.update(this.nowMs(), phase, this.cine.numeralLeft(this.countdownLeftMs()), this.cine.feelAudio(this.audio)); // cine stream: no '3' over the flythrough; ONE GO sound (the intro's)
   }
 
   /**
@@ -5695,6 +5716,7 @@ export class Game {
     }
     const frame = { t, players: list.map((p) => ({ ...p })) };
     this.rec.push(frame);
+    this.cine.tape.frame(t, frame.players); // cine stream: the whole-match tape (packed)
     this.fkTape.frame(frame); // feel stream: open final-killcam clips collect their tail
     while (this.rec.length && this.rec[0]!.t < t - KC_REC_KEEP_MS) this.rec.shift();
     // (the replay cursors index these lists: keep them on the same entries as the front is pruned)
@@ -6294,7 +6316,9 @@ export class Game {
       this.announcer.end(win, s0 === s1);
     }
     // feel stream: FINAL KILLCAM first (final-killcam.ts), then the endcard. Never in ?test.
-    const clip = this.testMode ? null : this.fkTape.pick(winner);
+    end = this.cine.wrapEnd(end); // cine stream: the play of the game plays before the endcard
+    const picked = this.testMode ? null : this.fkTape.pick(winner);
+    const clip = picked && !this.cine.ownsEnd() ? picked : null; // cine stream: the play of the game / MVP card replace the final killcam (one end sequence)
     if (clip) this.startFinalKillcam(clip, end);
     else {
       this.endcardUp = true;

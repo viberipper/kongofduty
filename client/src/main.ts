@@ -654,7 +654,7 @@ function onMatchEnd(s0: number, s1: number, board: EndRow[]): void {
 // ---------------------------------------------------------------- pause
 
 function inMatch(): boolean {
-  return game.running && !$("hud").classList.contains("hidden") && $("endcard").classList.contains("hidden") && !lobbyOnScreen() && !game.fkc; // feel stream: not over the final killcam
+  return game.running && !$("hud").classList.contains("hidden") && $("endcard").classList.contains("hidden") && !lobbyOnScreen() && !game.fkc && !game.cine.busy(); // feel stream: not over the final killcam; cine stream: nor the intro / play of the game
 }
 
 /** Menu home up, no modal stacked on it — the pad shortcut layer (MENU_PAD) may fire. */

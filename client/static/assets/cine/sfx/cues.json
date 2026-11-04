@@ -1,0 +1,9 @@
+{
+ "_": "hit times (s) inside each cue: the ONE source of truth (client/src/cine/sfx.ts reads this file) Round 5: both cues mastered to -18 LUFS / under -3.5 dBTP; the POTG cue lost its quiet 4.5-5.2 s stretch (cut + a riser into the hit), so its hit moved 7.0 -> 6.25.",
+ "intro-music": {
+  "hit": 10.0
+ },
+ "potg-music": {
+  "hit": 6.25
+ }
+}

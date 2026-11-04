@@ -1,5 +1,6 @@
 import type { MatchPhase } from "./matchphase";
 import type { Loadout } from "./loadout";
+import type { PotgMsg } from "./highlights";
 
 export const TICK_HZ = 64;
 export const TICK_DT = 1 / TICK_HZ;
@@ -643,6 +644,8 @@ export type ServerMsg =
   | NameCheck
   /** shared/matchphase.ts StartMsg — the match-start handshake. */
   | { t: "start"; startAt: number }
+  /** PLAY OF THE GAME (shared/highlights.ts PotgMsg): the authority's pick, sent before the finale snapshot. */
+  | PotgMsg
   /** A spectator has just been given a playable seat and a fresh spawn. */
   | { t: "promoted"; slot: number; waitForRound?: boolean }
   /**

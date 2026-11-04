@@ -218,7 +218,10 @@ await import("../../shared/maps");
 
 // Engine chain from here on (sim builds on activeMap()).
 import { GameSession, type SimPlayer } from "../../shared/sim";
-import { MAX_SPECTATORS, COUNTDOWN_MS } from "../../shared/matchphase";
+import { MAX_SPECTATORS } from "../../shared/matchphase";
+import { MATCH_START_MS } from "../../shared/cine";
+import { HighlightRecorder, losFromTrace } from "../../shared/highlights";
+import { traceWorld } from "../../shared/map";
 import type { ClientMsg, InputCmd, LobbyMember, NameCheck, NetEvent, PredictionState, ServerMsg, Snapshot, Team, MatchPhase } from "../../shared/protocol";
 import { BOT_NAMES, matchTime, MAX_INPUT_QUEUE } from "../../shared/protocol";
 import { packPlayers } from "../../shared/snapshot-wire";
@@ -781,6 +784,10 @@ class Room {
   overLastSnap = 0;
   startAtWall = 0;
   emptySince = 0;
+  /** PLAY OF THE GAME (shared/highlights.ts): scored from the drained events of every snapshot, server-side. */
+  potg = new HighlightRecorder(losFromTrace(traceWorld));
+  /** The play was announced for the current match (reset on every nextMatch). */
+  potgSent = false;
   /** Seats (humans+bots) of this room: seatsFor(map, mode). */
   seatCount: number;
   /** GUN GAME kills per gun (host's lobbyset choice, default 3). */
@@ -1104,10 +1111,12 @@ class Room {
     }
     // Fresh match: score 0, respawn, clock reset, countdown tick.
     this.session.nextMatch();
+    this.potg.reset();
+    this.potgSent = false;
     this.session.setGunKills(this.gunKills);
     this.sprays.clear();
-    this.session.beginCountdown(COUNTDOWN_MS);
-    const startAt = Date.now() + COUNTDOWN_MS;
+    this.session.beginCountdown(MATCH_START_MS); // cine stream: the countdown carries the intro lead
+    const startAt = Date.now() + MATCH_START_MS;
     this.startAtWall = startAt;
     for (const s of this.seats.values()) this.send(s, { t: "start", startAt });
     this.broadcastLobby();
@@ -1572,6 +1581,8 @@ class Room {
         // benched). Private keeps host control, FFA/GUN are teamless.
         if (this.kind === "yard" && this.mode === "tdm") this.shuffleYardTdm();
         this.session.nextMatch();
+        this.potg.reset();
+        this.potgSent = false;
         // A new match starts on clean walls (the clients scrub theirs too).
         this.sprays.clear();
         // MATCH-ROLLOVER BANK RESET (review LOW): nextMatch() respawns every
@@ -1701,6 +1712,15 @@ class Room {
     // depth (server-side reject on control characters) stays a
     // third-party-client concern and is out of scope here.
     const ev: NetEvent[] = this.session.drainEvents();
+    // cine stream: PLAY OF THE GAME — score the drained events of every snapshot from the server's own view.
+    this.potg.observe(this.session, ev, this.phase);
+    if (this.session.over && !this.potgSent) {
+      // Announced BEFORE the finale snapshot below: every client replays the same window off its own tape.
+      this.potgSent = true;
+      this.potg.endAt = this.session.time;
+      const h = this.potg.pick();
+      if (h) for (const s of this.seats.values()) this.send(s, { t: "potg", ...h });
+    }
     // END-OF-MATCH RETRANSMIT (tick(), over window): the sim is frozen, so the
     // drain above is empty after the flush — re-attach the match/end event on
     // every over-window snapshot until the rollover clears overMatchEnd.
