@@ -1,0 +1,1956 @@
+{
+ "props": {
+  "chochin_s": {
+   "id": "chochin_s",
+   "file": "chochin_s.glb",
+   "lods": [
+    {
+     "name": "chochin_s_LOD0",
+     "tris": 1800
+    },
+    {
+     "name": "chochin_s_LOD1",
+     "tris": 592
+    },
+    {
+     "name": "chochin_s_LOD2",
+     "tris": 184
+    }
+   ],
+   "size_m": [
+    0.265,
+    0.261,
+    0.5
+   ],
+   "bounds_min": [
+    -0.132,
+    -0.13,
+    -0.035
+   ],
+   "bounds_max": [
+    0.132,
+    0.13,
+    0.465
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_iron",
+    "kv3_lantern_paper"
+   ],
+   "sockets": {
+    "light": [
+     0,
+     0,
+     0.19
+    ],
+    "hang": [
+     0,
+     0,
+     0.465
+    ]
+   },
+   "notes": "Small paper lantern, hang point at top; paper = kv3_lantern_paper (chochin_c.webp map + emissiveMap); socket_light: red point light #E8141F ~2-3 cd, 6 m."
+  },
+  "chochin_l": {
+   "id": "chochin_l",
+   "file": "chochin_l.glb",
+   "lods": [
+    {
+     "name": "chochin_l_LOD0",
+     "tris": 2232
+    },
+    {
+     "name": "chochin_l_LOD1",
+     "tris": 712
+    },
+    {
+     "name": "chochin_l_LOD2",
+     "tris": 184
+    }
+   ],
+   "size_m": [
+    0.489,
+    0.481,
+    0.943
+   ],
+   "bounds_min": [
+    -0.244,
+    -0.241,
+    -0.066
+   ],
+   "bounds_max": [
+    0.244,
+    0.241,
+    0.877
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_iron",
+    "kv3_lantern_paper"
+   ],
+   "sockets": {
+    "light": [
+     0,
+     0,
+     0.36
+    ],
+    "hang": [
+     0,
+     0,
+     0.881
+    ]
+   },
+   "notes": "Large shop lantern."
+  },
+  "toro_kasuga": {
+   "id": "toro_kasuga",
+   "file": "toro_kasuga.glb",
+   "lods": [
+    {
+     "name": "toro_kasuga_LOD0",
+     "tris": 476
+    },
+    {
+     "name": "toro_kasuga_LOD1",
+     "tris": 376
+    },
+    {
+     "name": "toro_kasuga_LOD2",
+     "tris": 312
+    }
+   ],
+   "size_m": [
+    0.94,
+    0.814,
+    1.92
+   ],
+   "bounds_min": [
+    -0.47,
+    -0.407,
+    0.0
+   ],
+   "bounds_max": [
+    0.47,
+    0.407,
+    1.92
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0,
+      0,
+      0.1
+     ],
+     "half": [
+      0.34,
+      0.34,
+      0.1
+     ]
+    },
+    {
+     "c": [
+      0,
+      0,
+      0.6
+     ],
+     "half": [
+      0.12,
+      0.12,
+      0.4
+     ]
+    },
+    {
+     "c": [
+      0,
+      0,
+      1.45
+     ],
+     "half": [
+      0.4,
+      0.4,
+      0.45
+     ]
+    }
+   ],
+   "blocking": true,
+   "materials": [
+    "kv3_granite_flag",
+    "kv3_toro_paper"
+   ],
+   "sockets": {
+    "light": [
+     0,
+     0,
+     1.31
+    ]
+   },
+   "notes": "Kasuga stone lantern 1.92 m; window paper kv3_toro_paper (emissive); light socket inside the fire box."
+  },
+  "toro_yukimi": {
+   "id": "toro_yukimi",
+   "file": "toro_yukimi.glb",
+   "lods": [
+    {
+     "name": "toro_yukimi_LOD0",
+     "tris": 664
+    },
+    {
+     "name": "toro_yukimi_LOD1",
+     "tris": 360
+    },
+    {
+     "name": "toro_yukimi_LOD2",
+     "tris": 312
+    }
+   ],
+   "size_m": [
+    1.16,
+    1.005,
+    1.076
+   ],
+   "bounds_min": [
+    -0.58,
+    -0.502,
+    -0.026
+   ],
+   "bounds_max": [
+    0.58,
+    0.502,
+    1.05
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0,
+      0,
+      0.52
+     ],
+     "half": [
+      0.5,
+      0.5,
+      0.52
+     ]
+    }
+   ],
+   "blocking": true,
+   "materials": [
+    "kv3_granite_flag",
+    "kv3_toro_paper"
+   ],
+   "sockets": {
+    "light": [
+     0,
+     0,
+     0.61
+    ]
+   },
+   "notes": "Snow-viewing lantern 1.05 m, wide roof; low decorative, collider sized to it."
+  },
+  "noren": {
+   "id": "noren",
+   "file": "noren.glb",
+   "lods": [
+    {
+     "name": "noren_LOD0",
+     "tris": 372
+    },
+    {
+     "name": "noren_LOD1",
+     "tris": 116
+    },
+    {
+     "name": "noren_LOD2",
+     "tris": 40
+    }
+   ],
+   "size_m": [
+    1.5,
+    0.036,
+    0.952
+   ],
+   "bounds_min": [
+    -0.75,
+    -0.018,
+    -0.935
+   ],
+   "bounds_max": [
+    0.75,
+    0.018,
+    0.017
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_cedar_deck",
+    "kv3_noren"
+   ],
+   "sockets": {
+    "rod": [
+     0,
+     0,
+     0
+    ]
+   },
+   "notes": "3-panel shop curtain 1.36 x 0.92 m hanging from the rod (origin = rod centre). Non-blocking. COLOR_0.r = sway weight (0 at rod, 1 at hem) and uv.y (1 top .. 0 hem). Material kv3_noren (cloth set supplied by the library). Render double-sided."
+  },
+  "komodaru": {
+   "id": "komodaru",
+   "file": "komodaru.glb",
+   "lods": [
+    {
+     "name": "komodaru_LOD0",
+     "tris": 948
+    },
+    {
+     "name": "komodaru_LOD1",
+     "tris": 408
+    },
+    {
+     "name": "komodaru_LOD2",
+     "tris": 60
+    }
+   ],
+   "size_m": [
+    0.442,
+    0.435,
+    0.492
+   ],
+   "bounds_min": [
+    -0.221,
+    -0.218,
+    -0.004
+   ],
+   "bounds_max": [
+    0.221,
+    0.218,
+    0.488
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0,
+      0,
+      0.24
+     ],
+     "half": [
+      0.22,
+      0.22,
+      0.24
+     ]
+    }
+   ],
+   "blocking": true,
+   "materials": [
+    "kv3_cedar_deck",
+    "kv3_rope",
+    "kv3p_komodaru"
+   ],
+   "sockets": {},
+   "notes": "Straw-wrapped 4-to sake barrel 0.44 x 0.47 m; unique map komodaru_c.webp (Katana diamond crest, no third-party marks)."
+  },
+  "komodaru_stack6": {
+   "id": "komodaru_stack6",
+   "file": "komodaru_stack6.glb",
+   "lods": [
+    {
+     "name": "komodaru_stack6_LOD0",
+     "tris": 5748
+    },
+    {
+     "name": "komodaru_stack6_LOD1",
+     "tris": 2508
+    },
+    {
+     "name": "komodaru_stack6_LOD2",
+     "tris": 420
+    }
+   ],
+   "size_m": [
+    1.36,
+    0.5,
+    1.108
+   ],
+   "bounds_min": [
+    -0.68,
+    -0.25,
+    0.0
+   ],
+   "bounds_max": [
+    0.68,
+    0.25,
+    1.108
+   ],
+   "cover": true,
+   "colliders": [
+    {
+     "c": [
+      0,
+      0,
+      0.545
+     ],
+     "half": [
+      0.68,
+      0.25,
+      0.545
+     ]
+    }
+   ],
+   "blocking": true,
+   "materials": [
+    "kv3_cedar_deck",
+    "kv3_rope",
+    "kv3p_komodaru"
+   ],
+   "sockets": {},
+   "notes": "2 x 3 barrels on a low pallet, 1.36 x 0.5 x 1.09 m: COVER (box read)."
+  },
+  "cart": {
+   "id": "cart",
+   "file": "cart.glb",
+   "lods": [
+    {
+     "name": "cart_LOD0",
+     "tris": 3796
+    },
+    {
+     "name": "cart_LOD1",
+     "tris": 2080
+    },
+    {
+     "name": "cart_LOD2",
+     "tris": 636
+    }
+   ],
+   "size_m": [
+    2.9,
+    1.4,
+    1.188
+   ],
+   "bounds_min": [
+    -1.05,
+    -0.7,
+    -0.005
+   ],
+   "bounds_max": [
+    1.85,
+    0.7,
+    1.183
+   ],
+   "cover": true,
+   "colliders": [
+    {
+     "c": [
+      -0.05,
+      0,
+      0.56
+     ],
+     "half": [
+      1.0,
+      0.62,
+      0.56
+     ]
+    },
+    {
+     "c": [
+      1.4,
+      0,
+      0.6
+     ],
+     "half": [
+      0.45,
+      0.47,
+      0.06
+     ]
+    }
+   ],
+   "blocking": true,
+   "materials": [
+    "kv3_cedar_deck",
+    "kv3_cedar_lap",
+    "kv3_iron",
+    "kv3_rope",
+    "kv3p_interior",
+    "kv3p_komodaru"
+   ],
+   "sockets": {},
+   "notes": "Daihachiguruma hand cart loaded with a crate and two komodaru: COVER 2.0 x 1.24 x 1.12 m; handle shafts are a low secondary collider."
+  },
+  "crate_s": {
+   "id": "crate_s",
+   "file": "crate_s.glb",
+   "lods": [
+    {
+     "name": "crate_s_LOD0",
+     "tris": 348
+    },
+    {
+     "name": "crate_s_LOD1",
+     "tris": 348
+    },
+    {
+     "name": "crate_s_LOD2",
+     "tris": 24
+    }
+   ],
+   "size_m": [
+    0.616,
+    0.466,
+    0.454
+   ],
+   "bounds_min": [
+    -0.308,
+    -0.233,
+    0.0
+   ],
+   "bounds_max": [
+    0.308,
+    0.233,
+    0.454
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0,
+      0,
+      0.225
+     ],
+     "half": [
+      0.3,
+      0.225,
+      0.225
+     ]
+    }
+   ],
+   "blocking": true,
+   "materials": [
+    "kv3_cedar_deck",
+    "kv3_cedar_lap",
+    "kv3p_interior"
+   ],
+   "sockets": {},
+   "notes": "Small crate 0.6 x 0.45 x 0.45, stackable (flat lid)."
+  },
+  "crate_l": {
+   "id": "crate_l",
+   "file": "crate_l.glb",
+   "lods": [
+    {
+     "name": "crate_l_LOD0",
+     "tris": 576
+    },
+    {
+     "name": "crate_l_LOD1",
+     "tris": 576
+    },
+    {
+     "name": "crate_l_LOD2",
+     "tris": 24
+    }
+   ],
+   "size_m": [
+    1.116,
+    0.916,
+    1.054
+   ],
+   "bounds_min": [
+    -0.558,
+    -0.458,
+    0.0
+   ],
+   "bounds_max": [
+    0.558,
+    0.458,
+    1.054
+   ],
+   "cover": true,
+   "colliders": [
+    {
+     "c": [
+      0,
+      0,
+      0.525
+     ],
+     "half": [
+      0.55,
+      0.45,
+      0.525
+     ]
+    }
+   ],
+   "blocking": true,
+   "materials": [
+    "kv3_cedar_deck",
+    "kv3_cedar_lap",
+    "kv3p_interior"
+   ],
+   "sockets": {},
+   "notes": "Large crate 1.1 x 0.9 x 1.05: COVER, stackable."
+  },
+  "vending": {
+   "id": "vending",
+   "file": "vending.glb",
+   "lods": [
+    {
+     "name": "vending_LOD0",
+     "tris": 310
+    },
+    {
+     "name": "vending_LOD1",
+     "tris": 134
+    },
+    {
+     "name": "vending_LOD2",
+     "tris": 14
+    }
+   ],
+   "size_m": [
+    1.04,
+    0.87,
+    1.87
+   ],
+   "bounds_min": [
+    -0.52,
+    -0.12,
+    0.0
+   ],
+   "bounds_max": [
+    0.52,
+    0.75,
+    1.87
+   ],
+   "cover": true,
+   "colliders": [
+    {
+     "c": [
+      0,
+      0.375,
+      0.915
+     ],
+     "half": [
+      0.5,
+      0.375,
+      0.915
+     ]
+    }
+   ],
+   "blocking": true,
+   "materials": [
+    "kv3p_vending_body",
+    "kv3p_vending_front"
+   ],
+   "sockets": {
+    "light": [
+     0,
+     -0.4,
+     1.2
+    ]
+   },
+   "notes": "Generic lit drink machine 1.0 x 0.75 x 1.83, front faces -Y, back flush at y = 0.75; front kv3p_vending_front (map + emissiveMap, cool white), body kv3p_vending_body flat dark paint. Socket light: cool-white #DCEBFF area/point."
+  },
+  "facade_koshi": {
+   "id": "facade_koshi",
+   "file": "facade_koshi.glb",
+   "lods": [
+    {
+     "name": "facade_koshi_LOD0",
+     "tris": 532
+    },
+    {
+     "name": "facade_koshi_LOD1",
+     "tris": 244
+    },
+    {
+     "name": "facade_koshi_LOD2",
+     "tris": 76
+    }
+   ],
+   "size_m": [
+    1.86,
+    0.15,
+    2.6
+   ],
+   "bounds_min": [
+    -0.96,
+    -0.06,
+    0.0
+   ],
+   "bounds_max": [
+    0.9,
+    0.09,
+    2.6
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0,
+      0.02,
+      1.3
+     ],
+     "half": [
+      0.9,
+      0.07,
+      1.3
+     ]
+    }
+   ],
+   "blocking": true,
+   "materials": [
+    "kv3_cedar_deck",
+    "kv3_shoji",
+    "kv3_yakisugi"
+   ],
+   "sockets": {
+    "interior_light": [
+     0,
+     0.6,
+     1.2
+    ]
+   },
+   "notes": "Machiya k\u014dshi lattice bay 1.8 x 2.6 m over shoji; wall plane XZ, street = -Y; owns its LEFT post (x = -0.9); snap on 0.9 m grid; cap a run with facade_post_end."
+  },
+  "facade_door": {
+   "id": "facade_door",
+   "file": "facade_door.glb",
+   "lods": [
+    {
+     "name": "facade_door_LOD0",
+     "tris": 354
+    },
+    {
+     "name": "facade_door_LOD1",
+     "tris": 222
+    },
+    {
+     "name": "facade_door_LOD2",
+     "tris": 126
+    }
+   ],
+   "size_m": [
+    1.86,
+    0.626,
+    2.605
+   ],
+   "bounds_min": [
+    -0.96,
+    -0.106,
+    -0.005
+   ],
+   "bounds_max": [
+    0.9,
+    0.52,
+    2.6
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0.44,
+      0.02,
+      1.0
+     ],
+     "half": [
+      0.44,
+      0.06,
+      1.0
+     ]
+    },
+    {
+     "c": [
+      0,
+      0.04,
+      2.3
+     ],
+     "half": [
+      0.9,
+      0.06,
+      0.3
+     ]
+    }
+   ],
+   "blocking": true,
+   "materials": [
+    "kv3_cedar_deck",
+    "kv3_cedar_lap",
+    "kv3_granite_flag",
+    "kv3_iron",
+    "kv3_shoji",
+    "kv3_yakisugi",
+    "kv3p_interior"
+   ],
+   "sockets": {
+    "noren": [
+     0,
+     -0.09,
+     1.97
+    ],
+    "interior_light": [
+     -0.4,
+     1.0,
+     1.5
+    ]
+   },
+   "notes": "Door bay: right half sliding lattice door, left half open to a dim interior (blocked 0.5 m in by the interior plane); noren rail at 1.97 m with socket_noren."
+  },
+  "facade_window": {
+   "id": "facade_window",
+   "file": "facade_window.glb",
+   "lods": [
+    {
+     "name": "facade_window_LOD0",
+     "tris": 616
+    },
+    {
+     "name": "facade_window_LOD1",
+     "tris": 280
+    },
+    {
+     "name": "facade_window_LOD2",
+     "tris": 100
+    }
+   ],
+   "size_m": [
+    1.86,
+    0.15,
+    2.6
+   ],
+   "bounds_min": [
+    -0.96,
+    -0.06,
+    0.0
+   ],
+   "bounds_max": [
+    0.9,
+    0.09,
+    2.6
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0,
+      0.02,
+      1.3
+     ],
+     "half": [
+      0.9,
+      0.07,
+      1.3
+     ]
+    }
+   ],
+   "blocking": true,
+   "materials": [
+    "kv3_cedar_deck",
+    "kv3_shoji",
+    "kv3_yakisugi"
+   ],
+   "sockets": {
+    "interior_light": [
+     0,
+     0.6,
+     1.4
+    ],
+    "sign_window": [
+     0,
+     -0.09,
+     1.5
+    ]
+   },
+   "notes": "Window bay: charred koshi-ita below 0.85 m, lattice over shoji above; socket_sign_window for the \u55b6\u696d\u4e2d plate."
+  },
+  "facade_mushiko": {
+   "id": "facade_mushiko",
+   "file": "facade_mushiko.glb",
+   "lods": [
+    {
+     "name": "facade_mushiko_LOD0",
+     "tris": 336
+    },
+    {
+     "name": "facade_mushiko_LOD1",
+     "tris": 144
+    },
+    {
+     "name": "facade_mushiko_LOD2",
+     "tris": 132
+    }
+   ],
+   "size_m": [
+    1.86,
+    0.18,
+    1.5
+   ],
+   "bounds_min": [
+    -0.96,
+    -0.06,
+    0.0
+   ],
+   "bounds_max": [
+    0.9,
+    0.12,
+    1.5
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0,
+      0.06,
+      0.75
+     ],
+     "half": [
+      0.9,
+      0.06,
+      0.75
+     ]
+    }
+   ],
+   "blocking": true,
+   "materials": [
+    "kv3_cedar_deck",
+    "kv3_plaster",
+    "kv3p_interior"
+   ],
+   "sockets": {},
+   "notes": "Upper-storey plaster module 1.8 x 1.5 m with a mushiko-mado (plastered bar window); sits on top of a ground-floor bay at z = 2.6."
+  },
+  "facade_post_end": {
+   "id": "facade_post_end",
+   "file": "facade_post_end.glb",
+   "lods": [
+    {
+     "name": "facade_post_end_LOD0",
+     "tris": 12
+    },
+    {
+     "name": "facade_post_end_LOD1",
+     "tris": 12
+    },
+    {
+     "name": "facade_post_end_LOD2",
+     "tris": 12
+    }
+   ],
+   "size_m": [
+    0.12,
+    0.12,
+    2.6
+   ],
+   "bounds_min": [
+    -0.06,
+    -0.06,
+    0.0
+   ],
+   "bounds_max": [
+    0.06,
+    0.06,
+    2.6
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0,
+      0,
+      1.3
+     ],
+     "half": [
+      0.06,
+      0.06,
+      1.3
+     ]
+    }
+   ],
+   "blocking": true,
+   "materials": [
+    "kv3_cedar_deck"
+   ],
+   "sockets": {},
+   "notes": "End post to close a facade run."
+  },
+  "roof_eave": {
+   "id": "roof_eave",
+   "file": "roof_eave.glb",
+   "lods": [
+    {
+     "name": "roof_eave_LOD0",
+     "tris": 2052
+    },
+    {
+     "name": "roof_eave_LOD1",
+     "tris": 1184
+    },
+    {
+     "name": "roof_eave_LOD2",
+     "tris": 672
+    }
+   ],
+   "size_m": [
+    1.805,
+    1.373,
+    0.758
+   ],
+   "bounds_min": [
+    -0.9,
+    -0.04,
+    -0.12
+   ],
+   "bounds_max": [
+    0.905,
+    1.333,
+    0.638
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_cedar_deck",
+    "kv3_cedar_lap",
+    "kv3_kawara"
+   ],
+   "sockets": {
+    "gutter": [
+     0,
+     -0.08,
+     -0.12
+    ],
+    "chain": [
+     0.0,
+     -0.1,
+     -0.14
+    ],
+    "drip_line": [
+     0,
+     -0.06,
+     0.0
+    ]
+   },
+   "notes": "1.8 m eave module, real sangawara wave courses (6 waves), nokigawara round caps with the diamond crest, fascia + rafter tails; origin = eave front centre at fascia top; roof rises toward +Y at 24 deg. Sockets: gutter, chain (kusari-doi), drip_line."
+  },
+  "roof_ridge": {
+   "id": "roof_ridge",
+   "file": "roof_ridge.glb",
+   "lods": [
+    {
+     "name": "roof_ridge_LOD0",
+     "tris": 156
+    },
+    {
+     "name": "roof_ridge_LOD1",
+     "tris": 146
+    },
+    {
+     "name": "roof_ridge_LOD2",
+     "tris": 60
+    }
+   ],
+   "size_m": [
+    1.824,
+    0.32,
+    0.285
+   ],
+   "bounds_min": [
+    -0.912,
+    -0.16,
+    0.0
+   ],
+   "bounds_max": [
+    0.912,
+    0.16,
+    0.285
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_kawara",
+    "kv3_plaster"
+   ],
+   "sockets": {},
+   "notes": "1.8 m ridge: mortar bed, 3 noshi-gawara layers, half-round kanmuri cap with joints."
+  },
+  "roof_corner": {
+   "id": "roof_corner",
+   "file": "roof_corner.glb",
+   "lods": [
+    {
+     "name": "roof_corner_LOD0",
+     "tris": 3650
+    },
+    {
+     "name": "roof_corner_LOD1",
+     "tris": 2080
+    },
+    {
+     "name": "roof_corner_LOD2",
+     "tris": 1226
+    }
+   ],
+   "size_m": [
+    1.954,
+    1.954,
+    0.79
+   ],
+   "bounds_min": [
+    -0.049,
+    -0.049,
+    -0.12
+   ],
+   "bounds_max": [
+    1.905,
+    1.905,
+    0.67
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_cedar_deck",
+    "kv3_cedar_lap",
+    "kv3_kawara"
+   ],
+   "sockets": {
+    "gutter": [
+     0.4,
+     -0.08,
+     -0.12
+    ],
+    "chain": [
+     -0.1,
+     -0.1,
+     -0.14
+    ]
+   },
+   "notes": "Outside corner eave (building in the +X/+Y quadrant), mitred on x = y with a hip cap; meets roof_eave runs on both axes."
+  },
+  "tsukubai": {
+   "id": "tsukubai",
+   "file": "tsukubai.glb",
+   "lods": [
+    {
+     "name": "tsukubai_LOD0",
+     "tris": 552
+    },
+    {
+     "name": "tsukubai_LOD1",
+     "tris": 326
+    },
+    {
+     "name": "tsukubai_LOD2",
+     "tris": 196
+    }
+   ],
+   "size_m": [
+    1.767,
+    0.691,
+    0.752
+   ],
+   "bounds_min": [
+    -1.114,
+    -0.346,
+    -0.002
+   ],
+   "bounds_max": [
+    0.653,
+    0.346,
+    0.75
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0,
+      0,
+      0.19
+     ],
+     "half": [
+      0.37,
+      0.37,
+      0.19
+     ]
+    }
+   ],
+   "blocking": true,
+   "materials": [
+    "kv3_bamboo",
+    "kv3_mossy_rock",
+    "kv3p_water"
+   ],
+   "sockets": {
+    "water_spout": [
+     0.14,
+     0.0,
+     0.48
+    ]
+   },
+   "notes": "Stone basin with water (kv3p_water), bamboo kakehi spout on crossed stakes, hishaku ladle, mae-ishi stone. Decorative; basin collider only."
+  },
+  "bell": {
+   "id": "bell",
+   "file": "bell.glb",
+   "lods": [
+    {
+     "name": "bell_LOD0",
+     "tris": 2360
+    },
+    {
+     "name": "bell_LOD1",
+     "tris": 792
+    },
+    {
+     "name": "bell_LOD2",
+     "tris": 404
+    }
+   ],
+   "size_m": [
+    4.999,
+    4.999,
+    5.7
+   ],
+   "bounds_min": [
+    -2.5,
+    -2.5,
+    0.0
+   ],
+   "bounds_max": [
+    2.5,
+    2.5,
+    5.7
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0,
+      0,
+      0.175
+     ],
+     "half": [
+      2.0,
+      2.0,
+      0.175
+     ]
+    },
+    {
+     "c": [
+      1.7,
+      1.7,
+      2.05
+     ],
+     "half": [
+      0.12,
+      0.12,
+      1.7
+     ]
+    },
+    {
+     "c": [
+      -1.7,
+      1.7,
+      2.05
+     ],
+     "half": [
+      0.12,
+      0.12,
+      1.7
+     ]
+    },
+    {
+     "c": [
+      1.7,
+      -1.7,
+      2.05
+     ],
+     "half": [
+      0.12,
+      0.12,
+      1.7
+     ]
+    },
+    {
+     "c": [
+      -1.7,
+      -1.7,
+      2.05
+     ],
+     "half": [
+      0.12,
+      0.12,
+      1.7
+     ]
+    },
+    {
+     "c": [
+      0,
+      0,
+      2.1
+     ],
+     "half": [
+      0.56,
+      0.56,
+      0.85
+     ]
+    }
+   ],
+   "blocking": true,
+   "materials": [
+    "kv3_bronze",
+    "kv3_cedar_deck",
+    "kv3_granite_flag",
+    "kv3_iron",
+    "kv3_kawara",
+    "kv3_rope"
+   ],
+   "sockets": {
+    "strike": [
+     0.55,
+     0.0,
+     1.87
+    ]
+   },
+   "notes": "Bonsh\u014d 1.1 x 1.7 m in a 3.4 m sh\u014dr\u014d on a 4 m granite platform, hipped kawara roof (5 m), shumoku log on ropes. Bell bottom at 1.25 m; socket_strike."
+  },
+  "sign_sake_medallion": {
+   "id": "sign_sake_medallion",
+   "file": "sign_sake_medallion.glb",
+   "lods": [
+    {
+     "name": "sign_sake_medallion_LOD0",
+     "tris": 196
+    },
+    {
+     "name": "sign_sake_medallion_LOD1",
+     "tris": 106
+    },
+    {
+     "name": "sign_sake_medallion_LOD2",
+     "tris": 56
+    }
+   ],
+   "size_m": [
+    0.92,
+    0.056,
+    0.92
+   ],
+   "bounds_min": [
+    -0.46,
+    -0.096,
+    -0.46
+   ],
+   "bounds_max": [
+    0.46,
+    -0.04,
+    0.46
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_iron",
+    "kv3n_sake_medallion_board",
+    "kv3n_sake_medallion_tube"
+   ],
+   "sockets": {
+    "light": [
+     0,
+     -0.34,
+     0
+    ]
+   },
+   "notes": "Housing for neon '\u9152' (lacquer_disc, board 0.92 x 0.92 m). Wall = XZ plane at y = 0, street = -Y; quad(s) on material kv3n_sake_medallion_tube = neon shader (tube/sdf/glow from neon.json); board face kv3n_sake_medallion_board = board_c.png (alphaTest). Non-blocking."
+  },
+  "sign_izakaya_vertical": {
+   "id": "sign_izakaya_vertical",
+   "file": "sign_izakaya_vertical.glb",
+   "lods": [
+    {
+     "name": "sign_izakaya_vertical_LOD0",
+     "tris": 96
+    },
+    {
+     "name": "sign_izakaya_vertical_LOD1",
+     "tris": 96
+    },
+    {
+     "name": "sign_izakaya_vertical_LOD2",
+     "tris": 32
+    }
+   ],
+   "size_m": [
+    0.12,
+    0.89,
+    1.56
+   ],
+   "bounds_min": [
+    -0.06,
+    -0.87,
+    -0.75
+   ],
+   "bounds_max": [
+    0.06,
+    0.02,
+    0.81
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_iron",
+    "kv3_yakisugi",
+    "kv3n_izakaya_vertical_board",
+    "kv3n_izakaya_vertical_tube"
+   ],
+   "sockets": {
+    "light_a": [
+     0.25,
+     -0.505,
+     0.0
+    ],
+    "light_b": [
+     -0.25,
+     -0.505,
+     0.0
+    ],
+    "mount": [
+     0,
+     0,
+     0.75
+    ]
+   },
+   "notes": "Housing for neon '\u5c45\u9152\u5c4b' (cedar_blade, board 0.65 x 1.5 m). Wall = XZ plane at y = 0, street = -Y; quad(s) on material kv3n_izakaya_vertical_tube = neon shader (tube/sdf/glow from neon.json); board face kv3n_izakaya_vertical_board = board_c.png (alphaTest). Non-blocking."
+  },
+  "sign_chaya_vertical": {
+   "id": "sign_chaya_vertical",
+   "file": "sign_chaya_vertical.glb",
+   "lods": [
+    {
+     "name": "sign_chaya_vertical_LOD0",
+     "tris": 96
+    },
+    {
+     "name": "sign_chaya_vertical_LOD1",
+     "tris": 96
+    },
+    {
+     "name": "sign_chaya_vertical_LOD2",
+     "tris": 16
+    }
+   ],
+   "size_m": [
+    0.53,
+    0.071,
+    0.98
+   ],
+   "bounds_min": [
+    -0.265,
+    -0.071,
+    -0.49
+   ],
+   "bounds_max": [
+    0.265,
+    0.0,
+    0.49
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_iron",
+    "kv3_yakisugi",
+    "kv3n_chaya_vertical_board",
+    "kv3n_chaya_vertical_tube"
+   ],
+   "sockets": {
+    "light": [
+     0,
+     -0.315,
+     0
+    ]
+   },
+   "notes": "Housing for neon '\u8336\u5c4b' (cedar_board, board 0.53 x 0.98 m). Wall = XZ plane at y = 0, street = -Y; quad(s) on material kv3n_chaya_vertical_tube = neon shader (tube/sdf/glow from neon.json); board face kv3n_chaya_vertical_board = board_c.png (alphaTest). Non-blocking."
+  },
+  "sign_ramen_bar": {
+   "id": "sign_ramen_bar",
+   "file": "sign_ramen_bar.glb",
+   "lods": [
+    {
+     "name": "sign_ramen_bar_LOD0",
+     "tris": 38
+    },
+    {
+     "name": "sign_ramen_bar_LOD1",
+     "tris": 38
+    },
+    {
+     "name": "sign_ramen_bar_LOD2",
+     "tris": 14
+    }
+   ],
+   "size_m": [
+    1.66,
+    0.106,
+    0.4
+   ],
+   "bounds_min": [
+    -0.83,
+    -0.106,
+    -0.2
+   ],
+   "bounds_max": [
+    0.83,
+    0.0,
+    0.2
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_iron",
+    "kv3n_ramen_bar_tube"
+   ],
+   "sockets": {
+    "light": [
+     0,
+     -0.35,
+     0
+    ]
+   },
+   "notes": "Housing for neon '\u30e9\u30fc\u30e1\u30f3' (raceway, board 1.66 x 0.46 m). Wall = XZ plane at y = 0, street = -Y; quad(s) on material kv3n_ramen_bar_tube = neon shader (tube/sdf/glow from neon.json); board face kv3n_ramen_bar_board = board_c.png (alphaTest). Non-blocking."
+  },
+  "sign_katana_square": {
+   "id": "sign_katana_square",
+   "file": "sign_katana_square.glb",
+   "lods": [
+    {
+     "name": "sign_katana_square_LOD0",
+     "tris": 144
+    },
+    {
+     "name": "sign_katana_square_LOD1",
+     "tris": 144
+    },
+    {
+     "name": "sign_katana_square_LOD2",
+     "tris": 16
+    }
+   ],
+   "size_m": [
+    0.84,
+    0.09,
+    0.84
+   ],
+   "bounds_min": [
+    -0.42,
+    -0.09,
+    -0.42
+   ],
+   "bounds_max": [
+    0.42,
+    0.0,
+    0.42
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_iron",
+    "kv3n_katana_square_board",
+    "kv3n_katana_square_tube"
+   ],
+   "sockets": {
+    "light": [
+     0,
+     -0.325,
+     0
+    ]
+   },
+   "notes": "Housing for neon '\u5200' (steel_frame, board 0.78 x 0.78 m). Wall = XZ plane at y = 0, street = -Y; quad(s) on material kv3n_katana_square_tube = neon shader (tube/sdf/glow from neon.json); board face kv3n_katana_square_board = board_c.png (alphaTest). Non-blocking."
+  },
+  "sign_katanakaji_vertical": {
+   "id": "sign_katanakaji_vertical",
+   "file": "sign_katanakaji_vertical.glb",
+   "lods": [
+    {
+     "name": "sign_katanakaji_vertical_LOD0",
+     "tris": 96
+    },
+    {
+     "name": "sign_katanakaji_vertical_LOD1",
+     "tris": 96
+    },
+    {
+     "name": "sign_katanakaji_vertical_LOD2",
+     "tris": 32
+    }
+   ],
+   "size_m": [
+    0.12,
+    0.84,
+    1.36
+   ],
+   "bounds_min": [
+    -0.06,
+    -0.82,
+    -0.65
+   ],
+   "bounds_max": [
+    0.06,
+    0.02,
+    0.71
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_iron",
+    "kv3_yakisugi",
+    "kv3n_katanakaji_vertical_board",
+    "kv3n_katanakaji_vertical_tube"
+   ],
+   "sockets": {
+    "light_a": [
+     0.25,
+     -0.48,
+     0.0
+    ],
+    "light_b": [
+     -0.25,
+     -0.48,
+     0.0
+    ],
+    "mount": [
+     0,
+     0,
+     0.65
+    ]
+   },
+   "notes": "Housing for neon '\u5200\u935b\u51b6' (cedar_blade, board 0.6 x 1.3 m). Wall = XZ plane at y = 0, street = -Y; quad(s) on material kv3n_katanakaji_vertical_tube = neon shader (tube/sdf/glow from neon.json); board face kv3n_katanakaji_vertical_board = board_c.png (alphaTest). Non-blocking."
+  },
+  "sign_yakitori_box": {
+   "id": "sign_yakitori_box",
+   "file": "sign_yakitori_box.glb",
+   "lods": [
+    {
+     "name": "sign_yakitori_box_LOD0",
+     "tris": 96
+    },
+    {
+     "name": "sign_yakitori_box_LOD1",
+     "tris": 96
+    },
+    {
+     "name": "sign_yakitori_box_LOD2",
+     "tris": 16
+    }
+   ],
+   "size_m": [
+    1.08,
+    0.071,
+    0.58
+   ],
+   "bounds_min": [
+    -0.54,
+    -0.071,
+    -0.29
+   ],
+   "bounds_max": [
+    0.54,
+    0.0,
+    0.29
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_iron",
+    "kv3_yakisugi",
+    "kv3n_yakitori_box_board",
+    "kv3n_yakitori_box_tube"
+   ],
+   "sockets": {
+    "light": [
+     0,
+     -0.315,
+     0
+    ]
+   },
+   "notes": "Housing for neon '\u713c\u9ce5' (cedar_board, board 1.08 x 0.58 m). Wall = XZ plane at y = 0, street = -Y; quad(s) on material kv3n_yakitori_box_tube = neon shader (tube/sdf/glow from neon.json); board face kv3n_yakitori_box_board = board_c.png (alphaTest). Non-blocking."
+  },
+  "sign_eigyochu_window": {
+   "id": "sign_eigyochu_window",
+   "file": "sign_eigyochu_window.glb",
+   "lods": [
+    {
+     "name": "sign_eigyochu_window_LOD0",
+     "tris": 592
+    },
+    {
+     "name": "sign_eigyochu_window_LOD1",
+     "tris": 232
+    },
+    {
+     "name": "sign_eigyochu_window_LOD2",
+     "tris": 16
+    }
+   ],
+   "size_m": [
+    0.64,
+    0.029,
+    0.66
+   ],
+   "bounds_min": [
+    -0.32,
+    -0.026,
+    -0.191
+   ],
+   "bounds_max": [
+    0.32,
+    0.003,
+    0.469
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_iron",
+    "kv3n_eigyochu_window_board",
+    "kv3n_eigyochu_window_tube"
+   ],
+   "sockets": {
+    "hang_l": [
+     -0.26,
+     -0.01,
+     0.491
+    ],
+    "hang_r": [
+     0.26,
+     -0.01,
+     0.491
+    ],
+    "light": [
+     0,
+     -0.27,
+     0
+    ]
+   },
+   "notes": "Housing for neon '\u55b6\u696d\u4e2d' (window_plate, board 0.64 x 0.382 m). Wall = XZ plane at y = 0, street = -Y; quad(s) on material kv3n_eigyochu_window_tube = neon shader (tube/sdf/glow from neon.json); board face kv3n_eigyochu_window_board = board_c.png (alphaTest). Non-blocking."
+  },
+  "sign_oden_bar": {
+   "id": "sign_oden_bar",
+   "file": "sign_oden_bar.glb",
+   "lods": [
+    {
+     "name": "sign_oden_bar_LOD0",
+     "tris": 96
+    },
+    {
+     "name": "sign_oden_bar_LOD1",
+     "tris": 96
+    },
+    {
+     "name": "sign_oden_bar_LOD2",
+     "tris": 16
+    }
+   ],
+   "size_m": [
+    0.98,
+    0.071,
+    0.53
+   ],
+   "bounds_min": [
+    -0.49,
+    -0.071,
+    -0.265
+   ],
+   "bounds_max": [
+    0.49,
+    0.0,
+    0.265
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_iron",
+    "kv3n_oden_bar_board",
+    "kv3n_oden_bar_tube"
+   ],
+   "sockets": {
+    "light": [
+     0,
+     -0.315,
+     0
+    ]
+   },
+   "notes": "Housing for neon '\u304a\u3067\u3093' (lacquer_board, board 0.98 x 0.53 m). Wall = XZ plane at y = 0, street = -Y; quad(s) on material kv3n_oden_bar_tube = neon shader (tube/sdf/glow from neon.json); board face kv3n_oden_bar_board = board_c.png (alphaTest). Non-blocking."
+  },
+  "sign_yado_vertical": {
+   "id": "sign_yado_vertical",
+   "file": "sign_yado_vertical.glb",
+   "lods": [
+    {
+     "name": "sign_yado_vertical_LOD0",
+     "tris": 96
+    },
+    {
+     "name": "sign_yado_vertical_LOD1",
+     "tris": 96
+    },
+    {
+     "name": "sign_yado_vertical_LOD2",
+     "tris": 16
+    }
+   ],
+   "size_m": [
+    0.53,
+    0.071,
+    0.88
+   ],
+   "bounds_min": [
+    -0.265,
+    -0.071,
+    -0.44
+   ],
+   "bounds_max": [
+    0.265,
+    0.0,
+    0.44
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_iron",
+    "kv3_yakisugi",
+    "kv3n_yado_vertical_board",
+    "kv3n_yado_vertical_tube"
+   ],
+   "sockets": {
+    "light": [
+     0,
+     -0.315,
+     0
+    ]
+   },
+   "notes": "Housing for neon '\u5bbf' (cedar_board, board 0.53 x 0.88 m). Wall = XZ plane at y = 0, street = -Y; quad(s) on material kv3n_yado_vertical_tube = neon shader (tube/sdf/glow from neon.json); board face kv3n_yado_vertical_board = board_c.png (alphaTest). Non-blocking."
+  },
+  "sign_katana_wordmark": {
+   "id": "sign_katana_wordmark",
+   "file": "sign_katana_wordmark.glb",
+   "lods": [
+    {
+     "name": "sign_katana_wordmark_LOD0",
+     "tris": 38
+    },
+    {
+     "name": "sign_katana_wordmark_LOD1",
+     "tris": 38
+    },
+    {
+     "name": "sign_katana_wordmark_LOD2",
+     "tris": 14
+    }
+   ],
+   "size_m": [
+    1.86,
+    0.106,
+    0.45
+   ],
+   "bounds_min": [
+    -0.93,
+    -0.106,
+    -0.225
+   ],
+   "bounds_max": [
+    0.93,
+    0.0,
+    0.225
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_iron",
+    "kv3n_katana_wordmark_tube"
+   ],
+   "sockets": {
+    "light": [
+     0,
+     -0.35,
+     0
+    ]
+   },
+   "notes": "Housing for neon '\u203akatana' (raceway, board 1.86 x 0.51 m). Wall = XZ plane at y = 0, street = -Y; quad(s) on material kv3n_katana_wordmark_tube = neon shader (tube/sdf/glow from neon.json); board face kv3n_katana_wordmark_board = board_c.png (alphaTest). Non-blocking."
+  },
+  "sign_katana_diamond": {
+   "id": "sign_katana_diamond",
+   "file": "sign_katana_diamond.glb",
+   "lods": [
+    {
+     "name": "sign_katana_diamond_LOD0",
+     "tris": 14
+    },
+    {
+     "name": "sign_katana_diamond_LOD1",
+     "tris": 14
+    },
+    {
+     "name": "sign_katana_diamond_LOD2",
+     "tris": 14
+    }
+   ],
+   "size_m": [
+    0.7,
+    0.056,
+    0.7
+   ],
+   "bounds_min": [
+    -0.35,
+    -0.096,
+    -0.35
+   ],
+   "bounds_max": [
+    0.35,
+    -0.04,
+    0.35
+   ],
+   "cover": false,
+   "colliders": [],
+   "blocking": false,
+   "materials": [
+    "kv3_iron",
+    "kv3n_katana_diamond_board",
+    "kv3n_katana_diamond_tube"
+   ],
+   "sockets": {
+    "light": [
+     0,
+     -0.34,
+     0
+    ]
+   },
+   "notes": "Housing for neon '\u25c6' (lacquer_diamond, board 0.7 x 0.7 m). Wall = XZ plane at y = 0, street = -Y; quad(s) on material kv3n_katana_diamond_tube = neon shader (tube/sdf/glow from neon.json); board face kv3n_katana_diamond_board = board_c.png (alphaTest). Non-blocking."
+  }
+ },
+ "convention": {
+  "file": "one GLB per prop; meshes <id>_LOD0 (full) / _LOD1 (~40-60%) / _LOD2 (~12-30%) at the same origin; empties <id>_socket_<name>",
+  "axes": "glTF Y-up (built Z-up in Blender, exporter converts); metres; origin = ground contact centre unless notes say otherwise",
+  "materials": "names only, no embedded images: kv3_<set> = library set (world-metre UVs), kv3p_* = prop-unique (0..1 UVs, tex/ folder), kv3n_<sign>_* = neon set, kv3_lantern_paper = tex/chochin_c.webp map+emissive, kv3_toro_paper = flat emissive red paper",
+  "colliders": "OBBs in Blender prop space (Z-up): c = centre [x, y, z], half = half extents; convert to Y-up as (x, z, -y)",
+  "lod_distance_hint_m": [
+   0,
+   18,
+   45
+  ]
+ }
+}

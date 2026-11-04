@@ -1,0 +1,291 @@
+{
+ "about": "KATANA v3 art kit material table. Mesh material names in katana-art.glb are kv3a_<key>; the runtime (client/src/katana-v3/art-world.ts) and the Blender bake (scripts/katana-v3/art/kva_mats.py) both resolve them from here. set = library set (public/assets/katana/v3/tex/manifest.json); tint = sRGB multiply; tile = metres per repeat (default: the set's tile_m); wet = WetSpec overrides; emissive = sRGB colour + intensity (lit paper, interiors).",
+ "materials": {
+  "gravel": {
+   "set": "gravel_raked",
+   "rake": true,
+   "wet": {
+    "puddle": false,
+    "wetRough": 0.38
+   },
+   "tint": "#e4e4e6"
+  },
+  "gravel_plain": {
+   "set": "gravel"
+  },
+  "slate": {
+   "set": "slate",
+   "wet": {
+    "wetRough": 0.07
+   }
+  },
+  "slate_crazy": {
+   "set": "slate_crazy",
+   "wet": {
+    "wetRough": 0.07
+   }
+  },
+  "flag": {
+   "set": "granite_flag",
+   "tint": "#b9bbbf",
+   "wet": {
+    "wetRough": 0.07
+   }
+  },
+  "flag_dark": {
+   "set": "granite_flag",
+   "tint": "#8d9095",
+   "tile": 2.4,
+   "wet": {
+    "wetRough": 0.07
+   }
+  },
+  "stair": {
+   "set": "granite_flag",
+   "tint": "#9a9da2",
+   "tile": 2.0,
+   "wet": {
+    "wetRough": 0.07
+   }
+  },
+  "cobble": {
+   "set": "cobble",
+   "tint": "#c4c6c9",
+   "wet": {
+    "wetRough": 0.07
+   }
+  },
+  "street": {
+   "set": "granite_flag",
+   "tint": "#76797e",
+   "tile": 2.2,
+   "wet": {
+    "wetRough": 0.07
+   }
+  },
+  "riverbed": {
+   "set": "river_stone",
+   "wet": {
+    "wetRough": 0.07
+   }
+  },
+  "moss": {
+   "set": "moss"
+  },
+  "rock": {
+   "set": "mossy_rock"
+  },
+  "ishigaki": {
+   "set": "ishigaki",
+   "tint": "#b8b5b0"
+  },
+  "ishigaki_dark": {
+   "set": "ishigaki",
+   "tint": "#8e8c88"
+  },
+  "concrete": {
+   "set": "concrete",
+   "tint": "#a7a9ab"
+  },
+  "plaster": {
+   "set": "plaster",
+   "tint": "#ebe8e2",
+   "tile": 1.8
+  },
+  "plaster_house": {
+   "set": "plaster",
+   "tint": "#e4e0d9",
+   "tile": 1.8
+  },
+  "plaster_in": {
+   "set": "plaster",
+   "tint": "#d9d6d0",
+   "wet": {
+    "porosity": 0,
+    "streaks": false
+   },
+   "tile": 1.3
+  },
+  "yakisugi": {
+   "set": "yakisugi"
+  },
+  "cedar": {
+   "set": "cedar_lap",
+   "tint": "#8a8580"
+  },
+  "cedar_dark": {
+   "set": "cedar_lap",
+   "tint": "#5e5a56"
+  },
+  "cedar_in": {
+   "set": "cedar_lap",
+   "tint": "#a8a29c",
+   "wet": {
+    "porosity": 0,
+    "streaks": false
+   }
+  },
+  "beam": {
+   "set": "cedar_deck",
+   "tint": "#6b6662",
+   "tile": 1.6
+  },
+  "beam_in": {
+   "set": "cedar_deck",
+   "tint": "#4c4f54",
+   "tile": 1.6,
+   "wet": {
+    "porosity": 0
+   }
+  },
+  "deck": {
+   "set": "cedar_deck"
+  },
+  "deck_in": {
+   "set": "cedar_deck",
+   "tint": "#6d737b",
+   "wet": {
+    "porosity": 0,
+    "wetRough": 0.6
+   }
+  },
+  "soffit": {
+   "set": "cedar_lap",
+   "tint": "#a39d95",
+   "wet": {
+    "porosity": 0,
+    "streaks": false
+   }
+  },
+  "kawara": {
+   "set": "kawara",
+   "tile": 4.8
+  },
+  "kawara_trim": {
+   "set": "kawara",
+   "tile": 1.2,
+   "tint": "#c9ccd2"
+  },
+  "lacquer": {
+   "set": "lacquer"
+  },
+  "lacquer_black": {
+   "set": "lacquer",
+   "tint": "#141414"
+  },
+  "bronze": {
+   "set": "bronze"
+  },
+  "iron": {
+   "set": "iron"
+  },
+  "bamboo_fence": {
+   "set": "bamboo_fence"
+  },
+  "bamboo": {
+   "set": "bamboo"
+  },
+  "rope": {
+   "set": "rope"
+  },
+  "shoji_glow": {
+   "set": "shoji",
+   "tile": 0,
+   "emissive": [
+    "#dcebff",
+    0.55
+   ]
+  },
+  "window_dark": {
+   "flat": "#07090c",
+   "rough": 0.9,
+   "emissive": [
+    "#141b24",
+    0.6
+   ]
+  },
+  "water": {
+   "water": true
+  },
+  "forest": {
+   "set": "moss",
+   "tint": "#5d7062",
+   "tile": 2.5,
+   "wet": {
+    "porosity": 0.1
+   }
+  },
+  "far_rock": {
+   "set": "mossy_rock",
+   "tint": "#6f7377",
+   "tile": 9
+  },
+  "forest_floor": {
+   "set": "moss",
+   "tint": "#3a4238",
+   "tile": 6
+  },
+  "riverbank": {
+   "set": "river_stone",
+   "tint": "#8a8d90",
+   "tile": 4
+  },
+  "forest_trunk": {
+   "flat": "#1a1714",
+   "rough": 0.9
+  },
+  "shide": {
+   "flat": "#e9ecf0",
+   "rough": 0.85,
+   "emissive": [
+    "#dfe6ef",
+    0.08
+   ]
+  },
+  "kagami_ita": {
+   "tex": "art/tex/kagami_ita.webp",
+   "rough": 0.8
+  },
+  "stone_block": {
+   "set": "granite_flag",
+   "tint": "#7d8085",
+   "tile": 1.4,
+   "wet": {
+    "wetRough": 0.07
+   }
+  },
+  "bark": {
+   "set": "yakisugi",
+   "tint": "#8c8378",
+   "tile": 1.6
+  },
+  "forest_band": {
+   "tex": "art/tex/forest_band.webp",
+   "cutout": true,
+   "unlit": true
+  },
+  "mist": {
+   "tex": "art/tex/mist_band.webp",
+   "transparent": true,
+   "unlit": true,
+   "opacity": 0.55
+  },
+  "canopy": {
+   "tex": "art/tex/canopy.webp",
+   "cutout": true,
+   "rough": 0.8
+  },
+  "lacquer_dark": {
+   "set": "lacquer",
+   "tint": "#7a2a2e"
+  },
+  "banner_red": {
+   "flat": "#b8121c",
+   "rough": 0.88,
+   "emissive": [
+    "#e8141f",
+    0.08
+   ]
+  }
+ }
+}

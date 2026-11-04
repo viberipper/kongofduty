@@ -56,7 +56,7 @@ Upstream features from the original (https://cnvs.dev/kong/) are ported in batch
 | 2026-10-28 | Upstream state as of 2026-10-28 (fresh rip) | 9 updates: network-stats overlay; spawn facing toward map center; collateral multi-kills + medal; forklift/Ares steps fixes; directional damage indicator; crate penetration; voice-lines content table; special reload animations; spawn LOS weighting |
 | 2026-11-02 | Upstream state as of 2026-11-02 (fresh rip) | New map Katana: mountain-shrine map, selectable in the menu like any other map, playable in TDM, FFA, and Gun Game, with its own sky, world, props, LOD, shadows, and texture set (GLB models + 48 textures, mirrored to `client/static/assets/katana/`); Katana-only modes Search & Destroy (5v5, plant/defuse, 45 s fuse) and Domination (6v6, flags A/B/C, 10 s capture, first to 200 points) |
 
-| 2026-11-04 | Upstream state as of 2026-11-04 (`/katana/` full rip to `.origin2/`) | Match intro/outro cams: full cine system (intro shots, match tape, play-of-the-game outro) with countdown lead; new Katana map data (fewer, reworked solids, more spawns/nav, grey + v3 assets staged); Katana texture/world port hardened |
+| 2026-11-04 | Upstream state as of 2026-11-04 (`/katana/` full rip to `.origin2/`) | Match intro/outro cams: full cine system (intro shots, match tape, play-of-the-game outro) with countdown lead; new Katana map data (fewer, reworked solids, more spawns/nav, grey + v3 assets staged); Katana texture/world port hardened; Katana v3 art kit as the default look (grey behind `?kvgrey=1`, v2 behind `?classic`) with map-score/rain/menu-loop/victory-countdown sounds |
 
 Last sync: 2026-11-04. Anything newer lives only in the original (https://cnvs.dev/kong/) until the next batch port.
 

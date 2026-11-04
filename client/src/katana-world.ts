@@ -3,7 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { assetUrl } from "./asset-base";
+import { assetUrl, sameOriginManager } from "./asset-base";
 import { activeMap } from "@shared/maps";
 import { isWebGpuRenderer, type AnyRenderer } from "./gpu-backend";
 import { isSoftwareGL } from "./textures";
@@ -246,7 +246,7 @@ export async function buildKatanaWorld(renderer: AnyRenderer): Promise<WorldApi>
   root.name = "katana/root";
   scene.add(root);
 
-  const loader = new GLTFLoader();
+  const loader = new GLTFLoader(sameOriginManager());
   loader.setMeshoptDecoder(MeshoptDecoder);
   const [gltf, lowGltf, placementFile, sets, nightEnvironment, lightmaps, shadows] = await Promise.all([
     loader.loadAsync(A("katana.glb")),
@@ -256,7 +256,7 @@ export async function buildKatanaWorld(renderer: AnyRenderer): Promise<WorldApi>
     }),
     fetch(A("placements.json")).then((r) => (r.ok ? r.json() as Promise<PlacementFile> : null)).catch(() => null),
     loadKatanaSets(gl, low),
-    new RGBELoader().loadAsync(A("sky/qwantani_night_puresky_1k.hdr")).catch(() => null),
+    new RGBELoader(sameOriginManager()).loadAsync(A("sky/qwantani_night_puresky_1k.hdr")).catch(() => null),
     loadKatanaLightmaps(low),
     createKatanaShadowProxies(A),
   ]);

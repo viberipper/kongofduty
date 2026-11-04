@@ -220,6 +220,10 @@ const GRIP_OUT_M = 0.092;
 const GRIP_TILT = 0.45;
 /** Third-person frag draw scale (see the guns' TP_SCALE). */
 export const NADE_TP_SCALE = 1.45;
+/** Optional per-map hook applied to every operator material clone (set by
+ * game.ts; e.g. the katana night rim). */
+let actorMaterialHook: ((m: THREE.Material) => void) | null = null;
+export function setActorMaterialHook(fn: ((m: THREE.Material) => void) | null): void { actorMaterialHook = fn; }
 
 let nadePropGeo: THREE.BufferGeometry | null = null;
 let nadePropMat: THREE.Material | null = null;
@@ -1967,6 +1971,7 @@ export class BruiserActor {
     // repainting the character art.
     const cloneMaterial = (m: THREE.Material): THREE.Material => {
       const c = m.clone();
+      actorMaterialHook?.(c); // per-map shader hook (katana v3: moonlit rim); clone() drops onBeforeCompile
       this.actorMats.push(c);
       return c;
     };

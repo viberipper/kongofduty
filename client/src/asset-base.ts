@@ -27,3 +27,46 @@ export function assetUrl(url: string): string {
 if (ASSET_BASE !== "/") {
   THREE.DefaultLoadingManager.setURLModifier(assetUrl);
 }
+
+const SAFE_SEG = /^[A-Za-z0-9._-]+$/;
+
+/**
+ * Defense-in-depth (katana manifest key paths: v3 tex/library manifest,
+ * prop-kit built/nature.json, art materials.json + lightmap files): a
+ * manifest-driven relative asset path is only accepted when every `/`
+ * segment is a plain filename — `..`, `.`, `\`, `:` and URL schemes are
+ * rejected, so a tampered manifest cannot make the game fetch outside its
+ * own asset directory.
+ */
+export function safeAssetPath(p: unknown): p is string {
+  if (typeof p !== "string" || !p || p.includes("\\") || p.includes(":") || p.startsWith("/")) return false;
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(p)) return false; // scheme / protocol-relative
+  const segs = p.split("/");
+  if (!segs.length || segs.some((s) => !SAFE_SEG.test(s) || s === "." || s === "..")) return false;
+  return true;
+}
+
+/**
+ * Defense-in-depth (katana GLB external URIs): a LoadingManager whose URL
+ * modifier keeps every load — including textures / buffers a GLB pulls in
+ * by relative URI — on our own origin (plus `data:` / `blob:`, which cannot
+ * leave the page). Anything else is warned about and sent to a sentinel
+ * that fails the single load instead of leaking a request cross-origin.
+ * Pass it to the GLTF / texture / HDRI loaders of the katana worlds.
+ */
+export function sameOriginManager(): THREE.LoadingManager {
+  const m = new THREE.LoadingManager();
+  m.setURLModifier((url) => {
+    const mapped = assetUrl(url);
+    try {
+      const u = new URL(mapped, location.href);
+      if (u.protocol === "data:" || u.protocol === "blob:") return mapped;
+      if (u.origin === location.origin) return mapped;
+    } catch {
+      /* unparseable: fall through to the block below */
+    }
+    console.warn(`[assets] blocked cross-origin load: ${url}`);
+    return "about:blank";
+  });
+  return m;
+}

@@ -17,6 +17,10 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ## Unreleased
 
+### Fixed
+
+- `fix(katana): harden the intro/outro port` — `?classic` maps to the v2 art kit in production builds as well, audio startup retries instead of falling back to null output, the manifest allowlist plus the same-origin loader keep asset fetches on-origin, and intervals and audio contexts are disposed on teardown (pending — uncommitted on `feat/katana-intro-outro`).
+
 ## 2026-11-02
 
 ### Fixed

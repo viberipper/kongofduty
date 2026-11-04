@@ -22,6 +22,19 @@ export type ClassicWorld = {
   [key: string]: unknown;
 };
 
+/**
+ * The live-world contract the map builders return (scene + key light;
+ * everything else — root, update, kvRig, ... — is per-map and optional).
+ * Katana v3 (katana-v3/art-world.ts, katana-grey-world.ts) types against this.
+ */
+export type WorldApi = {
+  scene: THREE.Scene;
+  sun: THREE.DirectionalLight;
+  root?: THREE.Object3D;
+  update?: (dt: number, cam: THREE.Camera) => void;
+  [key: string]: unknown;
+};
+
 function minimalWorld(): ClassicWorld {
   const scene = new THREE.Scene();
   const sun = new THREE.DirectionalLight(0xffffff, 1);

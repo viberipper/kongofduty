@@ -1,0 +1,892 @@
+{
+ "version": 1,
+ "assets": {
+  "katana_hero": {
+   "id": "katana_hero",
+   "size_m": [
+    1.26,
+    13.6,
+    0.6
+   ],
+   "visible_height_m": 12.2,
+   "cover": false,
+   "notes": "Hilt up, blade planted: origin = where the blade enters the dais top (blade continues 1.6 m below, hidden by the dais rock cluster). Place on katana_dais at its 'blade' socket.",
+   "colliders": [
+    {
+     "c": [
+      0.1,
+      3.3,
+      0
+     ],
+     "half": [
+      0.4,
+      4.8,
+      0.16
+     ],
+     "yaw_deg": 0.0
+    },
+    {
+     "c": [
+      0,
+      8.5,
+      0
+     ],
+     "half": [
+      0.65,
+      0.1,
+      0.6
+     ],
+     "yaw_deg": 0.0
+    },
+    {
+     "c": [
+      0,
+      10.4,
+      0
+     ],
+     "half": [
+      0.24,
+      1.9,
+      0.2
+     ],
+     "yaw_deg": 0.0
+    }
+   ],
+   "collider_notes": "Blade OBB is fattened to 0.30 m and the whole grip is ONE smooth OBB so nothing catches on the cord wrap.",
+   "sockets": {
+    "glow": [
+     0,
+     8.43,
+     0
+    ],
+    "ember_emitter": {
+     "pos": [
+      0,
+      8.5,
+      0
+     ],
+     "radius_m": 0.7,
+     "rise_m": 5.0
+    },
+    "light": {
+     "pos": [
+      0.0,
+      8.45,
+      0.9
+     ],
+     "color": "#E8141F",
+     "intensity_cd": 25,
+     "distance_m": 14
+    }
+   },
+   "unique_textures": {
+    "kv3n_katana_blade": {
+     "c": "tex/katana_blade_c.webp",
+     "n": "tex/katana_blade_n.webp",
+     "ormh": "tex/katana_blade_ormh.webp",
+     "emissive": "tex/katana_blade_e.webp",
+     "uv": "U edge(ha)=0..mune=1, V habaki=0..buried end=1",
+     "emissive_color": "#E8141F",
+     "emissive_intensity": 3
+    },
+    "kv3n_katana_tsuka": {
+     "c": "tex/katana_tsuka_c.webp",
+     "n": "tex/katana_tsuka_n.webp",
+     "ormh": "tex/katana_tsuka_ormh.webp",
+     "uv": "U around 0..1, V = 9 wrap periods (repeat in V)"
+    },
+    "kv3n_katana_habaki": {
+     "color": "#bcbcc1",
+     "metalness": 1,
+     "roughness": 0.1
+    },
+    "kv3n_katana_glow": {
+     "emissive": "#E8141F",
+     "emissive_intensity": 8,
+     "note": "thin band under the tsuba = the red glow at the habaki"
+    }
+   },
+   "vertex_color": "R = ember/glow weight (1 at the habaki, 0 beyond 1.2 m)",
+   "file": "katana_hero.glb",
+   "lods": [
+    {
+     "node": "katana_hero_LOD0",
+     "tris": 19100
+    },
+    {
+     "node": "katana_hero_LOD1",
+     "tris": 7639
+    },
+    {
+     "node": "katana_hero_LOD2",
+     "tris": 2291
+    }
+   ],
+   "materials": [
+    "kv3n_katana_blade",
+    "kv3n_katana_habaki",
+    "kv3_iron",
+    "kv3n_katana_glow",
+    "kv3n_katana_tsuka"
+   ]
+  },
+  "katana_dais": {
+   "id": "katana_dais",
+   "size_m": [
+    7.8,
+    1.2,
+    7.8
+   ],
+   "cover": true,
+   "height_m": 0.64,
+   "colliders": [
+    {
+     "c": [
+      0,
+      0.32,
+      0
+     ],
+     "half": [
+      3.141,
+      0.32,
+      3.141
+     ],
+     "yaw_deg": 0.0
+    },
+    {
+     "c": [
+      0,
+      0.32,
+      0
+     ],
+     "half": [
+      3.141,
+      0.32,
+      3.141
+     ],
+     "yaw_deg": 45.0
+    },
+    {
+     "c": [
+      0,
+      0.08,
+      0
+     ],
+     "half": [
+      3.9,
+      0.08,
+      3.9
+     ],
+     "yaw_deg": 0.0
+    },
+    {
+     "c": [
+      0,
+      0.9,
+      0
+     ],
+     "half": [
+      0.95,
+      0.3,
+      0.95
+     ],
+     "yaw_deg": 0.0
+    }
+   ],
+   "collider_notes": "Two 45-degree-offset boxes = an octagon around the round body (knee-high: walkable up via the step), plus the rock cluster as one box. The katana stands at socket 'blade'.",
+   "sockets": {
+    "blade": [
+     0,
+     0.64,
+     0
+    ],
+    "slit_lights": [
+     [
+      3.326,
+      0.37,
+      -1.378
+     ],
+     [
+      1.378,
+      0.37,
+      -3.326
+     ],
+     [
+      -1.378,
+      0.37,
+      -3.326
+     ],
+     [
+      -3.326,
+      0.37,
+      -1.378
+     ],
+     [
+      -3.326,
+      0.37,
+      1.378
+     ],
+     [
+      -1.378,
+      0.37,
+      3.326
+     ],
+     [
+      1.378,
+      0.37,
+      3.326
+     ],
+     [
+      3.326,
+      0.37,
+      1.378
+     ]
+    ]
+   },
+   "unique_textures": {
+    "kv3n_dais_slit": {
+     "emissive": "#E8141F",
+     "emissive_intensity": 4
+    }
+   },
+   "vertex_color": "R = moss weight on the kv3_mossy_rock faces (runtime: mix kv3_mossy_rock -> kv3_moss by COLOR_0.r)",
+   "file": "katana_dais.glb",
+   "lods": [
+    {
+     "node": "katana_dais_LOD0",
+     "tris": 3092
+    },
+    {
+     "node": "katana_dais_LOD1",
+     "tris": 1236
+    },
+    {
+     "node": "katana_dais_LOD2",
+     "tris": 362
+    }
+   ],
+   "materials": [
+    "kv3_slate_crazy",
+    "kv3_ishigaki",
+    "kv3n_dais_slit",
+    "kv3_mossy_rock"
+   ]
+  },
+  "rock_a": {
+   "id": "rock_a",
+   "size_m": [
+    0.98,
+    0.24,
+    0.7
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0.015,
+      0.118,
+      -0.021
+     ],
+     "half": [
+      0.431,
+      0.118,
+      0.307
+     ],
+     "yaw_deg": 0.0
+    }
+   ],
+   "vertex_color": "R = moss weight (up-facing x noise). Runtime: albedo/normal/roughness = mix(kv3_mossy_rock, kv3_moss, COLOR_0.r); both world-metre UV (box/triplanar).",
+   "file": "rock_a.glb",
+   "lods": [
+    {
+     "node": "rock_a_LOD0",
+     "tris": 320
+    },
+    {
+     "node": "rock_a_LOD1",
+     "tris": 128
+    },
+    {
+     "node": "rock_a_LOD2",
+     "tris": 38
+    }
+   ],
+   "materials": [
+    "kv3_mossy_rock"
+   ]
+  },
+  "rock_b": {
+   "id": "rock_b",
+   "size_m": [
+    1.42,
+    0.55,
+    1.08
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0.023,
+      0.277,
+      -0.007
+     ],
+     "half": [
+      0.624,
+      0.277,
+      0.475
+     ],
+     "yaw_deg": 0.0
+    }
+   ],
+   "vertex_color": "R = moss weight (up-facing x noise). Runtime: albedo/normal/roughness = mix(kv3_mossy_rock, kv3_moss, COLOR_0.r); both world-metre UV (box/triplanar).",
+   "file": "rock_b.glb",
+   "lods": [
+    {
+     "node": "rock_b_LOD0",
+     "tris": 1280
+    },
+    {
+     "node": "rock_b_LOD1",
+     "tris": 512
+    },
+    {
+     "node": "rock_b_LOD2",
+     "tris": 152
+    }
+   ],
+   "materials": [
+    "kv3_mossy_rock"
+   ]
+  },
+  "rock_c": {
+   "id": "rock_c",
+   "size_m": [
+    1.87,
+    0.92,
+    1.6
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0.021,
+      0.458,
+      -0.032
+     ],
+     "half": [
+      0.822,
+      0.458,
+      0.704
+     ],
+     "yaw_deg": 0.0
+    }
+   ],
+   "vertex_color": "R = moss weight (up-facing x noise). Runtime: albedo/normal/roughness = mix(kv3_mossy_rock, kv3_moss, COLOR_0.r); both world-metre UV (box/triplanar).",
+   "file": "rock_c.glb",
+   "lods": [
+    {
+     "node": "rock_c_LOD0",
+     "tris": 1280
+    },
+    {
+     "node": "rock_c_LOD1",
+     "tris": 512
+    },
+    {
+     "node": "rock_c_LOD2",
+     "tris": 152
+    }
+   ],
+   "materials": [
+    "kv3_mossy_rock"
+   ]
+  },
+  "rock_d": {
+   "id": "rock_d",
+   "size_m": [
+    2.6,
+    1.26,
+    2.01
+   ],
+   "cover": true,
+   "colliders": [
+    {
+     "c": [
+      -0.151,
+      0.628,
+      0.021
+     ],
+     "half": [
+      1.146,
+      0.628,
+      0.883
+     ],
+     "yaw_deg": 0.0
+    }
+   ],
+   "vertex_color": "R = moss weight (up-facing x noise). Runtime: albedo/normal/roughness = mix(kv3_mossy_rock, kv3_moss, COLOR_0.r); both world-metre UV (box/triplanar).",
+   "file": "rock_d.glb",
+   "lods": [
+    {
+     "node": "rock_d_LOD0",
+     "tris": 1280
+    },
+    {
+     "node": "rock_d_LOD1",
+     "tris": 512
+    },
+    {
+     "node": "rock_d_LOD2",
+     "tris": 152
+    }
+   ],
+   "materials": [
+    "kv3_mossy_rock"
+   ]
+  },
+  "rock_e": {
+   "id": "rock_e",
+   "size_m": [
+    3.39,
+    1.62,
+    2.56
+   ],
+   "cover": true,
+   "colliders": [
+    {
+     "c": [
+      -0.06,
+      0.81,
+      -0.036
+     ],
+     "half": [
+      1.492,
+      0.81,
+      1.126
+     ],
+     "yaw_deg": 0.0
+    }
+   ],
+   "vertex_color": "R = moss weight (up-facing x noise). Runtime: albedo/normal/roughness = mix(kv3_mossy_rock, kv3_moss, COLOR_0.r); both world-metre UV (box/triplanar).",
+   "file": "rock_e.glb",
+   "lods": [
+    {
+     "node": "rock_e_LOD0",
+     "tris": 1280
+    },
+    {
+     "node": "rock_e_LOD1",
+     "tris": 512
+    },
+    {
+     "node": "rock_e_LOD2",
+     "tris": 152
+    }
+   ],
+   "materials": [
+    "kv3_mossy_rock"
+   ]
+  },
+  "pine_kuromatsu": {
+   "id": "pine_kuromatsu",
+   "size_m": [
+    5.73,
+    4.45,
+    5.26
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0.23,
+      1.4,
+      -0.092
+     ],
+     "half": [
+      0.225,
+      1.4,
+      0.225
+     ],
+     "yaw_deg": 0.0
+    }
+   ],
+   "collider_notes": "Trunk only (bullets pass the needle pads; players walk under the limbs).",
+   "unique_textures": {
+    "kv3n_bark_pine": {
+     "c": "tex/bark_pine_c.webp",
+     "n": "tex/bark_pine_n.webp",
+     "ormh": "tex/bark_pine_ormh.webp",
+     "tile_m": 1.2,
+     "uv": "world metres (U around, V along)",
+     "source": "Poly Haven pine_bark (CC0)"
+    },
+    "kv3n_pine_needles": {
+     "c": "tex/pine_needles_c.webp",
+     "n": "tex/pine_needles_n.webp",
+     "ormh": "tex/pine_needles_ormh.webp",
+     "cutout": "ormh.B (alphaTest 0.5, alphaToCoverage, DoubleSide, metalness 0)",
+     "uv": "0..1 per card"
+    },
+    "kv3n_pine_inner": {
+     "color": "#0b0f0a",
+     "roughness": 0.8,
+     "note": "dark inner mass of each cloud pad"
+    }
+   },
+   "vertex_color": "R = sway weight (height^1.5), G = per-pad phase, B = 1 on needle cards (flutter). Wind: offset.xz += windDir * (R * 0.06 * sin(t*0.9 + G*6.28)) + B * 0.015 * sin(t*3 + G*20).",
+   "file": "pine_kuromatsu.glb",
+   "lods": [
+    {
+     "node": "pine_kuromatsu_LOD0",
+     "tris": 2974
+    },
+    {
+     "node": "pine_kuromatsu_LOD1",
+     "tris": 1155
+    },
+    {
+     "node": "pine_kuromatsu_LOD2",
+     "tris": 356
+    }
+   ],
+   "materials": [
+    "kv3n_bark_pine",
+    "kv3n_pine_needles",
+    "kv3n_pine_inner"
+   ]
+  },
+  "maple_momiji": {
+   "id": "maple_momiji",
+   "size_m": [
+    5.23,
+    2.99,
+    5.12
+   ],
+   "cover": false,
+   "colliders": [
+    {
+     "c": [
+      0.2,
+      1.0,
+      -0.08
+     ],
+     "half": [
+      0.18,
+      1.0,
+      0.18
+     ],
+     "yaw_deg": 0.0
+    }
+   ],
+   "collider_notes": "Trunk only.",
+   "unique_textures": {
+    "kv3n_bark_maple": {
+     "c": "tex/bark_maple_c.webp",
+     "n": "tex/bark_maple_n.webp",
+     "ormh": "tex/bark_maple_ormh.webp",
+     "tile_m": 1.0,
+     "uv": "world metres",
+     "source": "Poly Haven trident_maple_bark (CC0)"
+    },
+    "kv3n_maple_leaves": {
+     "c": "tex/maple_leaves_c.webp",
+     "n": "tex/maple_leaves_n.webp",
+     "ormh": "tex/maple_leaves_ormh.webp",
+     "cutout": "ormh.B",
+     "uv": "0..1 per card, hangs from the top edge"
+    }
+   },
+   "vertex_color": "R = sway weight, G = per-cluster phase, B = 1 on leaf cards (flutter). The red maple is the only warm colour besides the lacquer red: use sparingly (spawn torii, shrine plaza).",
+   "file": "maple_momiji.glb",
+   "lods": [
+    {
+     "node": "maple_momiji_LOD0",
+     "tris": 3408
+    },
+    {
+     "node": "maple_momiji_LOD1",
+     "tris": 1363
+    },
+    {
+     "node": "maple_momiji_LOD2",
+     "tris": 423
+    }
+   ],
+   "materials": [
+    "kv3n_bark_maple",
+    "kv3n_maple_leaves"
+   ]
+  },
+  "bamboo_clump_a": {
+   "id": "bamboo_clump_a",
+   "size_m": [
+    2.2,
+    6.97,
+    2.2
+   ],
+   "cover": false,
+   "culms": 9,
+   "colliders": [
+    {
+     "c": [
+      0,
+      1.0,
+      0
+     ],
+     "half": [
+      0.36,
+      1.0,
+      0.36
+     ],
+     "yaw_deg": 0.0
+    }
+   ],
+   "collider_notes": "One soft box around the clump base (blocks movement, NOT bullets: put it on the movement layer only).",
+   "unique_textures": {
+    "kv3n_bamboo_culm": {
+     "c": "tex/bamboo_culm_c.webp",
+     "n": "tex/bamboo_culm_n.webp",
+     "ormh": "tex/bamboo_culm_ormh.webp",
+     "uv": "U around 0..1, V metres (tile 1 m)"
+    },
+    "kv3n_bamboo_spray": {
+     "c": "tex/bamboo_spray_c.webp",
+     "n": "tex/bamboo_spray_n.webp",
+     "ormh": "tex/bamboo_spray_ormh.webp",
+     "cutout": "ormh.B",
+     "uv": "0..1 per card, hangs from top edge"
+    }
+   },
+   "vertex_color": "R = sway weight (height^2: culms bend from the root), G = per-culm phase, B = 1 on leaf cards. Wind: offset.xz += windDir * R * 0.35 * sin(t*0.7 + G*6.28) (tall culms sway a lot); cards add B * 0.04 * sin(t*4 + G*30).",
+   "file": "bamboo_clump_a.glb",
+   "lods": [
+    {
+     "node": "bamboo_clump_a_LOD0",
+     "tris": 2606
+    },
+    {
+     "node": "bamboo_clump_a_LOD1",
+     "tris": 1281
+    },
+    {
+     "node": "bamboo_clump_a_LOD2",
+     "tris": 762
+    }
+   ],
+   "materials": [
+    "kv3n_bamboo_culm",
+    "kv3n_bamboo_spray"
+   ]
+  },
+  "bamboo_clump_b": {
+   "id": "bamboo_clump_b",
+   "size_m": [
+    2.8,
+    7.9,
+    2.8
+   ],
+   "cover": false,
+   "culms": 14,
+   "colliders": [
+    {
+     "c": [
+      0,
+      1.0,
+      0
+     ],
+     "half": [
+      0.6,
+      1.0,
+      0.6
+     ],
+     "yaw_deg": 0.0
+    }
+   ],
+   "collider_notes": "One soft box around the clump base (blocks movement, NOT bullets: put it on the movement layer only).",
+   "unique_textures": {
+    "kv3n_bamboo_culm": {
+     "c": "tex/bamboo_culm_c.webp",
+     "n": "tex/bamboo_culm_n.webp",
+     "ormh": "tex/bamboo_culm_ormh.webp",
+     "uv": "U around 0..1, V metres (tile 1 m)"
+    },
+    "kv3n_bamboo_spray": {
+     "c": "tex/bamboo_spray_c.webp",
+     "n": "tex/bamboo_spray_n.webp",
+     "ormh": "tex/bamboo_spray_ormh.webp",
+     "cutout": "ormh.B",
+     "uv": "0..1 per card, hangs from top edge"
+    }
+   },
+   "vertex_color": "R = sway weight (height^2: culms bend from the root), G = per-culm phase, B = 1 on leaf cards. Wind: offset.xz += windDir * R * 0.35 * sin(t*0.7 + G*6.28) (tall culms sway a lot); cards add B * 0.04 * sin(t*4 + G*30).",
+   "file": "bamboo_clump_b.glb",
+   "lods": [
+    {
+     "node": "bamboo_clump_b_LOD0",
+     "tris": 4506
+    },
+    {
+     "node": "bamboo_clump_b_LOD1",
+     "tris": 2207
+    },
+    {
+     "node": "bamboo_clump_b_LOD2",
+     "tris": 1311
+    }
+   ],
+   "materials": [
+    "kv3n_bamboo_culm",
+    "kv3n_bamboo_spray"
+   ]
+  },
+  "bamboo_clump_c": {
+   "id": "bamboo_clump_c",
+   "size_m": [
+    3.5,
+    8.81,
+    3.5
+   ],
+   "cover": false,
+   "culms": 20,
+   "colliders": [
+    {
+     "c": [
+      0,
+      1.0,
+      0
+     ],
+     "half": [
+      0.88,
+      1.0,
+      0.88
+     ],
+     "yaw_deg": 0.0
+    }
+   ],
+   "collider_notes": "One soft box around the clump base (blocks movement, NOT bullets: put it on the movement layer only).",
+   "unique_textures": {
+    "kv3n_bamboo_culm": {
+     "c": "tex/bamboo_culm_c.webp",
+     "n": "tex/bamboo_culm_n.webp",
+     "ormh": "tex/bamboo_culm_ormh.webp",
+     "uv": "U around 0..1, V metres (tile 1 m)"
+    },
+    "kv3n_bamboo_spray": {
+     "c": "tex/bamboo_spray_c.webp",
+     "n": "tex/bamboo_spray_n.webp",
+     "ormh": "tex/bamboo_spray_ormh.webp",
+     "cutout": "ormh.B",
+     "uv": "0..1 per card, hangs from top edge"
+    }
+   },
+   "vertex_color": "R = sway weight (height^2: culms bend from the root), G = per-culm phase, B = 1 on leaf cards. Wind: offset.xz += windDir * R * 0.35 * sin(t*0.7 + G*6.28) (tall culms sway a lot); cards add B * 0.04 * sin(t*4 + G*30).",
+   "file": "bamboo_clump_c.glb",
+   "lods": [
+    {
+     "node": "bamboo_clump_c_LOD0",
+     "tris": 6826
+    },
+    {
+     "node": "bamboo_clump_c_LOD1",
+     "tris": 3351
+    },
+    {
+     "node": "bamboo_clump_c_LOD2",
+     "tris": 1993
+    }
+   ],
+   "materials": [
+    "kv3n_bamboo_culm",
+    "kv3n_bamboo_spray"
+   ]
+  },
+  "koi": {
+   "id": "koi",
+   "file": "koi.glb",
+   "variants": [
+    "koi_a",
+    "koi_b",
+    "koi_c",
+    "koi_d (tancho)"
+   ],
+   "lods": [
+    {
+     "node": "koi_a_LOD0",
+     "tris": 622
+    },
+    {
+     "node": "koi_a_LOD1",
+     "tris": 279
+    },
+    {
+     "node": "koi_a_LOD2",
+     "tris": 93
+    },
+    {
+     "node": "koi_b_LOD0",
+     "tris": 622
+    },
+    {
+     "node": "koi_b_LOD1",
+     "tris": 279
+    },
+    {
+     "node": "koi_b_LOD2",
+     "tris": 93
+    },
+    {
+     "node": "koi_c_LOD0",
+     "tris": 622
+    },
+    {
+     "node": "koi_c_LOD1",
+     "tris": 279
+    },
+    {
+     "node": "koi_c_LOD2",
+     "tris": 93
+    },
+    {
+     "node": "koi_d_LOD0",
+     "tris": 622
+    },
+    {
+     "node": "koi_d_LOD1",
+     "tris": 279
+    },
+    {
+     "node": "koi_d_LOD2",
+     "tris": 93
+    }
+   ],
+   "size_m": [
+    0.62,
+    0.17,
+    0.15
+   ],
+   "cover": false,
+   "colliders": [],
+   "materials": [
+    "kv3n_koi"
+   ],
+   "unique_textures": {
+    "kv3n_koi": {
+     "c": "tex/koi_c.webp",
+     "n": "tex/koi_n.webp",
+     "ormh": "tex/koi_ormh.webp",
+     "uv": "atlas: 4 rows (one per variant); U 0..0.78 body head->tail, 0.8..1 fins"
+    }
+   },
+   "vertex_color": "R = spine weight (0 at the head -> 1 at the tail tip). Swim in the vertex shader (object space, fish faces +X): pos.y += 0.035 * R*R * sin(t*6.0 - pos.x*14.0 + phase); move each fish on a looping spline under the moat surface, 0.25-0.6 m/s.",
+   "notes": "Pivot near the centre of mass, +X forward (Blender) = glTF +X. Render under the water surface with the water's depth fog; no shadows."
+  }
+ },
+ "convention": {
+  "up": "Y-up GLB, metres, origin on the ground (katana: where the blade enters the dais top)",
+  "lods": "<id>_LOD0 / _LOD1 (~40 %) / _LOD2 (~12 %); trees thin their cards (55 % / 22 %) and decimate wood",
+  "materials": "kv3_<set> = library set (public/assets/katana/v3/tex/manifest.json, world-metre UVs, repeat 1/tile_m); kv3n_<asset>_<part> = this kit, see unique_textures",
+  "textures": "c sRGB / n OpenGL normal flipY=false / ormh linear AO-rough-metal-height; foliage cutout mask in ormh.B",
+  "colliders": "OBB in game space (Y-up): c = centre, half = half extents (x, y, z), yaw_deg about +Y",
+  "vertex_color": "COLOR_0 per asset (wind/swim/moss/glow weights), see each asset"
+ }
+}

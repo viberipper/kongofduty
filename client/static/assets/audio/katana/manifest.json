@@ -1,0 +1,842 @@
+{
+ "assets": {
+  "bamboo_wind": {
+   "id": "bamboo_wind",
+   "kind": "amb",
+   "take": "bamboo_wind_t1.wav",
+   "seam_fixed": true,
+   "loop": true,
+   "raw_seam": {
+    "jump_ratio": 1.02,
+    "rms_step_db": 6.76,
+    "texture_step_p95_db": 5.91,
+    "flux_z": -0.36,
+    "ok": true
+   },
+   "secs": 28.0,
+   "samples48k": 1344000,
+   "lufs_i": -29.9,
+   "true_peak": -1.5,
+   "ogg_kb": 208.7,
+   "m4a_kb": 247.4,
+   "seam": {
+    "jump_ratio": 0.19,
+    "rms_step_db": -1.01,
+    "texture_step_p95_db": 5.89,
+    "flux_z": -0.92,
+    "ok": true
+   },
+   "why": "soft leaf wash, seam clean; the decoded Opus seam measured 0.02 dB over the texture limit, so the last 2 s are folded over the head"
+  },
+  "bed_calm": {
+   "id": "bed_calm",
+   "kind": "loop",
+   "take": "bed_calm_t1.wav",
+   "downbeat_s": 0.015,
+   "bars": [
+    2,
+    15
+   ],
+   "loop": true,
+   "seam_match": 0.985,
+   "secs": 39.0,
+   "samples48k": 1872000,
+   "lufs_i": -23.0,
+   "true_peak": -8.3,
+   "ogg_kb": 411.1,
+   "m4a_kb": 485.4,
+   "seam": {
+    "jump_ratio": 0.51,
+    "flux_vs_bar_max": 0.88,
+    "rms_step_db": -1.48,
+    "bar_step_max_db": 2.51,
+    "ok": true
+   },
+   "why": "single take: drone + sparse koto, LRA 1.4, 80 BPM"
+  },
+  "bed_combat": {
+   "id": "bed_combat",
+   "kind": "loop",
+   "take": "bed_combat_t1.wav",
+   "downbeat_s": 0.0,
+   "bars": [
+    0,
+    16
+   ],
+   "loop": true,
+   "seam_match": 0.976,
+   "secs": 48.0,
+   "samples48k": 2304000,
+   "lufs_i": -23.0,
+   "true_peak": -8.4,
+   "ogg_kb": 489.2,
+   "m4a_kb": 598.9,
+   "seam": {
+    "jump_ratio": 0.78,
+    "flux_vs_bar_max": 0.88,
+    "rms_step_db": 7.33,
+    "bar_step_max_db": 8.0,
+    "ok": true
+   },
+   "why": "single take: taiko groove, LRA 2.1, 80 BPM (0.69)"
+  },
+  "bed_final": {
+   "id": "bed_final",
+   "kind": "loop",
+   "take": "bed_final_t3.wav",
+   "downbeat_s": 0.0,
+   "bars": [
+    1,
+    14
+   ],
+   "loop": true,
+   "seam_match": 0.977,
+   "secs": 39.0,
+   "samples48k": 1872000,
+   "lufs_i": -23.0,
+   "true_peak": -6.7,
+   "ogg_kb": 411.7,
+   "m4a_kb": 486.4,
+   "seam": {
+    "jump_ratio": 0.09,
+    "flux_vs_bar_max": 0.88,
+    "rms_step_db": 7.85,
+    "bar_step_max_db": 8.54,
+    "ok": true
+   },
+   "why": "t3 of the v2 plan: constant intensity (LRA 1.0) and the best seam (0.977); t1 was a crescendo (seam 0.846, a drop every loop), t2 seam 0.89"
+  },
+  "bed_tension": {
+   "id": "bed_tension",
+   "kind": "loop",
+   "take": "bed_tension_t1.wav",
+   "downbeat_s": 0.01,
+   "bars": [
+    0,
+    16
+   ],
+   "loop": true,
+   "seam_match": 0.985,
+   "secs": 48.0,
+   "samples48k": 2304000,
+   "lufs_i": -23.0,
+   "true_peak": -8.3,
+   "ogg_kb": 457.7,
+   "m4a_kb": 596.7,
+   "seam": {
+    "jump_ratio": 0.3,
+    "flux_vs_bar_max": 0.36,
+    "rms_step_db": 3.72,
+    "bar_step_max_db": 5.9,
+    "ok": true
+   },
+   "why": "single take: steady pulse, LRA 2.3"
+  },
+  "bomb": {
+   "id": "bomb",
+   "kind": "stinger",
+   "take": "bomb_t1.wav",
+   "trim_s": 0.0,
+   "loop": false,
+   "secs": 45.0,
+   "samples48k": 2160000,
+   "lufs_i": -21.0,
+   "true_peak": -4.2,
+   "ogg_kb": 475.7,
+   "m4a_kb": 561.5,
+   "why": "single take; 80 BPM held exactly (strength 0.87), three audible stages, 45.0 s = the fuse"
+  },
+  "far_town": {
+   "id": "far_town",
+   "kind": "amb",
+   "take": "far_town_t2.wav",
+   "lowpass_hz": 6500,
+   "highpass_hz": 40,
+   "notched_hz": [
+    [
+     61.5,
+     11.9
+    ]
+   ],
+   "seam_fixed": true,
+   "loop": true,
+   "raw_seam": {
+    "jump_ratio": 4.43,
+    "rms_step_db": -0.63,
+    "texture_step_p95_db": 3.51,
+    "flux_z": -1.77,
+    "ok": false
+   },
+   "secs": 28.5,
+   "samples48k": 1368000,
+   "lufs_i": -28.0,
+   "true_peak": -10.7,
+   "ogg_kb": 180.8,
+   "m4a_kb": 250.2,
+   "seam": {
+    "jump_ratio": 0.05,
+    "rms_step_db": -1.08,
+    "texture_step_p95_db": 3.6,
+    "flux_z": 0.5,
+    "ok": true
+   },
+   "why": "t2 (t1 was near-silent noise): a far hush, a few far dog barks and a slow train; low-passed at 6.5 kHz (a steady 10 kHz whine band in the take, and distance has no highs), high-passed at 40 Hz (rumble)"
+  },
+  "gutter": {
+   "id": "gutter",
+   "kind": "amb",
+   "take": "gutter_t1.wav",
+   "notched_hz": [
+    [
+     401.4,
+     10.4
+    ],
+    [
+     799.8,
+     9.2
+    ]
+   ],
+   "loop": true,
+   "raw_seam": {
+    "jump_ratio": 0.07,
+    "rms_step_db": -3.62,
+    "texture_step_p95_db": 5.9,
+    "flux_z": -0.04,
+    "ok": true
+   },
+   "secs": 20.0,
+   "samples48k": 960000,
+   "lufs_i": -31.3,
+   "true_peak": -1.5,
+   "ogg_kb": 141.6,
+   "m4a_kb": 183.5,
+   "seam": {
+    "jump_ratio": 0.07,
+    "rms_step_db": -3.62,
+    "texture_step_p95_db": 5.9,
+    "flux_z": -0.04,
+    "ok": true
+   },
+   "why": "trickle + drips; raw seam had a 7.4 dB step, folded"
+  },
+  "intro": {
+   "id": "intro",
+   "kind": "stinger",
+   "take": "intro_t1.wav",
+   "trim_s": 0.3818,
+   "loop": false,
+   "hits": [
+    9.01
+   ],
+   "secs": 11.6182,
+   "samples48k": 557675,
+   "lufs_i": -20.0,
+   "true_peak": -5.1,
+   "ogg_kb": 115.7,
+   "m4a_kb": 144.0,
+   "why": "the only take with a real title hit: +10.7 dB sub/taiko impact 0.39 s after the planned bar (the take starts 0.4 s late); t2 peaks at 6 s, t3 never hits"
+  },
+  "koi_pond": {
+   "id": "koi_pond",
+   "kind": "amb",
+   "take": "koi_pond_t1.wav",
+   "notched_hz": [
+    [
+     199.2,
+     12.9
+    ]
+   ],
+   "loop": true,
+   "raw_seam": {
+    "jump_ratio": 0.25,
+    "rms_step_db": -1.31,
+    "texture_step_p95_db": 7.54,
+    "flux_z": 0.41,
+    "ok": true
+   },
+   "secs": 20.0,
+   "samples48k": 960000,
+   "lufs_i": -31.4,
+   "true_peak": -1.5,
+   "ogg_kb": 179.0,
+   "m4a_kb": 182.2,
+   "seam": {
+    "jump_ratio": 0.25,
+    "rms_step_db": -1.31,
+    "texture_step_p95_db": 7.54,
+    "flux_z": 0.37,
+    "ok": true
+   },
+   "why": "burble, seam clean"
+  },
+  "lose": {
+   "id": "lose",
+   "kind": "stinger",
+   "take": "lose_t1.wav",
+   "trim_s": 0.0,
+   "loop": false,
+   "hits": [
+    0.01
+   ],
+   "secs": 6.0,
+   "samples48k": 288000,
+   "lufs_i": -22.0,
+   "true_peak": -6.5,
+   "ogg_kb": 60.1,
+   "m4a_kb": 74.4,
+   "why": "t1: +12.5 dB low bell, D with the in-scale Eb colour, sub drone; t2 has no hit (-1.7 dB) and no colour"
+  },
+  "menu": {
+   "id": "menu",
+   "kind": "loop",
+   "take": "menu_t1.wav",
+   "downbeat_s": 0.0,
+   "bars": [
+    0,
+    8
+   ],
+   "loop": true,
+   "seam_match": 0.983,
+   "secs": 24.0,
+   "samples48k": 1152000,
+   "lufs_i": -23.0,
+   "true_peak": -8.7,
+   "ogg_kb": 257.6,
+   "m4a_kb": 298.7,
+   "seam": {
+    "jump_ratio": 0.19,
+    "flux_vs_bar_max": 0.84,
+    "rms_step_db": 4.8,
+    "bar_step_max_db": 7.28,
+    "ok": true
+   },
+   "why": "t1: an 80 BPM pulse (0.70) under a melodic line; t2 is mostly a static drone"
+  },
+  "neon_hum": {
+   "id": "neon_hum",
+   "kind": "amb",
+   "take": "neon_hum_t1.wav",
+   "seam_fixed": true,
+   "loop": true,
+   "raw_seam": {
+    "jump_ratio": 0.51,
+    "rms_step_db": 4.12,
+    "texture_step_p95_db": 2.0,
+    "flux_z": -0.79,
+    "ok": false
+   },
+   "secs": 10.5,
+   "samples48k": 504000,
+   "lufs_i": -26.0,
+   "true_peak": -15.7,
+   "ogg_kb": 71.1,
+   "m4a_kb": 93.2,
+   "seam": {
+    "jump_ratio": 0.38,
+    "rms_step_db": 1.75,
+    "texture_step_p95_db": 2.33,
+    "flux_z": -1.07,
+    "ok": true
+   },
+   "why": "the hum IS the sound: no notch; mono (it is a point source)"
+  },
+  "potg": {
+   "id": "potg",
+   "kind": "stinger",
+   "take": "potg_t1.wav",
+   "trim_s": 0.72,
+   "loop": false,
+   "hits": [
+    9.03
+   ],
+   "secs": 11.28,
+   "samples48k": 541441,
+   "lufs_i": -21.0,
+   "true_peak": -7.8,
+   "ogg_kb": 117.7,
+   "m4a_kb": 139.0,
+   "why": "t1 has the final hit (+2.6 dB, 14x onset) and a real ring-out; t2 grooves straight through the end with no arrival"
+  },
+  "rain_open": {
+   "id": "rain_open",
+   "kind": "amb",
+   "take": "rain_open_t1.wav",
+   "notched_hz": [
+    [
+     199.2,
+     18.6
+    ],
+    [
+     401.4,
+     16.9
+    ]
+   ],
+   "loop": true,
+   "raw_seam": {
+    "jump_ratio": 0.44,
+    "rms_step_db": 0.68,
+    "texture_step_p95_db": 4.94,
+    "flux_z": -0.17,
+    "ok": true
+   },
+   "secs": 30.0,
+   "samples48k": 1440000,
+   "lufs_i": -28.8,
+   "true_peak": -1.5,
+   "ogg_kb": 216.3,
+   "m4a_kb": 264.7,
+   "seam": {
+    "jump_ratio": 0.44,
+    "rms_step_db": 0.68,
+    "texture_step_p95_db": 4.94,
+    "flux_z": -0.16,
+    "ok": true
+   },
+   "why": "even, broadband, seam clean as generated"
+  },
+  "rain_roof": {
+   "id": "rain_roof",
+   "kind": "amb",
+   "take": "rain_roof_t1.wav",
+   "loop": true,
+   "raw_seam": {
+    "jump_ratio": 0.72,
+    "rms_step_db": 2.84,
+    "texture_step_p95_db": 6.89,
+    "flux_z": 0.12,
+    "ok": true
+   },
+   "secs": 30.0,
+   "samples48k": 1440000,
+   "lufs_i": -32.6,
+   "true_peak": -1.5,
+   "ogg_kb": 200.7,
+   "m4a_kb": 264.6,
+   "seam": {
+    "jump_ratio": 0.72,
+    "rms_step_db": 2.84,
+    "texture_step_p95_db": 6.89,
+    "flux_z": 0.1,
+    "ok": true
+   },
+   "why": "dense wooden patter, seam clean"
+  },
+  "rain_slate": {
+   "id": "rain_slate",
+   "kind": "amb",
+   "take": "rain_slate_t1.wav",
+   "notched_hz": [
+    [
+     199.2,
+     10.2
+    ]
+   ],
+   "loop": true,
+   "raw_seam": {
+    "jump_ratio": 0.09,
+    "rms_step_db": 0.13,
+    "texture_step_p95_db": 2.05,
+    "flux_z": -0.94,
+    "ok": true
+   },
+   "secs": 20.0,
+   "samples48k": 960000,
+   "lufs_i": -26.0,
+   "true_peak": -3.3,
+   "ogg_kb": 126.5,
+   "m4a_kb": 176.1,
+   "seam": {
+    "jump_ratio": 0.09,
+    "rms_step_db": 0.13,
+    "texture_step_p95_db": 2.05,
+    "flux_z": -0.81,
+    "ok": true
+   },
+   "why": "crisp splashes, seam clean"
+  },
+  "rain_water": {
+   "id": "rain_water",
+   "kind": "amb",
+   "take": "rain_water_t1.wav",
+   "notched_hz": [
+    [
+     199.2,
+     17.2
+    ],
+    [
+     401.4,
+     17.0
+    ],
+    [
+     600.6,
+     12.3
+    ]
+   ],
+   "loop": true,
+   "raw_seam": {
+    "jump_ratio": 0.13,
+    "rms_step_db": -3.98,
+    "texture_step_p95_db": 5.12,
+    "flux_z": -1.03,
+    "ok": true
+   },
+   "secs": 20.0,
+   "samples48k": 960000,
+   "lufs_i": -26.1,
+   "true_peak": -1.5,
+   "ogg_kb": 172.6,
+   "m4a_kb": 187.2,
+   "seam": {
+    "jump_ratio": 0.13,
+    "rms_step_db": -3.98,
+    "texture_step_p95_db": 5.12,
+    "flux_z": -0.84,
+    "ok": true
+   },
+   "why": "plinks on water; raw seam had a 7.4 dB step, folded"
+  },
+  "river": {
+   "id": "river",
+   "kind": "amb",
+   "take": "koi_pond_t1.wav",
+   "recipe": "river",
+   "notched_hz": [
+    [
+     155.3,
+     11.8
+    ]
+   ],
+   "loop": true,
+   "raw_seam": {
+    "jump_ratio": 1.57,
+    "rms_step_db": -2.5,
+    "texture_step_p95_db": 7.97,
+    "flux_z": -0.66,
+    "ok": true
+   },
+   "secs": 20.0,
+   "samples48k": 960000,
+   "lufs_i": -32.2,
+   "true_peak": -1.5,
+   "ogg_kb": 179.5,
+   "m4a_kb": 181.2,
+   "seam": {
+    "jump_ratio": 1.57,
+    "rms_step_db": -2.5,
+    "texture_step_p95_db": 7.97,
+    "flux_z": -0.66,
+    "ok": true
+   },
+   "why": "no credits spent: the koi-pond burble at 0.78x speed (a broader, slower body of water), low-passed at 3.2 kHz, with 35 % of the rain-on-water take"
+  },
+  "shishi_odoshi": {
+   "id": "shishi_odoshi",
+   "kind": "oneshot",
+   "take": "shishi_odoshi_t1.wav",
+   "trim_s": 0.077,
+   "loop": false,
+   "secs": 2.923,
+   "samples48k": 140305,
+   "lufs_i": -30.3,
+   "true_peak": -6.0,
+   "ogg_kb": 20.4,
+   "m4a_kb": 26.2,
+   "why": "one clean hollow knock; a -6 dBTP ceiling because Opus overshoots this one hard transient by ~3.3 dB (+0.2 dBTP decoded at -3)"
+  },
+  "snd_round": {
+   "id": "snd_round",
+   "kind": "stinger",
+   "take": "snd_round_t2.wav",
+   "trim_s": 0.0,
+   "loop": false,
+   "hits": [
+    3.0
+   ],
+   "secs": 6.0,
+   "samples48k": 288000,
+   "lufs_i": -22.0,
+   "true_peak": -1.9,
+   "ogg_kb": 60.3,
+   "m4a_kb": 74.9,
+   "why": "t2's GO hit lands on 3.000 s (43x the onset median, +3.9 dB); t1's 'hit' is a level drop (-2.6 dB)"
+  },
+  "steps_gravel": {
+   "id": "steps_gravel",
+   "kind": "steps",
+   "take": "steps_gravel_t1.wav",
+   "loop": false,
+   "slices": [
+    [
+     0.0,
+     0.3
+    ],
+    [
+     0.45,
+     0.75
+    ],
+    [
+     0.9,
+     1.2
+    ],
+    [
+     1.35,
+     1.65
+    ],
+    [
+     1.8,
+     2.1
+    ],
+    [
+     2.25,
+     2.55
+    ]
+   ],
+   "steps_found": 16,
+   "secs": 2.7,
+   "samples48k": 129600,
+   "ogg_kb": 27.6,
+   "m4a_kb": 24.0,
+   "why": "ElevenLabs, 10 steps on raked gravel (the take is a near-continuous crunch with a 200 Hz generation hum): hum notched, the 6 most typical cut and each given a footfall envelope (85 ms decay) so it reads as one step, low-passed at 7 kHz so it never gets sharp; the runtime plays gravel 2 dB under stone"
+  },
+  "steps_stone": {
+   "id": "steps_stone",
+   "kind": "steps",
+   "take": "steps_stone_t1.wav",
+   "loop": false,
+   "slices": [
+    [
+     0.0,
+     0.26
+    ],
+    [
+     0.41,
+     0.67
+    ],
+    [
+     0.82,
+     1.08
+    ],
+    [
+     1.23,
+     1.49
+    ],
+    [
+     1.64,
+     1.9
+    ],
+    [
+     2.05,
+     2.31
+    ]
+   ],
+   "steps_found": 16,
+   "secs": 2.46,
+   "samples48k": 118080,
+   "ogg_kb": 27.2,
+   "m4a_kb": 23.0,
+   "why": "ElevenLabs, 10 steps on wet stone; the 6 most typical"
+  },
+  "steps_tile": {
+   "id": "steps_tile",
+   "kind": "steps",
+   "take": "steps_stone_t1.wav",
+   "loop": false,
+   "slices": [
+    [
+     0.0,
+     0.22
+    ],
+    [
+     0.37,
+     0.59
+    ],
+    [
+     0.74,
+     0.96
+    ],
+    [
+     1.11,
+     1.33
+    ],
+    [
+     1.48,
+     1.7
+    ],
+    [
+     1.85,
+     2.07
+    ]
+   ],
+   "steps_found": 16,
+   "secs": 2.22,
+   "samples48k": 106560,
+   "ogg_kb": 17.4,
+   "m4a_kb": 21.1,
+   "why": "no credits: the stone take at 1.3x (higher, shorter) high-passed at 500 Hz: a light ceramic clack for the tiled roofs"
+  },
+  "steps_water": {
+   "id": "steps_water",
+   "kind": "steps",
+   "take": "steps_water_t1.wav",
+   "loop": false,
+   "slices": [
+    [
+     0.0,
+     0.42
+    ],
+    [
+     0.57,
+     0.99
+    ],
+    [
+     1.14,
+     1.56
+    ],
+    [
+     1.71,
+     2.13
+    ],
+    [
+     2.28,
+     2.7
+    ],
+    [
+     2.85,
+     3.27
+    ]
+   ],
+   "steps_found": 12,
+   "secs": 3.42,
+   "samples48k": 164160,
+   "ogg_kb": 34.0,
+   "m4a_kb": 31.2,
+   "why": "ElevenLabs, 10 wading steps; the 6 most typical"
+  },
+  "steps_wood": {
+   "id": "steps_wood",
+   "kind": "steps",
+   "take": "steps_wood_t1.wav",
+   "loop": false,
+   "slices": [
+    [
+     0.0,
+     0.3
+    ],
+    [
+     0.45,
+     0.75
+    ],
+    [
+     0.9,
+     1.188
+    ],
+    [
+     1.338,
+     1.638
+    ],
+    [
+     1.788,
+     2.088
+    ],
+    [
+     2.238,
+     2.538
+    ]
+   ],
+   "steps_found": 14,
+   "secs": 2.688,
+   "samples48k": 129024,
+   "ogg_kb": 27.8,
+   "m4a_kb": 24.8,
+   "why": "ElevenLabs, 10 steps on a wooden veranda; the 6 most typical"
+  },
+  "temple_bell": {
+   "id": "temple_bell",
+   "kind": "oneshot",
+   "take": "temple_bell_t1.wav",
+   "trim_s": 0.0,
+   "loop": false,
+   "secs": 12.0,
+   "samples48k": 576000,
+   "lufs_i": -23.0,
+   "true_peak": -8.5,
+   "ogg_kb": 82.5,
+   "m4a_kb": 103.9,
+   "why": "deep bonsho, long harmonic decay"
+  },
+  "thunder_1": {
+   "id": "thunder_1",
+   "kind": "oneshot",
+   "take": "thunder_1_t1.wav",
+   "trim_s": 0.0414,
+   "loop": false,
+   "secs": 8.9586,
+   "samples48k": 430014,
+   "lufs_i": -24.0,
+   "true_peak": -3.4,
+   "ogg_kb": 61.2,
+   "m4a_kb": 78.7,
+   "why": "far, soft roll"
+  },
+  "thunder_2": {
+   "id": "thunder_2",
+   "kind": "oneshot",
+   "take": "thunder_2_t1.wav",
+   "trim_s": 0.0191,
+   "loop": false,
+   "secs": 8.9809,
+   "samples48k": 431083,
+   "lufs_i": -23.9,
+   "true_peak": -7.5,
+   "ogg_kb": 56.1,
+   "m4a_kb": 78.2,
+   "why": "muffled roll behind the mountain"
+  },
+  "win": {
+   "id": "win",
+   "kind": "stinger",
+   "take": "win_t1.wav",
+   "trim_s": 0.0,
+   "loop": false,
+   "hits": [
+    0.01
+   ],
+   "secs": 6.0,
+   "samples48k": 288000,
+   "lufs_i": -21.0,
+   "true_peak": -5.7,
+   "ogg_kb": 67.5,
+   "m4a_kb": 73.7,
+   "why": "t1: +9.8 dB hit then real harmony (G/B/D/F#: a bright resolution); t2 is a bare D-A fifth with clicky percussion"
+  },
+  "wind": {
+   "id": "wind",
+   "kind": "amb",
+   "take": "wind (procedural)",
+   "recipe": "wind",
+   "loop": true,
+   "raw_seam": {
+    "jump_ratio": 0.65,
+    "rms_step_db": 1.06,
+    "texture_step_p95_db": 2.0,
+    "flux_z": 0.63,
+    "ok": true
+   },
+   "secs": 32.0,
+   "samples48k": 1536000,
+   "lufs_i": -27.0,
+   "true_peak": -12.7,
+   "ogg_kb": 195.4,
+   "m4a_kb": 281.3,
+   "seam": {
+    "jump_ratio": 0.65,
+    "rms_step_db": 1.06,
+    "texture_step_p95_db": 2.0,
+    "flux_z": 0.51,
+    "ok": true
+   },
+   "why": "procedural (no credits): three noise bands whose gains breathe on periods that divide the 32 s loop, plus slow gusts"
+  }
+ },
+ "_doc": "Generated by scripts/katana-audio/process.py from picks.json. Every file is loudness-normalised (lufs_i); the runtime mix table (client/src/katana-audio.ts) sets the in-game level. samples48k is the exact length at 48 kHz: a decoder that returns more (AAC priming) is offset by the difference."
+}

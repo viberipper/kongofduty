@@ -1,0 +1,620 @@
+{
+  "version": 1,
+  "generated_by": "scripts/katana-v3/neon/build-neon.mjs",
+  "sdf": {
+    "encoding": "v = 0.5 + d / (2 * spread), d in canvas px, positive inside the tube; R = tube 0, G = tube 1",
+    "spread_px": 32
+  },
+  "glow": {
+    "encoding": "pre-blurred halo of the tube mask (3 lobes scaled to tube width), R = tube 0, G = tube 1, linear 0..1"
+  },
+  "tube": {
+    "encoding": "white on transparent (grey+alpha PNG), all tubes; coverage in alpha"
+  },
+  "board": {
+    "encoding": "unlit housing albedo, sRGB, transparent outside the housing; the sign's tube canvas maps to sign_uv inside it (v down)"
+  },
+  "colors": {
+    "red": "#E8141F",
+    "cold_white": "#DCEBFF",
+    "ice_blue": "#9FD4FF"
+  },
+  "usage": [
+    "Geometry: one quad for the board (board_c, unlit-ish dark PBR: roughness 0.35 lacquer / 0.8 cedar, metal 0) and one quad 3-8 mm in front of it for the tubes, mapped to board.sign_uv. Double-sided blade signs: two tube quads back to back.",
+    "Tube shader (additive or emissive, no lighting): float aa = fwidth(s) ; core_i = smoothstep(0.5 - aa, 0.5 + aa, sdf_i) ; halo_i = glow_i ; rgb = sum_i tube_color_i * (core_i * (1.0 + 1.5 * smoothstep(0.5, 0.62, sdf_i)) + halo_i * 0.35) * emissive_intensity. Linear colour in, let the game's ACES grade + bloom do the rest.",
+    "SDF keeps the tube razor sharp at any distance; at long range (or in the low tier) sample only the tube mask (alpha) and glow.",
+    "Light the scene with ONE small point/rect light per sign in the tube colour (or bake into the lightmap); reflections come from the emissive quad itself."
+  ],
+  "signs": [
+    {
+      "id": "sake_medallion",
+      "text": "酒",
+      "reading": "sake",
+      "meaning": "sake, rice wine (the classic izakaya door roundel)",
+      "orientation": "round",
+      "size_m": [
+        0.8,
+        0.8
+      ],
+      "canvas_px": [
+        1024,
+        1024
+      ],
+      "px_per_m": 1280,
+      "tube_px": 15,
+      "tube_mm": 11.7,
+      "tube_colors": [
+        "#E8141F"
+      ],
+      "emissive_intensity": 6,
+      "files": {
+        "tube": "sake_medallion_tube.png",
+        "sdf": "sake_medallion_sdf.png",
+        "glow": "sake_medallion_glow.png",
+        "board_c": "sake_medallion_board_c.png"
+      },
+      "board": {
+        "kind": "lacquer_disc",
+        "margin_m": 0.06,
+        "depth_m": 0.05,
+        "mount": "wall, 4 standoffs 40 mm",
+        "size_m": [
+          0.92,
+          0.92
+        ],
+        "px": [
+          1024,
+          1024
+        ],
+        "sign_uv": {
+          "u0": 0.0652,
+          "v0": 0.0652,
+          "u1": 0.9348,
+          "v1": 0.9348
+        }
+      },
+      "placement": "izakaya door, above the noren; the town street's anchor sign"
+    },
+    {
+      "id": "izakaya_vertical",
+      "text": "居酒屋",
+      "reading": "izakaya",
+      "meaning": "izakaya, a Japanese pub",
+      "orientation": "vertical",
+      "size_m": [
+        0.55,
+        1.4
+      ],
+      "canvas_px": [
+        512,
+        1024
+      ],
+      "px_per_m": 930.9,
+      "tube_px": 13,
+      "tube_mm": 14,
+      "tube_colors": [
+        "#E8141F"
+      ],
+      "emissive_intensity": 6,
+      "files": {
+        "tube": "izakaya_vertical_tube.png",
+        "sdf": "izakaya_vertical_sdf.png",
+        "glow": "izakaya_vertical_glow.png",
+        "board_c": "izakaya_vertical_board_c.png"
+      },
+      "board": {
+        "kind": "cedar_blade",
+        "margin_m": 0.05,
+        "depth_m": 0.06,
+        "mount": "projecting blade sign on a blackened-steel bracket, double-sided",
+        "size_m": [
+          0.65,
+          1.5
+        ],
+        "px": [
+          512,
+          1024
+        ],
+        "sign_uv": {
+          "u0": 0.0769,
+          "v0": 0.0333,
+          "u1": 0.9231,
+          "v1": 0.9667
+        }
+      },
+      "placement": "izakaya front, projecting over the street at 2.8-3.2 m so it reads down the lane"
+    },
+    {
+      "id": "chaya_vertical",
+      "text": "茶屋",
+      "reading": "chaya",
+      "meaning": "teahouse",
+      "orientation": "vertical",
+      "size_m": [
+        0.45,
+        0.9
+      ],
+      "canvas_px": [
+        512,
+        1024
+      ],
+      "px_per_m": 1137.8,
+      "tube_px": 12,
+      "tube_mm": 10.5,
+      "tube_colors": [
+        "#DCEBFF"
+      ],
+      "emissive_intensity": 4,
+      "files": {
+        "tube": "chaya_vertical_tube.png",
+        "sdf": "chaya_vertical_sdf.png",
+        "glow": "chaya_vertical_glow.png",
+        "board_c": "chaya_vertical_board_c.png"
+      },
+      "board": {
+        "kind": "cedar_board",
+        "margin_m": 0.04,
+        "depth_m": 0.04,
+        "mount": "wall, flush on 25 mm standoffs",
+        "size_m": [
+          0.53,
+          0.98
+        ],
+        "px": [
+          512,
+          1024
+        ],
+        "sign_uv": {
+          "u0": 0.0755,
+          "v0": 0.0408,
+          "u1": 0.9245,
+          "v1": 0.9592
+        }
+      },
+      "placement": "tea house (chashitsu) gate post / west spawn yard, cold white so the spawn reads calm"
+    },
+    {
+      "id": "ramen_bar",
+      "text": "ラーメン",
+      "reading": "rāmen",
+      "meaning": "ramen noodles",
+      "orientation": "horizontal",
+      "size_m": [
+        1.6,
+        0.4
+      ],
+      "canvas_px": [
+        1024,
+        256
+      ],
+      "px_per_m": 640,
+      "tube_px": 10,
+      "tube_mm": 15.6,
+      "tube_colors": [
+        "#E8141F"
+      ],
+      "emissive_intensity": 6,
+      "files": {
+        "tube": "ramen_bar_tube.png",
+        "sdf": "ramen_bar_sdf.png",
+        "glow": "ramen_bar_glow.png",
+        "board_c": "ramen_bar_board_c.png"
+      },
+      "board": {
+        "kind": "raceway",
+        "margin_m": 0.03,
+        "depth_m": 0.07,
+        "mount": "black steel raceway bar, letters on 30 mm standoffs",
+        "size_m": [
+          1.66,
+          0.46
+        ],
+        "px": [
+          1024,
+          256
+        ],
+        "sign_uv": {
+          "u0": 0.0181,
+          "v0": 0.0652,
+          "u1": 0.9819,
+          "v1": 0.9348
+        }
+      },
+      "placement": "ramen stall awning fascia in the market square"
+    },
+    {
+      "id": "katana_square",
+      "text": "刀",
+      "reading": "katana",
+      "meaning": "sword (the sword shop's mark)",
+      "orientation": "square",
+      "size_m": [
+        0.7,
+        0.7
+      ],
+      "canvas_px": [
+        1024,
+        1024
+      ],
+      "px_per_m": 1462.9,
+      "tube_px": 16,
+      "tube_mm": 10.9,
+      "tube_colors": [
+        "#E8141F"
+      ],
+      "emissive_intensity": 6,
+      "files": {
+        "tube": "katana_square_tube.png",
+        "sdf": "katana_square_sdf.png",
+        "glow": "katana_square_glow.png",
+        "board_c": "katana_square_board_c.png"
+      },
+      "board": {
+        "kind": "steel_frame",
+        "margin_m": 0.04,
+        "depth_m": 0.05,
+        "mount": "wall, steel frame box",
+        "size_m": [
+          0.78,
+          0.78
+        ],
+        "px": [
+          1024,
+          1024
+        ],
+        "sign_uv": {
+          "u0": 0.0513,
+          "v0": 0.0513,
+          "u1": 0.9487,
+          "v1": 0.9487
+        }
+      },
+      "placement": "sword shop (katana-ya) beside the hundred-step stair; a natural callout: 'Sword shop'"
+    },
+    {
+      "id": "katanakaji_vertical",
+      "text": "刀鍛冶",
+      "reading": "katana-kaji",
+      "meaning": "swordsmith",
+      "orientation": "vertical",
+      "size_m": [
+        0.5,
+        1.2
+      ],
+      "canvas_px": [
+        512,
+        1024
+      ],
+      "px_per_m": 1024,
+      "tube_px": 12,
+      "tube_mm": 11.7,
+      "tube_colors": [
+        "#9FD4FF"
+      ],
+      "emissive_intensity": 4,
+      "files": {
+        "tube": "katanakaji_vertical_tube.png",
+        "sdf": "katanakaji_vertical_sdf.png",
+        "glow": "katanakaji_vertical_glow.png",
+        "board_c": "katanakaji_vertical_board_c.png"
+      },
+      "board": {
+        "kind": "cedar_blade",
+        "margin_m": 0.05,
+        "depth_m": 0.06,
+        "mount": "projecting blade sign on a blackened-steel bracket, double-sided",
+        "size_m": [
+          0.6,
+          1.3
+        ],
+        "px": [
+          512,
+          1024
+        ],
+        "sign_uv": {
+          "u0": 0.0833,
+          "v0": 0.0385,
+          "u1": 0.9167,
+          "v1": 0.9615
+        }
+      },
+      "placement": "the forge workshop down the low street; ice blue = steel, the one cold sign in the lane"
+    },
+    {
+      "id": "yakitori_box",
+      "text": "焼鳥",
+      "reading": "yakitori",
+      "meaning": "grilled chicken skewers",
+      "orientation": "horizontal",
+      "size_m": [
+        1,
+        0.5
+      ],
+      "canvas_px": [
+        1024,
+        512
+      ],
+      "px_per_m": 1024,
+      "tube_px": 13,
+      "tube_mm": 12.7,
+      "tube_colors": [
+        "#E8141F"
+      ],
+      "emissive_intensity": 6,
+      "files": {
+        "tube": "yakitori_box_tube.png",
+        "sdf": "yakitori_box_sdf.png",
+        "glow": "yakitori_box_glow.png",
+        "board_c": "yakitori_box_board_c.png"
+      },
+      "board": {
+        "kind": "cedar_board",
+        "margin_m": 0.04,
+        "depth_m": 0.04,
+        "mount": "wall, flush on 25 mm standoffs",
+        "size_m": [
+          1.08,
+          0.58
+        ],
+        "px": [
+          1024,
+          512
+        ],
+        "sign_uv": {
+          "u0": 0.037,
+          "v0": 0.069,
+          "u1": 0.963,
+          "v1": 0.931
+        }
+      },
+      "placement": "yakitori counter under the eave in the market square"
+    },
+    {
+      "id": "eigyochu_window",
+      "text": "営業中",
+      "reading": "eigyō-chū",
+      "meaning": "open (for business)",
+      "orientation": "horizontal",
+      "size_m": [
+        0.6,
+        0.3
+      ],
+      "canvas_px": [
+        1024,
+        512
+      ],
+      "px_per_m": 1706.7,
+      "tube_px": 14,
+      "tube_mm": 8.2,
+      "tube_colors": [
+        "#E8141F",
+        "#9FD4FF"
+      ],
+      "emissive_intensity": 5,
+      "files": {
+        "tube": "eigyochu_window_tube.png",
+        "sdf": "eigyochu_window_sdf.png",
+        "glow": "eigyochu_window_glow.png",
+        "board_c": "eigyochu_window_board_c.png"
+      },
+      "board": {
+        "kind": "window_plate",
+        "margin_m": 0.02,
+        "depth_m": 0.02,
+        "mount": "hangs inside a lattice window on two fine chains",
+        "size_m": [
+          0.64,
+          0.382
+        ],
+        "px": [
+          1024,
+          512
+        ],
+        "sign_uv": {
+          "u0": 0.0313,
+          "v0": 0.1623,
+          "u1": 0.9688,
+          "v1": 0.9476
+        }
+      },
+      "placement": "inside a lit lattice window of any open shop; small, at eye level, a quiet detail"
+    },
+    {
+      "id": "oden_bar",
+      "text": "おでん",
+      "reading": "oden",
+      "meaning": "oden, a winter hotpot of simmered fishcakes and daikon",
+      "orientation": "horizontal",
+      "size_m": [
+        0.9,
+        0.45
+      ],
+      "canvas_px": [
+        1024,
+        512
+      ],
+      "px_per_m": 1137.8,
+      "tube_px": 14,
+      "tube_mm": 12.3,
+      "tube_colors": [
+        "#DCEBFF"
+      ],
+      "emissive_intensity": 4,
+      "files": {
+        "tube": "oden_bar_tube.png",
+        "sdf": "oden_bar_sdf.png",
+        "glow": "oden_bar_glow.png",
+        "board_c": "oden_bar_board_c.png"
+      },
+      "board": {
+        "kind": "lacquer_board",
+        "margin_m": 0.04,
+        "depth_m": 0.04,
+        "mount": "wall, flush on 25 mm standoffs",
+        "size_m": [
+          0.98,
+          0.53
+        ],
+        "px": [
+          1024,
+          512
+        ],
+        "sign_uv": {
+          "u0": 0.0408,
+          "v0": 0.0755,
+          "u1": 0.9592,
+          "v1": 0.9245
+        }
+      },
+      "placement": "oden cart / small stall at the foot of the shrine stair"
+    },
+    {
+      "id": "yado_vertical",
+      "text": "宿",
+      "reading": "yado",
+      "meaning": "inn, lodging",
+      "orientation": "vertical",
+      "size_m": [
+        0.45,
+        0.8
+      ],
+      "canvas_px": [
+        512,
+        1024
+      ],
+      "px_per_m": 1137.8,
+      "tube_px": 13,
+      "tube_mm": 11.4,
+      "tube_colors": [
+        "#E8141F"
+      ],
+      "emissive_intensity": 6,
+      "files": {
+        "tube": "yado_vertical_tube.png",
+        "sdf": "yado_vertical_sdf.png",
+        "glow": "yado_vertical_glow.png",
+        "board_c": "yado_vertical_board_c.png"
+      },
+      "board": {
+        "kind": "cedar_board",
+        "margin_m": 0.04,
+        "depth_m": 0.04,
+        "mount": "wall beside the inn's door, 25 mm standoffs",
+        "size_m": [
+          0.53,
+          0.88
+        ],
+        "px": [
+          512,
+          1024
+        ],
+        "sign_uv": {
+          "u0": 0.0755,
+          "v0": 0.0455,
+          "u1": 0.9245,
+          "v1": 0.9545
+        }
+      },
+      "placement": "the ryokan / inn on the upper terrace"
+    },
+    {
+      "id": "katana_wordmark",
+      "text": "›katana",
+      "reading": "katana",
+      "meaning": "the Katana wordmark: prompt chevron in red, name in cold white",
+      "orientation": "horizontal",
+      "size_m": [
+        1.8,
+        0.45
+      ],
+      "canvas_px": [
+        1024,
+        256
+      ],
+      "px_per_m": 568.9,
+      "tube_px": 9,
+      "tube_mm": 15.8,
+      "tube_colors": [
+        "#E8141F",
+        "#DCEBFF"
+      ],
+      "emissive_intensity": 5,
+      "files": {
+        "tube": "katana_wordmark_tube.png",
+        "sdf": "katana_wordmark_sdf.png",
+        "glow": "katana_wordmark_glow.png",
+        "board_c": "katana_wordmark_board_c.png"
+      },
+      "board": {
+        "kind": "raceway",
+        "margin_m": 0.03,
+        "depth_m": 0.07,
+        "mount": "black steel raceway bar, letters on 30 mm standoffs",
+        "size_m": [
+          1.86,
+          0.51
+        ],
+        "px": [
+          1024,
+          256
+        ],
+        "sign_uv": {
+          "u0": 0.0161,
+          "v0": 0.0588,
+          "u1": 0.9839,
+          "v1": 0.9412
+        }
+      },
+      "placement": "spawn wall / above the shrine plaza's hall; brand moment, max one per sightline"
+    },
+    {
+      "id": "katana_diamond",
+      "text": "◆",
+      "reading": "-",
+      "meaning": "the Katana diamond mark (the red ◆ of the brand), two nested tubes",
+      "orientation": "square",
+      "size_m": [
+        0.6,
+        0.6
+      ],
+      "canvas_px": [
+        1024,
+        1024
+      ],
+      "px_per_m": 1706.7,
+      "tube_px": 16,
+      "tube_mm": 9.4,
+      "tube_colors": [
+        "#E8141F"
+      ],
+      "emissive_intensity": 6,
+      "files": {
+        "tube": "katana_diamond_tube.png",
+        "sdf": "katana_diamond_sdf.png",
+        "glow": "katana_diamond_glow.png",
+        "board_c": "katana_diamond_board_c.png"
+      },
+      "board": {
+        "kind": "lacquer_diamond",
+        "margin_m": 0.05,
+        "depth_m": 0.05,
+        "mount": "wall, 4 standoffs 40 mm",
+        "size_m": [
+          0.7,
+          0.7
+        ],
+        "px": [
+          1024,
+          1024
+        ],
+        "sign_uv": {
+          "u0": 0.0714,
+          "v0": 0.0714,
+          "u1": 0.9286,
+          "v1": 0.9286
+        }
+      },
+      "placement": "LOW / UP lane plinths (pairs with the stone letters' red inset), objective markers, the garden gate"
+    }
+  ]
+}

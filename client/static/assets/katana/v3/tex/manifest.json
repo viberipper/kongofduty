@@ -1,0 +1,1353 @@
+{
+  "sets": {
+    "slate": {
+      "family": "ground",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 2.2,
+      "px_per_m": 465,
+      "files": {
+        "c": "slate_c.webp",
+        "n": "slate_n.webp",
+        "ormh": "slate_ormh.webp",
+        "c-low": "slate_c-low.webp",
+        "n-low": "slate_n-low.webp",
+        "ormh-low": "slate_ormh-low.webp"
+      },
+      "bytes": 533166,
+      "bytes_low": 228770,
+      "wet": {
+        "porosity": 0.35,
+        "wetRough": 0.12,
+        "puddle": true
+      },
+      "rough_dry": {
+        "p05": 0.651,
+        "p50": 0.671,
+        "p95": 0.733
+      },
+      "albedo": {
+        "mean_srgb": "#3b3e43",
+        "p01": 44,
+        "p50": 57,
+        "p99": 109
+      },
+      "seam": {
+        "u": 1.26,
+        "v": 2.1
+      },
+      "where": "Wet slate paving: garden paths, engawa landings, shrine-town alleys, stair treads",
+      "source": {
+        "provider": "Poly Haven",
+        "id": "patterned_slate_tiles",
+        "url": "https://polyhaven.com/a/patterned_slate_tiles",
+        "license": "CC0",
+        "authors": [
+          "Dimitrios Savva"
+        ]
+      }
+    },
+    "slate_crazy": {
+      "family": "ground",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 2.1,
+      "px_per_m": 488,
+      "files": {
+        "c": "slate_crazy_c.webp",
+        "n": "slate_crazy_n.webp",
+        "ormh": "slate_crazy_ormh.webp",
+        "c-low": "slate_crazy_c-low.webp",
+        "n-low": "slate_crazy_n-low.webp",
+        "ormh-low": "slate_crazy_ormh-low.webp"
+      },
+      "bytes": 880120,
+      "bytes_low": 289608,
+      "wet": {
+        "porosity": 0.4,
+        "wetRough": 0.12,
+        "puddle": true
+      },
+      "rough_dry": {
+        "p05": 0.608,
+        "p50": 0.671,
+        "p95": 0.765
+      },
+      "albedo": {
+        "mean_srgb": "#34373b",
+        "p01": 32,
+        "p50": 53,
+        "p99": 94
+      },
+      "seam": {
+        "u": 1.17,
+        "v": 0.81
+      },
+      "where": "Irregular (crazy-paved) slate for garden edges, tea-house yard, around the koi moat",
+      "source": {
+        "provider": "Poly Haven",
+        "id": "slate_driveway",
+        "url": "https://polyhaven.com/a/slate_driveway",
+        "license": "CC0",
+        "authors": [
+          "Dimitrios Savva"
+        ]
+      }
+    },
+    "granite_flag": {
+      "family": "ground",
+      "size": [
+        2048,
+        2048
+      ],
+      "tile_m": 3,
+      "px_per_m": 683,
+      "files": {
+        "c": "granite_flag_c.webp",
+        "n": "granite_flag_n.webp",
+        "ormh": "granite_flag_ormh.webp",
+        "c-low": "granite_flag_c-low.webp",
+        "n-low": "granite_flag_n-low.webp",
+        "ormh-low": "granite_flag_ormh-low.webp"
+      },
+      "bytes": 3467004,
+      "bytes_low": 202610,
+      "wet": {
+        "porosity": 0.45,
+        "wetRough": 0.14,
+        "puddle": true
+      },
+      "rough_dry": {
+        "p05": 0.741,
+        "p50": 0.839,
+        "p95": 0.914
+      },
+      "albedo": {
+        "mean_srgb": "#7c7f82",
+        "p01": 84,
+        "p50": 125,
+        "p99": 179
+      },
+      "seam": {
+        "u": 1.11,
+        "v": 3.77
+      },
+      "where": "Big pale granite flagstones: shrine plaza (tint pale), town main street (tint dark #55585c)",
+      "source": {
+        "provider": "Poly Haven",
+        "id": "large_floor_tiles_02",
+        "url": "https://polyhaven.com/a/large_floor_tiles_02",
+        "license": "CC0",
+        "authors": [
+          "Rob Tuytel"
+        ]
+      }
+    },
+    "cobble": {
+      "family": "ground",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 2,
+      "px_per_m": 512,
+      "files": {
+        "c": "cobble_c.webp",
+        "n": "cobble_n.webp",
+        "ormh": "cobble_ormh.webp",
+        "c-low": "cobble_c-low.webp",
+        "n-low": "cobble_n-low.webp",
+        "ormh-low": "cobble_ormh-low.webp"
+      },
+      "bytes": 974426,
+      "bytes_low": 283012,
+      "wet": {
+        "porosity": 0.5,
+        "wetRough": 0.14,
+        "puddle": true
+      },
+      "rough_dry": {
+        "p05": 0.42,
+        "p50": 0.557,
+        "p95": 0.776
+      },
+      "albedo": {
+        "mean_srgb": "#56595d",
+        "p01": 24,
+        "p50": 95,
+        "p99": 130
+      },
+      "seam": {
+        "u": 0.75,
+        "v": 0.79
+      },
+      "where": "Granite setts for the low-town street, gutters' edges, market square",
+      "source": {
+        "provider": "Poly Haven",
+        "id": "cobblestone_floor_08",
+        "url": "https://polyhaven.com/a/cobblestone_floor_08",
+        "license": "CC0",
+        "authors": [
+          "Rob Tuytel"
+        ]
+      }
+    },
+    "gravel": {
+      "family": "ground",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 1.5,
+      "px_per_m": 683,
+      "files": {
+        "c": "gravel_c.webp",
+        "n": "gravel_n.webp",
+        "ormh": "gravel_ormh.webp",
+        "c-low": "gravel_c-low.webp",
+        "n-low": "gravel_n-low.webp",
+        "ormh-low": "gravel_ormh-low.webp"
+      },
+      "bytes": 1682538,
+      "bytes_low": 521098,
+      "wet": {
+        "porosity": 0.3,
+        "wetRough": 0.35,
+        "puddle": false
+      },
+      "rough_dry": {
+        "p05": 0.4,
+        "p50": 0.505,
+        "p95": 0.557
+      },
+      "albedo": {
+        "mean_srgb": "#b9b8b2",
+        "p01": 141,
+        "p50": 185,
+        "p99": 219
+      },
+      "seam": {
+        "u": 0.67,
+        "v": 0.67
+      },
+      "where": "Pale gravel, unraked: margins, paths between beds, under bamboo",
+      "source": {
+        "provider": "ambientCG",
+        "id": "Gravel023",
+        "url": "https://ambientcg.com/a/Gravel023",
+        "license": "CC0",
+        "authors": [
+          "Lennart Demes (ambientCG)"
+        ]
+      }
+    },
+    "gravel_raked": {
+      "family": "ground",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 1.5,
+      "px_per_m": 683,
+      "files": {
+        "c": "gravel_raked_c.webp",
+        "n": "gravel_raked_n.webp",
+        "ormh": "gravel_raked_ormh.webp",
+        "c-low": "gravel_raked_c-low.webp",
+        "n-low": "gravel_raked_n-low.webp",
+        "ormh-low": "gravel_raked_ormh-low.webp"
+      },
+      "bytes": 1514498,
+      "bytes_low": 475244,
+      "wet": {
+        "porosity": 0.3,
+        "wetRough": 0.32,
+        "puddle": true
+      },
+      "rough_dry": {
+        "p05": 0.4,
+        "p50": 0.505,
+        "p95": 0.557
+      },
+      "albedo": {
+        "mean_srgb": "#b8b7b2",
+        "p01": 134,
+        "p50": 184,
+        "p99": 219
+      },
+      "seam": {
+        "u": 0.67,
+        "v": 0.54
+      },
+      "where": "Raked pale gravel (the bright ground), straight furrows every 7.5 cm along U; ring rakes around rocks need radial UVs",
+      "source": {
+        "provider": "ambientCG",
+        "id": "Gravel023",
+        "url": "https://ambientcg.com/a/Gravel023",
+        "license": "CC0",
+        "authors": [
+          "Lennart Demes (ambientCG)"
+        ]
+      }
+    },
+    "river_stone": {
+      "family": "ground",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 2,
+      "px_per_m": 512,
+      "files": {
+        "c": "river_stone_c.webp",
+        "n": "river_stone_n.webp",
+        "ormh": "river_stone_ormh.webp",
+        "c-low": "river_stone_c-low.webp",
+        "n-low": "river_stone_n-low.webp",
+        "ormh-low": "river_stone_ormh-low.webp"
+      },
+      "bytes": 776554,
+      "bytes_low": 251710,
+      "wet": {
+        "porosity": 0.25,
+        "wetRough": 0.08,
+        "puddle": true
+      },
+      "rough_dry": {
+        "p05": 0.801,
+        "p50": 0.815,
+        "p95": 0.833
+      },
+      "albedo": {
+        "mean_srgb": "#3c3d3e",
+        "p01": 43,
+        "p50": 59,
+        "p99": 85
+      },
+      "seam": {
+        "u": 0.71,
+        "v": 1.07
+      },
+      "where": "Black river stones: the sunken riverbed lane, moat margins, drip lines under eaves",
+      "source": {
+        "provider": "Poly Haven",
+        "id": "large_pebbles",
+        "url": "https://polyhaven.com/a/large_pebbles",
+        "license": "CC0",
+        "authors": [
+          "Charlotte Baglioni"
+        ]
+      }
+    },
+    "moss": {
+      "family": "ground",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 1,
+      "px_per_m": 1024,
+      "files": {
+        "c": "moss_c.webp",
+        "n": "moss_n.webp",
+        "ormh": "moss_ormh.webp",
+        "c-low": "moss_c-low.webp",
+        "n-low": "moss_n-low.webp",
+        "ormh-low": "moss_ormh-low.webp"
+      },
+      "bytes": 2185484,
+      "bytes_low": 489716,
+      "wet": {
+        "porosity": 0.3,
+        "wetRough": 0.45,
+        "puddle": false
+      },
+      "rough_dry": {
+        "p05": 0.583,
+        "p50": 0.67,
+        "p95": 0.743
+      },
+      "albedo": {
+        "mean_srgb": "#3d5528",
+        "p01": 38,
+        "p50": 74,
+        "p99": 133
+      },
+      "seam": {
+        "u": 0.9,
+        "v": 1.01
+      },
+      "where": "Deep moss: garden beds, rock tops, wall copings, stair joints (the only secondary colour)",
+      "source": {
+        "provider": "ambientCG",
+        "id": "Moss002",
+        "url": "https://ambientcg.com/a/Moss002",
+        "license": "CC0",
+        "authors": [
+          "Lennart Demes (ambientCG)"
+        ]
+      }
+    },
+    "mossy_rock": {
+      "family": "rock",
+      "size": [
+        2048,
+        2048
+      ],
+      "tile_m": 3,
+      "px_per_m": 683,
+      "files": {
+        "c": "mossy_rock_c.webp",
+        "n": "mossy_rock_n.webp",
+        "ormh": "mossy_rock_ormh.webp",
+        "c-low": "mossy_rock_c-low.webp",
+        "n-low": "mossy_rock_n-low.webp",
+        "ormh-low": "mossy_rock_ormh-low.webp"
+      },
+      "bytes": 4100930,
+      "bytes_low": 283040,
+      "wet": {
+        "porosity": 0.25,
+        "wetRough": 0.34,
+        "puddle": false,
+        "streaks": true
+      },
+      "rough_dry": {
+        "p05": 0.704,
+        "p50": 0.831,
+        "p95": 0.922
+      },
+      "albedo": {
+        "mean_srgb": "#5c6056",
+        "p01": 29,
+        "p50": 95,
+        "p99": 161
+      },
+      "seam": {
+        "u": 0.69,
+        "v": 2.26
+      },
+      "where": "Garden boulders, cliff faces, the katana dais rocks (triplanar on big rocks)",
+      "source": {
+        "provider": "Poly Haven",
+        "id": "mossy_rock",
+        "url": "https://polyhaven.com/a/mossy_rock",
+        "license": "CC0",
+        "authors": [
+          "Rob Tuytel"
+        ]
+      }
+    },
+    "ishigaki": {
+      "family": "wall",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 1.9,
+      "px_per_m": 539,
+      "files": {
+        "c": "ishigaki_c.webp",
+        "n": "ishigaki_n.webp",
+        "ormh": "ishigaki_ormh.webp",
+        "c-low": "ishigaki_c-low.webp",
+        "n-low": "ishigaki_n-low.webp",
+        "ormh-low": "ishigaki_ormh-low.webp"
+      },
+      "bytes": 1048570,
+      "bytes_low": 297552,
+      "wet": {
+        "porosity": 0.4,
+        "wetRough": 0.16,
+        "puddle": false,
+        "streaks": true
+      },
+      "rough_dry": {
+        "p05": 0.745,
+        "p50": 0.784,
+        "p95": 0.855
+      },
+      "albedo": {
+        "mean_srgb": "#626568",
+        "p01": 53,
+        "p50": 100,
+        "p99": 157
+      },
+      "seam": {
+        "u": 1.66,
+        "v": 0.79
+      },
+      "where": "Ishigaki dry-stone retaining walls: terrace walls, stair cheeks, castle-like bases",
+      "source": {
+        "provider": "Poly Haven",
+        "id": "japanese_stone_wall",
+        "url": "https://polyhaven.com/a/japanese_stone_wall",
+        "license": "CC0",
+        "authors": [
+          "Rico Cilliers",
+          "Charlotte Baglioni",
+          "Dario Barresi"
+        ]
+      }
+    },
+    "concrete": {
+      "family": "wall",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 2,
+      "px_per_m": 512,
+      "files": {
+        "c": "concrete_c.webp",
+        "n": "concrete_n.webp",
+        "ormh": "concrete_ormh.webp",
+        "c-low": "concrete_c-low.webp",
+        "n-low": "concrete_n-low.webp",
+        "ormh-low": "concrete_ormh-low.webp"
+      },
+      "bytes": 1104454,
+      "bytes_low": 367016,
+      "wet": {
+        "porosity": 0.6,
+        "wetRough": 0.22,
+        "puddle": false,
+        "streaks": true
+      },
+      "rough_dry": {
+        "p05": 0.733,
+        "p50": 0.773,
+        "p95": 0.808
+      },
+      "albedo": {
+        "mean_srgb": "#626463",
+        "p01": 76,
+        "p50": 100,
+        "p99": 119
+      },
+      "seam": {
+        "u": 1.11,
+        "v": 0.98
+      },
+      "where": "Cast retaining walls, aqueduct vault, culverts, modern repairs",
+      "source": {
+        "provider": "Poly Haven",
+        "id": "concrete_wall_006",
+        "url": "https://polyhaven.com/a/concrete_wall_006",
+        "license": "CC0",
+        "authors": [
+          "Dario Barresi",
+          "Charlotte Baglioni"
+        ]
+      }
+    },
+    "asphalt": {
+      "family": "ground",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 3,
+      "px_per_m": 341,
+      "files": {
+        "c": "asphalt_c.webp",
+        "n": "asphalt_n.webp",
+        "ormh": "asphalt_ormh.webp",
+        "c-low": "asphalt_c-low.webp",
+        "n-low": "asphalt_n-low.webp",
+        "ormh-low": "asphalt_ormh-low.webp"
+      },
+      "bytes": 1710004,
+      "bytes_low": 431228,
+      "wet": {
+        "porosity": 0.5,
+        "wetRough": 0.1,
+        "puddle": true
+      },
+      "rough_dry": {
+        "p05": 0.678,
+        "p50": 0.776,
+        "p95": 0.847
+      },
+      "albedo": {
+        "mean_srgb": "#3e3f41",
+        "p01": 23,
+        "p50": 60,
+        "p99": 132
+      },
+      "seam": {
+        "u": 0.84,
+        "v": 0.95
+      },
+      "where": "Old patched road at the town edge / service lane (use sparingly; slate and setts first)",
+      "source": {
+        "provider": "Poly Haven",
+        "id": "asphalt_02",
+        "url": "https://polyhaven.com/a/asphalt_02",
+        "license": "CC0",
+        "authors": [
+          "Rob Tuytel"
+        ]
+      }
+    },
+    "yakisugi": {
+      "family": "wood",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 2,
+      "px_per_m": 512,
+      "files": {
+        "c": "yakisugi_c.webp",
+        "n": "yakisugi_n.webp",
+        "ormh": "yakisugi_ormh.webp",
+        "c-low": "yakisugi_c-low.webp",
+        "n-low": "yakisugi_n-low.webp",
+        "ormh-low": "yakisugi_ormh-low.webp"
+      },
+      "bytes": 1747686,
+      "bytes_low": 570424,
+      "wet": {
+        "porosity": 0.3,
+        "wetRough": 0.45,
+        "puddle": false,
+        "streaks": true
+      },
+      "rough_dry": {
+        "p05": 0.46,
+        "p50": 0.614,
+        "p95": 0.951
+      },
+      "albedo": {
+        "mean_srgb": "#1d1d1f",
+        "p01": 6,
+        "p50": 31,
+        "p99": 60
+      },
+      "seam": {
+        "u": 1.16,
+        "v": 1.15
+      },
+      "where": "Charred cedar (shou sugi ban) vertical board cladding: machiya walls, garden walls, pagoda, tea house",
+      "source": {
+        "provider": "Poly Haven",
+        "id": "weathered_planks",
+        "url": "https://polyhaven.com/a/weathered_planks",
+        "license": "CC0",
+        "authors": [
+          "Dario Barresi",
+          "Dimitrios Savva"
+        ]
+      }
+    },
+    "cedar_deck": {
+      "family": "wood",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 2,
+      "px_per_m": 512,
+      "files": {
+        "c": "cedar_deck_c.webp",
+        "n": "cedar_deck_n.webp",
+        "ormh": "cedar_deck_ormh.webp",
+        "c-low": "cedar_deck_c-low.webp",
+        "n-low": "cedar_deck_n-low.webp",
+        "ormh-low": "cedar_deck_ormh-low.webp"
+      },
+      "bytes": 457886,
+      "bytes_low": 154618,
+      "wet": {
+        "porosity": 0.45,
+        "wetRough": 0.14,
+        "puddle": false
+      },
+      "rough_dry": {
+        "p05": 0.569,
+        "p50": 0.663,
+        "p95": 0.761
+      },
+      "albedo": {
+        "mean_srgb": "#4a423b",
+        "p01": 46,
+        "p50": 67,
+        "p99": 90
+      },
+      "seam": {
+        "u": 0.92,
+        "v": 0.62
+      },
+      "where": "Aged cedar engawa decking, bridges' treads, stair planks, roof walkways (boards along U)",
+      "source": {
+        "provider": "Poly Haven",
+        "id": "dark_wooden_planks",
+        "url": "https://polyhaven.com/a/dark_wooden_planks",
+        "license": "CC0",
+        "authors": [
+          "Amal Kumar"
+        ]
+      }
+    },
+    "cedar_lap": {
+      "family": "wood",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 2,
+      "px_per_m": 512,
+      "files": {
+        "c": "cedar_lap_c.webp",
+        "n": "cedar_lap_n.webp",
+        "ormh": "cedar_lap_ormh.webp",
+        "c-low": "cedar_lap_c-low.webp",
+        "n-low": "cedar_lap_n-low.webp",
+        "ormh-low": "cedar_lap_ormh-low.webp"
+      },
+      "bytes": 424632,
+      "bytes_low": 109462,
+      "wet": {
+        "porosity": 0.45,
+        "wetRough": 0.22,
+        "puddle": false,
+        "streaks": true
+      },
+      "rough_dry": {
+        "p05": 0.486,
+        "p50": 0.502,
+        "p95": 0.635
+      },
+      "albedo": {
+        "mean_srgb": "#4e4d4a",
+        "p01": 21,
+        "p50": 82,
+        "p99": 111
+      },
+      "seam": {
+        "u": 0.85,
+        "v": 1.31
+      },
+      "where": "Silvered aged cedar lap boards: machiya upper storeys, soffits, sheds, fences",
+      "source": {
+        "provider": "Poly Haven",
+        "id": "dark_planks",
+        "url": "https://polyhaven.com/a/dark_planks",
+        "license": "CC0",
+        "authors": [
+          "Rob Tuytel"
+        ]
+      }
+    },
+    "kawara": {
+      "family": "roof",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 1.5,
+      "px_per_m": 683,
+      "files": {
+        "c": "kawara_c.webp",
+        "n": "kawara_n.webp",
+        "ormh": "kawara_ormh.webp",
+        "c-low": "kawara_c-low.webp",
+        "n-low": "kawara_n-low.webp",
+        "ormh-low": "kawara_ormh-low.webp"
+      },
+      "bytes": 629482,
+      "bytes_low": 211082,
+      "wet": {
+        "porosity": 0.15,
+        "wetRough": 0.24,
+        "puddle": false,
+        "streaks": true
+      },
+      "rough_dry": {
+        "p05": 0.775,
+        "p50": 0.945,
+        "p95": 1
+      },
+      "albedo": {
+        "mean_srgb": "#393b40",
+        "p01": 21,
+        "p50": 61,
+        "p99": 95
+      },
+      "seam": {
+        "u": 1.81,
+        "v": 0.87
+      },
+      "where": "Dark kawara (S-profile pantile scan): every roof field, wall copings; courses run down-slope along V. Eave/ridge silhouettes are geometry (props kit)",
+      "source": {
+        "provider": "Poly Haven",
+        "id": "roof_tiles_14",
+        "url": "https://polyhaven.com/a/roof_tiles_14",
+        "license": "CC0",
+        "authors": [
+          "Rob Tuytel"
+        ]
+      }
+    },
+    "plaster": {
+      "family": "wall",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 2.5,
+      "px_per_m": 410,
+      "files": {
+        "c": "plaster_c.webp",
+        "n": "plaster_n.webp",
+        "ormh": "plaster_ormh.webp",
+        "c-low": "plaster_c-low.webp",
+        "n-low": "plaster_n-low.webp",
+        "ormh-low": "plaster_ormh-low.webp"
+      },
+      "bytes": 1048542,
+      "bytes_low": 304080,
+      "wet": {
+        "porosity": 0.5,
+        "wetRough": 0.4,
+        "puddle": false,
+        "streaks": true
+      },
+      "rough_dry": {
+        "p05": 0.384,
+        "p50": 0.498,
+        "p95": 0.616
+      },
+      "albedo": {
+        "mean_srgb": "#b3b1ab",
+        "p01": 136,
+        "p50": 179,
+        "p99": 198
+      },
+      "seam": {
+        "u": 0.9,
+        "v": 0.62
+      },
+      "where": "White lime plaster (shikkui): kura storehouse walls, tsuijibei earthen walls (tint #9d9a92), shrine infill",
+      "source": {
+        "provider": "ambientCG",
+        "id": "Plaster007",
+        "url": "https://ambientcg.com/a/Plaster007",
+        "license": "CC0",
+        "authors": [
+          "Lennart Demes (ambientCG)"
+        ]
+      }
+    },
+    "lacquer": {
+      "family": "wood",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 1,
+      "px_per_m": 1024,
+      "files": {
+        "c": "lacquer_c.webp",
+        "n": "lacquer_n.webp",
+        "ormh": "lacquer_ormh.webp",
+        "c-low": "lacquer_c-low.webp",
+        "n-low": "lacquer_n-low.webp",
+        "ormh-low": "lacquer_ormh-low.webp"
+      },
+      "bytes": 1175772,
+      "bytes_low": 274802,
+      "wet": {
+        "porosity": 0.05,
+        "wetRough": 0.06,
+        "puddle": false,
+        "streaks": true
+      },
+      "rough_dry": {
+        "p05": 0.026,
+        "p50": 0.115,
+        "p95": 0.208
+      },
+      "albedo": {
+        "mean_srgb": "#c3141c",
+        "p01": 44,
+        "p50": 55,
+        "p99": 95
+      },
+      "seam": {
+        "u": 0.94,
+        "v": 1.04
+      },
+      "where": "Vermilion/blade-red lacquer (#E8141F family): torii, bridges' rails, shrine posts. THE one red",
+      "source": {
+        "provider": "ambientCG",
+        "id": "PaintedWood003",
+        "url": "https://ambientcg.com/a/PaintedWood003",
+        "license": "CC0",
+        "authors": [
+          "Lennart Demes (ambientCG)"
+        ]
+      }
+    },
+    "bronze": {
+      "family": "metal",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 1,
+      "px_per_m": 1024,
+      "files": {
+        "c": "bronze_c.webp",
+        "n": "bronze_n.webp",
+        "ormh": "bronze_ormh.webp",
+        "c-low": "bronze_c-low.webp",
+        "n-low": "bronze_n-low.webp",
+        "ormh-low": "bronze_ormh-low.webp"
+      },
+      "bytes": 1013756,
+      "bytes_low": 295684,
+      "wet": {
+        "porosity": 0,
+        "wetRough": 0.12,
+        "puddle": false
+      },
+      "rough_dry": {
+        "p05": 0.353,
+        "p50": 0.486,
+        "p95": 0.639
+      },
+      "albedo": {
+        "mean_srgb": "#4e5a52",
+        "p01": 70,
+        "p50": 87,
+        "p99": 101
+      },
+      "seam": {
+        "u": 0.95,
+        "v": 0.91
+      },
+      "where": "Weathered bronze: temple bell, lantern caps, roof finials, gate fittings (verdigris patina)",
+      "source": {
+        "provider": "ambientCG",
+        "id": "Metal015",
+        "url": "https://ambientcg.com/a/Metal015",
+        "license": "CC0",
+        "authors": [
+          "Lennart Demes (ambientCG)"
+        ]
+      }
+    },
+    "iron": {
+      "family": "metal",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 1,
+      "px_per_m": 1024,
+      "files": {
+        "c": "iron_c.webp",
+        "n": "iron_n.webp",
+        "ormh": "iron_ormh.webp",
+        "c-low": "iron_c-low.webp",
+        "n-low": "iron_n-low.webp",
+        "ormh-low": "iron_ormh-low.webp"
+      },
+      "bytes": 868000,
+      "bytes_low": 318662,
+      "wet": {
+        "porosity": 0.1,
+        "wetRough": 0.2,
+        "puddle": false,
+        "streaks": true
+      },
+      "rough_dry": {
+        "p05": 0.506,
+        "p50": 0.745,
+        "p95": 0.804
+      },
+      "albedo": {
+        "mean_srgb": "#302e2e",
+        "p01": 15,
+        "p50": 36,
+        "p99": 107
+      },
+      "seam": {
+        "u": 0.92,
+        "v": 0.91
+      },
+      "where": "Black wrought iron: lantern brackets, drain grates, gutter chains, hinges (rust desaturated)",
+      "source": {
+        "provider": "Poly Haven",
+        "id": "rusty_metal_04",
+        "url": "https://polyhaven.com/a/rusty_metal_04",
+        "license": "CC0",
+        "authors": [
+          "Amal Kumar"
+        ]
+      }
+    },
+    "bamboo": {
+      "family": "plant",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 1.3,
+      "px_per_m": 788,
+      "files": {
+        "c": "bamboo_c.webp",
+        "n": "bamboo_n.webp",
+        "ormh": "bamboo_ormh.webp",
+        "c-low": "bamboo_c-low.webp",
+        "n-low": "bamboo_n-low.webp",
+        "ormh-low": "bamboo_ormh-low.webp"
+      },
+      "bytes": 400102,
+      "bytes_low": 130492,
+      "wet": {
+        "porosity": 0.1,
+        "wetRough": 0.12,
+        "puddle": false
+      },
+      "rough_dry": {
+        "p05": 0.463,
+        "p50": 0.522,
+        "p95": 0.627
+      },
+      "albedo": {
+        "mean_srgb": "#55603e",
+        "p01": 71,
+        "p50": 91,
+        "p99": 110
+      },
+      "seam": {
+        "u": 0.67,
+        "v": 1.74
+      },
+      "where": "Bamboo culm surface: living grove stems (cylinder UVs: U around, V up), spouts, fences",
+      "source": {
+        "provider": "ambientCG",
+        "id": "Bamboo001C",
+        "url": "https://ambientcg.com/a/Bamboo001C",
+        "license": "CC0",
+        "authors": [
+          "Lennart Demes (ambientCG)"
+        ]
+      }
+    },
+    "bamboo_fence": {
+      "family": "wood",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 2,
+      "px_per_m": 512,
+      "files": {
+        "c": "bamboo_fence_c.webp",
+        "n": "bamboo_fence_n.webp",
+        "ormh": "bamboo_fence_ormh.webp",
+        "c-low": "bamboo_fence_c-low.webp",
+        "n-low": "bamboo_fence_n-low.webp",
+        "ormh-low": "bamboo_fence_ormh-low.webp"
+      },
+      "bytes": 470318,
+      "bytes_low": 169518,
+      "wet": {
+        "porosity": 0.25,
+        "wetRough": 0.2,
+        "puddle": false,
+        "streaks": true
+      },
+      "rough_dry": {
+        "p05": 0.631,
+        "p50": 0.698,
+        "p95": 0.8
+      },
+      "albedo": {
+        "mean_srgb": "#5e5b4a",
+        "p01": 27,
+        "p50": 93,
+        "p99": 121
+      },
+      "seam": {
+        "u": 0.37,
+        "v": 1.21
+      },
+      "where": "Split-bamboo fence panels (misu-gaki): garden screens, spawn screens, riverbed lane walls",
+      "source": {
+        "provider": "Poly Haven",
+        "id": "bamboo_wall",
+        "url": "https://polyhaven.com/a/bamboo_wall",
+        "license": "CC0",
+        "authors": [
+          "Amal Kumar"
+        ]
+      }
+    },
+    "rope": {
+      "family": "fibre",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 0.5,
+      "px_per_m": 2048,
+      "files": {
+        "c": "rope_c.webp",
+        "n": "rope_n.webp",
+        "ormh": "rope_ormh.webp",
+        "c-low": "rope_c-low.webp",
+        "n-low": "rope_n-low.webp",
+        "ormh-low": "rope_ormh-low.webp"
+      },
+      "bytes": 969970,
+      "bytes_low": 289076,
+      "wet": {
+        "porosity": 0.6,
+        "wetRough": 0.55,
+        "puddle": false
+      },
+      "rough_dry": {
+        "p05": 0.431,
+        "p50": 0.627,
+        "p95": 0.929
+      },
+      "albedo": {
+        "mean_srgb": "#8f8567",
+        "p01": 53,
+        "p50": 137,
+        "p99": 182
+      },
+      "seam": {
+        "u": 1,
+        "v": 1.02
+      },
+      "where": "Straw rope (shimenawa) on the shrine and the sacred tree, well ropes, bundled fences",
+      "source": {
+        "provider": "ambientCG",
+        "id": "Rope001",
+        "url": "https://ambientcg.com/a/Rope001",
+        "license": "CC0",
+        "authors": [
+          "Lennart Demes (ambientCG)"
+        ]
+      }
+    },
+    "shoji": {
+      "family": "paper",
+      "size": [
+        512,
+        1024
+      ],
+      "tile_m": 1.8,
+      "px_per_m": 569,
+      "files": {
+        "c": "shoji_c.webp",
+        "n": "shoji_n.webp",
+        "ormh": "shoji_ormh.webp",
+        "c-low": "shoji_c-low.webp",
+        "n-low": "shoji_n-low.webp",
+        "ormh-low": "shoji_ormh-low.webp"
+      },
+      "bytes": 286700,
+      "bytes_low": 91150,
+      "wet": {
+        "porosity": 0,
+        "wetRough": 0.9,
+        "puddle": false
+      },
+      "rough_dry": {
+        "p05": 0.7,
+        "p50": 0.92,
+        "p95": 0.92
+      },
+      "albedo": {
+        "mean_srgb": "#b7b4a9",
+        "p01": 38,
+        "p50": 209,
+        "p99": 222
+      },
+      "seam": null,
+      "where": "One shoji panel (0.9 x 1.8 m, UV 0..1): washi paper + kumiko lattice; ormh.B = paper transmission for back-light (metalness forced 0)",
+      "panel_m": [
+        0.9,
+        1.8
+      ],
+      "transmission": "ormh.B",
+      "source": {
+        "provider": "ambientCG",
+        "id": "Paper002",
+        "url": "https://ambientcg.com/a/Paper002",
+        "license": "CC0",
+        "authors": [
+          "Lennart Demes (ambientCG)"
+        ]
+      }
+    },
+    "bamboo_leaves": {
+      "family": "foliage",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 1,
+      "px_per_m": 1024,
+      "files": {
+        "c": "bamboo_leaves_c.webp",
+        "n": "bamboo_leaves_n.webp",
+        "ormh": "bamboo_leaves_ormh.webp",
+        "c-low": "bamboo_leaves_c-low.webp",
+        "n-low": "bamboo_leaves_n-low.webp",
+        "ormh-low": "bamboo_leaves_ormh-low.webp"
+      },
+      "wet": {
+        "porosity": 0.1,
+        "wetRough": 0.25,
+        "puddle": false
+      },
+      "cutout": "ormh.B (alphaTest 0.5 + alphaToCoverage; metalness forced 0)",
+      "where": "Bamboo leaf spray card, 1 x 1 m, UV 0..1, hangs from the top edge; cross 2-3 cards per clump crown",
+      "source": {
+        "provider": "generated (scripts/katana-v3/fetch-textures.mjs)",
+        "license": "CC0"
+      }
+    },
+    "noren": {
+      "family": "cloth",
+      "size": [
+        1024,
+        1024
+      ],
+      "tile_m": 1,
+      "px_per_m": 1024,
+      "files": {
+        "c": "noren_c.webp",
+        "n": "noren_n.webp",
+        "ormh": "noren_ormh.webp",
+        "c-low": "noren_c-low.webp",
+        "n-low": "noren_n-low.webp",
+        "ormh-low": "noren_ormh-low.webp"
+      },
+      "bytes": 364336,
+      "bytes_low": 35404,
+      "wet": {
+        "porosity": 0.5,
+        "wetRough": 0.6,
+        "puddle": false
+      },
+      "rough_dry": {
+        "p05": 0.835,
+        "p50": 0.855,
+        "p95": 0.871
+      },
+      "albedo": {
+        "mean_srgb": "#9b2526",
+        "p01": 35,
+        "p50": 57,
+        "p99": 194
+      },
+      "seam": {
+        "u": 12.99,
+        "v": 1.18
+      },
+      "where": "Noren door curtain print, UV 0..1 over the whole curtain (both panels), linen weave baked 4x; white Katana diamond crest across the split",
+      "source": {
+        "provider": "ambientCG",
+        "id": "Fabric066",
+        "url": "https://ambientcg.com/a/Fabric066",
+        "license": "CC0",
+        "authors": [
+          "Lennart Demes (ambientCG)"
+        ]
+      }
+    }
+  },
+  "hdri": {
+    "kloppenheim_07_puresky": {
+      "file": "../hdri/kloppenheim_07_puresky_1k.hdr",
+      "role": "default: overcast moonlit night after rain (soft, cool)",
+      "url": "https://polyhaven.com/a/kloppenheim_07_puresky",
+      "authors": [
+        "Greg Zaal",
+        "Jarod Guest"
+      ],
+      "license": "CC0",
+      "bytes": 1282823
+    },
+    "kloppenheim_02_puresky": {
+      "file": "../hdri/kloppenheim_02_puresky_1k.hdr",
+      "role": "clear moon through thin haze (stronger moon highlight)",
+      "url": "https://polyhaven.com/a/kloppenheim_02_puresky",
+      "authors": [
+        "Greg Zaal",
+        "Jarod Guest"
+      ],
+      "license": "CC0",
+      "bytes": 1393622
+    },
+    "qwantani_moon_noon_puresky": {
+      "file": "../hdri/qwantani_moon_noon_puresky_1k.hdr",
+      "role": "high moon, deep blue clear sky (crisp reflections on lacquer/water)",
+      "url": "https://polyhaven.com/a/qwantani_moon_noon_puresky",
+      "authors": [
+        "Greg Zaal",
+        "Jarod Guest"
+      ],
+      "license": "CC0",
+      "bytes": 1220313
+    },
+    "narrow_moonlit_road": {
+      "file": "../hdri/narrow_moonlit_road_1k.hdr",
+      "role": "moonlit tree line (forest-edge reflections for the riverbed and moat)",
+      "url": "https://polyhaven.com/a/narrow_moonlit_road",
+      "authors": [
+        "Greg Zaal"
+      ],
+      "license": "CC0",
+      "bytes": 1727787
+    }
+  },
+  "util": {
+    "puddle_field": {
+      "file": "puddle_field.webp",
+      "tile_m": 12,
+      "channels": "R water-table field (lower = floods first), G large wetness breakup"
+    },
+    "rain_streaks": {
+      "file": "rain_streaks.webp",
+      "size": [
+        512,
+        1024
+      ],
+      "tile_m": [
+        1.5,
+        3
+      ],
+      "channels": "R streak intensity (vertical, world-space Y)"
+    },
+    "chochin": {
+      "file": "chochin_c.webp",
+      "size": [
+        1024,
+        512
+      ],
+      "uv": "U around 0..1, V top->bottom 0..1",
+      "use": "map + emissiveMap (emissive #ff3340-ish x 2-3), point light #E8141F inside"
+    }
+  },
+  "convention": {
+    "c": "sRGB base colour, RGB",
+    "n": "tangent-space normal, OpenGL (+Y), flipY=false",
+    "ormh": "linear RGBA: AO, roughness (dry), metalness, height 0..1",
+    "low": "512 px copies for the LOW/software tier",
+    "texel_density": ">= 512 px/m high tier"
+  }
+}

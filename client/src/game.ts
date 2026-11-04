@@ -113,7 +113,7 @@ import {
   NADE_HOLD_MAX,
   type NadePhase,
 } from "./viewmodel";
-import { BruiserActor, loadBruiserTemplate, type BruiserTemplate } from "./bruiser";
+import { BruiserActor, loadBruiserTemplate, setActorMaterialHook, type BruiserTemplate } from "./bruiser";
 import { NadeFx, BoomFx, ThrowMarker, NADE_R } from "./fx";
 // weapons stream: CoD tracers / per-surface impacts + decals / flesh / 3P flash / brass
 import { WeaponFx, viewmodelEject } from "./weapons/fx";
@@ -836,8 +836,8 @@ export class Game {
     if (TSL) await import("./astronaut").then((m) => m.setAstronautTsl(TSL)).catch(() => undefined);
     else void import("./astronaut").then((m) => m.setAstronautTsl(null)).catch(() => undefined);
     // THE WORLD-BUILDER DISPATCH. Jungle Shipment is the shipping map; ?classic
-    // keeps the original yard as a dev-only reference (1200+ unmerged draw calls
-    // — never ships).
+    // maps to the v2 reference world (world.ts) in every build, including
+    // prod — never silently the v3 art pass.
     //
     // ?map=dust2 now selects BOTH halves: the sim (colliders, spawns, nav,
     // grenade fence, floor plane, minimap, audio scale — live since Phase 2) and
@@ -846,7 +846,7 @@ export class Game {
     // Shipment bundle's boot path, and `MAP.id` is frozen long before this line
     // (shared/maps/index.ts resolves on shared/sim.ts's module body), so the
     // branch is decided, not raced.
-    const useClassic = import.meta.env.DEV && new URLSearchParams(location.search).has("classic");
+    const useClassic = new URLSearchParams(location.search).has("classic");
     if (MAP.id !== "shipment") {
       console.warn(`[map] booting "${MAP.id}" — ${MAP.solids.length} colliders, floorY ${MAP.floorY}.`);
     }
@@ -860,6 +860,7 @@ export class Game {
       Promise.all([NadeFx.create(TSL)]), // weapons stream: the banana-round tracer GLB is gone (WeaponFx)
     ]);
     bootStage("WORLD");
+    const wantKatanaGrey = new URLSearchParams(location.search).get("kvgrey") === "1";
     const world = useClassic
       ? buildWorld(this.renderer)
       : MAP.id === "ares"
@@ -871,7 +872,21 @@ export class Game {
             return m.buildAresWorld(this.renderer);
           })
         : MAP.id === "katana"
-        ? import("./katana-world").then(m => m.buildKatanaWorld(this.renderer))
+        // KATANA v3 (upstream 1:1): art-world per Default (?kvgrey=1 → grey-world).
+        // WebGL-only — die v3-Shader (onBeforeCompile/ShaderMaterial) laufen nicht auf
+        // WebGPU; dort bleibt bewusst die alte katana-world (mit WebGPU-Fallback).
+        // Die Grey-Blockout-Welt ist ebenfalls WebGL-only (ihr Clay+Shadow-Rig ist
+        // für den WebGL-Pfad abgestimmt): WebGPU + ?kvgrey warnt und bleibt auf v2,
+        // statt das Flag still zu schlucken.
+        // ?classic (world.ts) behält die v2-Darstellung als Referenz.
+        ? (this.backend === "webgpu"
+          ? (wantKatanaGrey
+            ? (console.warn("[katana] ?kvgrey=1 is WebGL-only (grey clay blockout); WebGPU stays on the v2 fallback."),
+              import("./katana-world").then(m => m.buildKatanaWorld(this.renderer)))
+            : import("./katana-world").then(m => m.buildKatanaWorld(this.renderer)))
+          : wantKatanaGrey
+            ? import("./katana-grey-world").then(m => m.buildKatanaWorld(this.renderer))
+            : import("./katana-v3/art-world").then(m => m.buildKatanaWorld(this.renderer)))
         : MAP.id === "nuketown" // nuketown: Blender-built map + PBR library (client/src/nuketown-world.ts)
           ? import("./nuketown-world").then(async (m) => {
               // The procedural sky is GLSL-only; its TSL port needs the module
@@ -894,11 +909,13 @@ export class Game {
     this.clampShadowRadii();
     // feel stream: Nuketown live events — clock tower = match clock, live POPULATION sign, the nuke at match end (client/src/nuketown-live.ts)
     if (MAP.id === "nuketown") await (await import("./nuketown-live")).attachNuketownLive(this);
+    // KATANA v3 score + rain (client/src/katana-audio.ts): lazy, never blocks the boot
+    if (MAP.id === "katana" && !this.testMode) void import("./katana-audio").then((m) => m.attachKatanaAudio(this));
     // November-December set dressing (client/src/xmas.ts) — ?xmas=1 / ?xmas=0 force it.
     {
       const xq = new URLSearchParams(location.search).get("xmas");
       const month = new Date().getMonth();
-      if (xq === "1" || (xq !== "0" && !this.testMode && (month === 10 || month === 11))) {
+      if (xq === "1" || (xq !== "0" && !this.testMode && MAP.id !== "katana" && (month === 10 || month === 11))) {
         this.world.scene.add((await import("./xmas")).buildXmas(MAP));
       }
     }
@@ -930,6 +947,11 @@ export class Game {
     // is swept by hand; its materials are shared by every actor cloned from it.
     maxAnisotropy(this.world.scene);
     maxAnisotropy(this.bruiserTpl.scene);
+    // katana v3 art: moonlit rim on every operator so silhouettes read at night in rain (?kvrim=0 for A/B)
+    if (MAP.id === "katana" && (this.world as unknown as { kvRig?: unknown }).kvRig && new URLSearchParams(location.search).get("kvrim") !== "0") {
+      const { kvRimMaterial } = await import("./katana-v3/art-world");
+      setActorMaterialHook(kvRimMaterial);
+    }
     if (softwareTier) softwareMaterials(this.world.scene, this.bruiserTpl.scene);
     bootStage("RENDER PIPELINE");
     // The map exposure as the basis (nuketown: NUKETOWN_EXPOSURE, katana:
@@ -938,8 +960,16 @@ export class Game {
     // Katana's 0.72 is authored for the WebGL sky rig; the WebGPU flat
     // fallback stays on the neutral basis — its background is a flat color,
     // not the graded dome, so the darkened basis would only dim it.
-    const ktSky = !ntSky && MAP.id === "katana" && this.backend !== "webgpu" ? await import("./katana-sky") : null;
+    const ktSky = !ntSky && MAP.id === "katana" && this.backend !== "webgpu" && useClassic ? await import("./katana-sky") : null;
     this.baseExposure = ntSky?.NUKETOWN_EXPOSURE ?? ktSky?.KATANA_EXPOSURE ?? 1.12;
+    // KATANA v3: die Exposure-Basis kommt aus dem jeweils aktiven v3-Modul
+    // (art 0.92 / grey 0.7) — upstream 1:1 via installKatanaPost, damit der
+    // Exposure-Slider relativ zur richtigen Basis skaliert.
+    if (MAP.id === "katana" && this.backend === "webgl" && !useClassic) {
+      this.baseExposure = wantKatanaGrey
+        ? (await import("./katana-grey-world")).KATANA_EXPOSURE
+        : (await import("./katana-v3/art-world")).KATANA_EXPOSURE;
+    }
     // M3: measure the map-authored shadow size BEFORE prefs touch it
     // (Shipment/Nuketown/Ares/Dust2: 4096). ?classic/minimalWorld sets
     // neither mapSize (default 512) nor castShadow — see mapShadowsOn.
@@ -1016,7 +1046,8 @@ export class Game {
     // MINOR 1 (3rd review): in split-depth mode (no EXT_clip_control) the
     // ViewmodelPass clears the scene depth after the world pass — AO would read
     // the far plane everywhere (silent no-op). Gate hard instead of running silently:
-    if (!softwareTier && this.depth!.mode !== "split") {
+    // Katana v3 bringt eigenes Baked-Light/AO (kein ContactAO — eigene Post-Kette).
+    if (MAP.id !== "katana" && !softwareTier && this.depth!.mode !== "split") {
       this.aoPass = new ContactAO(this.camera, this.composer, this.depth!.mode === "reversed", this.world!.scene, prefs().ao);
       // m1: couple in the Nuketown height fog (constants from nuketown-sky.ts —
       // no static import in ssao.ts, so the sky lands in no other
@@ -1028,14 +1059,35 @@ export class Game {
     } else if (this.depth!.mode === "split") {
       console.info("[gpu] ContactAO off: split depth mode clears scene depth for the viewmodel pass — AO would read far plane everywhere.");
     }
-    // AAA: selective HDR bloom (bloom.ts) — highlights only, no fullscreen wash.
-    this.bloomPass = new BloomPass();
-    this.composer.addPass(this.bloomPass);
-    // AAA: opt-in afterimage motion blur (motion-blur.ts), default OFF.
-    this.motionPass = new MotionBlurPass();
-    this.composer.addPass(this.motionPass);
-    this.grade = new ShaderPass(CINEMATIC);
-    this.composer.addPass(this.grade);
+    // KATANA v3 post stack (client/src/katana-v3/post.ts, upstream 1:1): cool moonlit
+    // grade ohne GRADE-Warmton, half-res bloom, wet-floor SSR auf dem High-Tier wenn die
+    // Welt ihr Wetness-Rig exponiert (`kvRig`). ?kvssr=0 / ?kvbloom=0 schalten ab (QA).
+    // Dafuer entfallen ContactAO/BloomPass/MotionBlurPass (eigene Kette, kein Doppel-Bloom).
+    // Nur wenn wirklich eine v3-Welt aktiv ist (?classic lädt die v2-Referenz —
+    // fremder World bekäme sonst den falschen v3-Grade). Grey hat kein kvRig
+    // (Blockout ohne Wetness-Rig): Grade ja, SSR nein.
+    if (MAP.id === "katana" && !new URLSearchParams(location.search).has("classic")) {
+      const { installKatanaPost } = await import("./katana-v3/post");
+      const qs = new URLSearchParams(location.search);
+      const rig = (this.world as unknown as { kvRig?: import("./katana-v3/wetness").WetnessRig }).kvRig;
+      const kp = installKatanaPost(this.composer, this.camera, {
+        reversed: this.depth!.mode === "reversed",
+        exposure: qs.get("kvgrey") === "1" ? (await import("./katana-grey-world")).KATANA_EXPOSURE : (await import("./katana-v3/art-world")).KATANA_EXPOSURE,
+        rig: qs.get("kvssr") === "0" ? undefined : rig,
+        quality: softwareTier ? "low" : "high",
+        bloom: !softwareTier && qs.get("kvbloom") !== "0",
+      });
+      this.grade = kp.grade;
+    } else {
+      // AAA: selective HDR bloom (bloom.ts) — highlights only, no fullscreen wash.
+      this.bloomPass = new BloomPass();
+      this.composer.addPass(this.bloomPass);
+      // AAA: opt-in afterimage motion blur (motion-blur.ts), default OFF.
+      this.motionPass = new MotionBlurPass();
+      this.composer.addPass(this.motionPass);
+      this.grade = new ShaderPass(CINEMATIC);
+      this.composer.addPass(this.grade);
+    }
     // ANTI-ALIASING, post-filter half. When the composer target carries no MSAA
     // samples (software tier, or the player picked a post filter) exactly one
     // fullscreen pass resolves edges: SMAA when chosen, FXAA otherwise.
@@ -1295,7 +1347,8 @@ export class Game {
       this.setSamples(samples);
     }
     // M4: real pixels for chroma/sharpness/DOF (uTexel), DPR-independent.
-    if (this.grade) {
+    // (Katana v3 grade hat kein uTexel — eigene Post-Kette.)
+    if (this.grade?.uniforms.uTexel) {
       const db = renderer.getDrawingBufferSize(new THREE.Vector2());
       this.grade.uniforms.uTexel.value.set(1 / Math.max(1, db.x), 1 / Math.max(1, db.y));
     }
@@ -1387,11 +1440,13 @@ export class Game {
       if (!on) this.motionPass.reset();
     }
     const g = this.grade.uniforms;
-    g.uChroma.value = p.chromatic && !sw ? 1 : 0;
-    g.uGrain.value = p.grain ? 1 : 0;
-    g.uVignette.value = p.vignette ? 1 : 0;
-    g.uSharpen.value = sw ? 0 : p.sharpen;
-    g.uDof.value = p.dof && !sw ? 1 : 0;
+    // CINEMATIC-Extras (uChroma/uGrain/uVignette/uSharpen/uDof) exist nur im map-agnostischen
+    // Grade; der Katana-v3-Grade (eigener Look in katana-v3/post.ts) kennt nur uExposure/uTime/uHurt/uAds.
+    if (g.uChroma) g.uChroma.value = p.chromatic && !sw ? 1 : 0;
+    if (g.uGrain) g.uGrain.value = p.grain ? 1 : 0;
+    if (g.uVignette) g.uVignette.value = p.vignette ? 1 : 0;
+    if (g.uSharpen) g.uSharpen.value = sw ? 0 : p.sharpen;
+    if (g.uDof) g.uDof.value = p.dof && !sw ? 1 : 0;
     // Exposure: signed map basis times player slider (1.12 = neutral).
     const exposure = this.baseExposure * (p.exposure / 1.12);
     g.uExposure.value = exposure;
@@ -3890,7 +3945,7 @@ export class Game {
           this.audio.play("hurt", { vol: 0.28 });
           rumbleHurt(); // gamepad stream: damage taken (no-op without pad)
           // Damage flash: WebGL into the grade, WebGPU into the pipeline.
-          if (this.grade) this.grade.uniforms.uHurt.value = 1;
+          if (this.grade?.uniforms.uHurt) this.grade.uniforms.uHurt.value = 1;
           else this.pipeline?.setHurt(1);
           // Blast damage points at the BANANA, not at whoever threw it three
           // seconds ago from somewhere else entirely.
@@ -4992,9 +5047,13 @@ export class Game {
     // CINEMATIC uniforms (WebGL) OR TSL pipeline tick (WebGPU): uTime/uHurt/
     // uAds live on exactly one of the two paths — never on both.
     if (this.grade) {
-      this.grade.uniforms.uTime.value += dt;
-      this.grade.uniforms.uHurt.value = Math.max(0, this.grade.uniforms.uHurt.value - dt * 2.4);
-      this.grade.uniforms.uAds.value = me?.ads ?? 0;
+      // Katana-v3-Grade kennt nur uExposure/uTime/uHurt/uAds, der map-agnostische
+      // CINEMATIC-Grade mehr (uChroma/…) — defensiv je Uniform prüfen, damit ein
+      // fremder Grade hier nie crasht.
+      const gu = this.grade.uniforms as Record<string, { value: number } | undefined>;
+      if (gu.uTime) gu.uTime.value += dt;
+      if (gu.uHurt) gu.uHurt.value = Math.max(0, gu.uHurt.value - dt * 2.4);
+      if (gu.uAds) gu.uAds.value = me?.ads ?? 0;
     } else {
       this.pipeline?.setAds(me?.ads ?? 0);
     }
@@ -5020,7 +5079,7 @@ export class Game {
       // The death flash belongs to the death, not to the cut: clear the blood
       // grade fast so the killcam is a clean picture of who did it. WebGPU:
       // the hurt decay runs in the pipeline tick (renderFrame), nothing here.
-      if (this.grade) this.grade.uniforms.uHurt.value *= Math.exp(-7 * dt);
+      if (this.grade?.uniforms.uHurt) this.grade.uniforms.uHurt.value *= Math.exp(-7 * dt);
       const k = this.players.get(this.killerId);
       if (replayOn) {
         // THE REPLAY: the camera is the killer's own eye, walked along the
