@@ -290,10 +290,7 @@ function toMenu(): void {
   show("menu", true);
   menuBusy(false);
   setCallsignChip(rememberedCallsign());
-  // KATANA v3 (upstream 1:1): die Map bringt ihren eigenen Menü-Loop (katana-audio.ts);
-  // auf der Katana-Seite ersetzt er den generischen Menü-Bed (kein Doppel-Loop).
-  if (PAGE_MAP === "katana") void import("./katana-audio").then((m) => m.katanaMenuMusic(true));
-  else startMenuMusic(menuSelection().map);
+  startMenuMusic(menuSelection().map);
   stripTransientParams(PAGE_MAP);
   if (document.pointerLockElement) document.exitPointerLock();
 }
@@ -473,10 +470,7 @@ async function deployRun(online: boolean, phase: MatchPhase | null = null, spect
   // a bot match or a phaseless deploy goes quiet now, a pre-game lobby keeps
   // its map's theme until the host starts (attachLobby onStart parks it).
   // The lobby runs the room's map (PAGE_MAP), not the menu card's.
-  // KATANA v3 (upstream 1:1): der Menü-Loop der Map übergibt an den Match-Score;
-  // auf der Katana-Seite läuft kein generischer Bed (kein Doppel-Loop).
-  if (PAGE_MAP === "katana") void import("./katana-audio").then((m) => m.katanaMenuMusic(false));
-  else if (phase === "pregame") selectMenuMusic(PAGE_MAP);
+  if (phase === "pregame") selectMenuMusic(PAGE_MAP);
   else stopMenuMusic();
   try {
     // Let the loading card paint before the synchronous bring-up behind it.
@@ -552,9 +546,7 @@ async function deployRun(online: boolean, phase: MatchPhase | null = null, spect
             // pre-game lobby should depend on).
             game.sprays?.clear();
             show("hud", false);
-            // KATANA v3: zurück in der Lobby wieder der Menü-Loop der Map (statt generischem Bed).
-            if (PAGE_MAP === "katana") void import("./katana-audio").then((m) => m.katanaMenuMusic(true));
-            else startMenuMusic(PAGE_MAP);
+            startMenuMusic(PAGE_MAP);
             if (document.pointerLockElement) document.exitPointerLock();
           },
           sfx,
@@ -924,17 +916,15 @@ async function boot(): Promise<void> {
       if (menuHomeVisible()) fireMenuPad("map-next");
     },
   });
-  initMenu(PAGE_MAP, (s) => { if (PAGE_MAP !== "katana") selectMenuMusic(s.map); });
-  if (PAGE_MAP !== "katana") initMenuMusic(menuSelection().map);
+  initMenu(PAGE_MAP, (s) => selectMenuMusic(s.map));
+  initMenuMusic(menuSelection().map);
   setCallsignChip(rememberedCallsign());
   show("boot", false);
   show("menu", true);
   // Re-evaluate now the menu is actually visible: the init-time sync above
   // ran while #menu still had `hidden` and parked. Pre-gesture this only
   // arms the track; the first real press starts it.
-  // KATANA v3 (upstream 1:1): auf der Katana-Seite läuft der Menü-Loop der Map.
-  if (PAGE_MAP === "katana") void import("./katana-audio").then((m) => m.katanaMenuMusic(true));
-  else startMenuMusic();
+  startMenuMusic();
 
   // RESUME WHAT THE PLAYER WAS DOING across a map-change reload.
   const intent = takeIntent(PAGE_MAP);

@@ -777,7 +777,8 @@ export class Game {
     // context type — a boot WebGLRenderer would block the WebGPU path.
     // Prefetch: the ~2 MB WebGPU chunk already loads during menu time, so
     // the deploy boot does not reload it (cached, one import per page load).
-    if (prefs().renderer !== "webgl") void probeThreeWebGpu().catch(() => undefined);
+    // Katana never takes the WebGPU path (init() forces "webgl"), so it prefetches nothing.
+    if (MAP.id !== "katana" && prefs().renderer !== "webgl") void probeThreeWebGpu().catch(() => undefined);
     this.camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.03, 420);
     this.camera.add(this.vm.root);
     // A hidden viewmodel must not remove a light and recompile the world on death.
@@ -808,7 +809,15 @@ export class Game {
     // (WebGPU-first, WebGL2 fallback with console warning — never a black
     // canvas) and initialises async. Everything after (PMREM, composer,
     // warm-up) needs the finished renderer.
-    const created = await createRenderer(this.canvas, prefs().renderer);
+    // KATANA is WebGL-only: its v3 shaders (onBeforeCompile/ShaderMaterial in
+    // katana-v3/) have no WebGPU/TSL port, so the saved pref is forced here —
+    // no WebGPU canvas on this map, whatever the player picked.
+    let rendererPref = prefs().renderer;
+    if (MAP.id === "katana" && rendererPref !== "webgl") {
+      console.info(`[gpu] katana is WebGL-only — forcing "webgl" (saved renderer pref: "${rendererPref}").`);
+      rendererPref = "webgl";
+    }
+    const created = await createRenderer(this.canvas, rendererPref);
     this.renderer = created.renderer;
     this.backend = created.backend;
     console.info(`[gpu] renderer: ${created.note}`);
@@ -873,20 +882,12 @@ export class Game {
           })
         : MAP.id === "katana"
         // KATANA v3 (upstream 1:1): art-world per Default (?kvgrey=1 → grey-world).
-        // WebGL-only — die v3-Shader (onBeforeCompile/ShaderMaterial) laufen nicht auf
-        // WebGPU; dort bleibt bewusst die alte katana-world (mit WebGPU-Fallback).
-        // Die Grey-Blockout-Welt ist ebenfalls WebGL-only (ihr Clay+Shadow-Rig ist
-        // für den WebGL-Pfad abgestimmt): WebGPU + ?kvgrey warnt und bleibt auf v2,
-        // statt das Flag still zu schlucken.
+        // WebGL-only (init() forces the pref above) — the v3 shaders
+        // (onBeforeCompile/ShaderMaterial) have no WebGPU port.
         // ?classic (world.ts) behält die v2-Darstellung als Referenz.
-        ? (this.backend === "webgpu"
-          ? (wantKatanaGrey
-            ? (console.warn("[katana] ?kvgrey=1 is WebGL-only (grey clay blockout); WebGPU stays on the v2 fallback."),
-              import("./katana-world").then(m => m.buildKatanaWorld(this.renderer)))
-            : import("./katana-world").then(m => m.buildKatanaWorld(this.renderer)))
-          : wantKatanaGrey
-            ? import("./katana-grey-world").then(m => m.buildKatanaWorld(this.renderer))
-            : import("./katana-v3/art-world").then(m => m.buildKatanaWorld(this.renderer)))
+        ? (wantKatanaGrey
+          ? import("./katana-grey-world").then(m => m.buildKatanaWorld(this.renderer))
+          : import("./katana-v3/art-world").then(m => m.buildKatanaWorld(this.renderer)))
         : MAP.id === "nuketown" // nuketown: Blender-built map + PBR library (client/src/nuketown-world.ts)
           ? import("./nuketown-world").then(async (m) => {
               // The procedural sky is GLSL-only; its TSL port needs the module
@@ -957,15 +958,12 @@ export class Game {
     // The map exposure as the basis (nuketown: NUKETOWN_EXPOSURE, katana:
     // KATANA_EXPOSURE); the exposure slider scales relative to it.
     const ntSky = MAP.id === "nuketown" ? await import("./nuketown-sky") : null;
-    // Katana's 0.72 is authored for the WebGL sky rig; the WebGPU flat
-    // fallback stays on the neutral basis — its background is a flat color,
-    // not the graded dome, so the darkened basis would only dim it.
-    const ktSky = !ntSky && MAP.id === "katana" && this.backend !== "webgpu" && useClassic ? await import("./katana-sky") : null;
+    const ktSky = !ntSky && MAP.id === "katana" && useClassic ? await import("./katana-sky") : null;
     this.baseExposure = ntSky?.NUKETOWN_EXPOSURE ?? ktSky?.KATANA_EXPOSURE ?? 1.12;
     // KATANA v3: die Exposure-Basis kommt aus dem jeweils aktiven v3-Modul
     // (art 0.92 / grey 0.7) — upstream 1:1 via installKatanaPost, damit der
     // Exposure-Slider relativ zur richtigen Basis skaliert.
-    if (MAP.id === "katana" && this.backend === "webgl" && !useClassic) {
+    if (MAP.id === "katana" && !useClassic) {
       this.baseExposure = wantKatanaGrey
         ? (await import("./katana-grey-world")).KATANA_EXPOSURE
         : (await import("./katana-v3/art-world")).KATANA_EXPOSURE;
