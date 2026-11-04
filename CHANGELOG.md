@@ -19,6 +19,7 @@ ports are NOT tracked here (see `docs/upstream-sync.md`).
 
 ### Fixed
 
+- `fix(katana): per-map menu music back, v3 strictly WebGL-only` — the menu and the lobby play the own per-map bed again (including the menu-katana theme) instead of the map's in-match score, which now runs only in live matches, and Katana forces the saved renderer pref to WebGL with the dead WebGPU branches removed (pending — uncommitted on `feat/katana-intro-outro`).
 - `fix(katana): harden the intro/outro port` — `?classic` maps to the v2 art kit in production builds as well, audio startup retries instead of falling back to null output, the manifest allowlist plus the same-origin loader keep asset fetches on-origin, and intervals and audio contexts are disposed on teardown (pending — uncommitted on `feat/katana-intro-outro`).
 
 ## 2026-11-02
